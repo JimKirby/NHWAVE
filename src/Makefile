@@ -61,7 +61,7 @@
 
 MODS  = mod_global.F	mod_util.F 
 
-MAIN  = nhwave.F 
+MAIN  = nhwave.F initialize.F
 
 SRCS = $(MODS)  $(MAIN)
 
