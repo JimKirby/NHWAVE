@@ -14,3 +14,6 @@ Development team members:
      Morteza Derakhti      derakhti@udel.edu     University of Delaware
      Cheng Zhang           chzhangudel           chzhang@udel.edu      University of Delaware
      
+Change history:
+
+11/07/16 - Kirby extracts initialize.F and two_layer_slide.F from nhwave.F
