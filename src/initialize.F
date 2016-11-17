@@ -1161,11 +1161,12 @@
 
 # if defined (TWOLAYERSLIDE)
      ALLOCATE(Ha(Mloc,Nloc),Hs(Mloc,Nloc),Ha0(Mloc,Nloc),Ua(Mloc,Nloc),Ua0(Mloc,Nloc),Va(Mloc,Nloc),Va0(Mloc,Nloc), &
-              HUa0(Mloc,Nloc),HVa0(Mloc,Nloc),HUa(Mloc,Nloc),HVa(Mloc,Nloc),Maska(Mloc,Nloc),  &
+              HUa0(Mloc,Nloc),HVa0(Mloc,Nloc),HUa(Mloc,Nloc),HVa(Mloc,Nloc),Maska(Mloc,Nloc),Slambda(Mloc,Nloc),  &
               SorceaX(Mloc,Nloc),SorceaY(Mloc,Nloc),DelxHa(Mloc,Nloc),DelxUa(Mloc,Nloc),DelxVa(Mloc,Nloc), &
               DelxHUa(Mloc,Nloc),DelxHVa(Mloc,Nloc),DelyHa(Mloc,Nloc),DelyUa(Mloc,Nloc),DelyVa(Mloc,Nloc), &
-              DelyHUa(Mloc,Nloc),DelyHVa(Mloc,Nloc),DepAng(Mloc,Nloc),CosAng(Mloc,Nloc),ForceX_UL(Mloc,NLoc), &
-              ForceY_UL(Mloc,Nloc),Grav_LL(Mloc,Nloc),DelxGrav(Mloc,Nloc),DelyGrav(Mloc,Nloc),wbar(Mloc,Nloc))
+              DelyHUa(Mloc,Nloc),DelyHVa(Mloc,Nloc),Grav_Lx(Mloc,Nloc),Grav_Ly(Mloc,Nloc),Grav_Lz(Mloc,Nloc), &
+              ForceX_UL(Mloc,NLoc),ForceY_UL(Mloc,Nloc),Grav_LL(Mloc,Nloc),DelxGravLz(Mloc,Nloc),DelyGravLz(Mloc,Nloc),  &
+              wbar(Mloc,Nloc))
 
      ALLOCATE(HaxL(Mloc1,Nloc),HaxR(Mloc1,Nloc),UaxL(Mloc1,Nloc),UaxR(Mloc1,Nloc),VaxL(Mloc1,Nloc),VaxR(Mloc1,Nloc), &
               HayL(Mloc,Nloc1),HayR(Mloc,Nloc1),UayL(Mloc,Nloc1),UayR(Mloc,Nloc1),VayL(Mloc,Nloc1),VayR(Mloc,Nloc1), &
@@ -1393,18 +1394,6 @@
 
      ! save the initial water depth
      Hc0 = Hc
-
-# if defined (TWOLAYERSLIDE)
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       DepAng(i,j) = (Hc0(i+1,j)-Hc0(i-1,j))/(2.0*dx)
-       DepAng(i,j) = atan(DepAng(i,j))
-       CosAng(i,j) = cos(DepAng(i,j))
-     enddo
-     enddo
-     call phi_2D_coll(DepAng)
-     call phi_2D_coll(CosAng)
-# endif
 
 # if defined (LANDSLIDE)
      if(trim(SlideType)=='RIGID') then
@@ -1776,80 +1765,8 @@
 
      Maska = 1     
 
-!    specify the landslide
-!     eslide = 0.717
-     alpha0 = SlopeAngle*pi/180.
-!     kb = 2.0*acosh(1.0/eslide)/SlideL
-!     kw = 2.0*acosh(1.0/eslide)/SlideW
-!     SlideX1 = SlideX0-0.5*SlideL*cos(alpha0)
-!     SlideX2 = SlideX0+0.5*SlideL*cos(alpha0)
+     call specify_slide
 
-     do j = 1,Nloc
-     do i = 1,Mloc
-!       if(xc(i)>=0.696.and. xc(i)<=0.8) then
-       if(xc(i)>=0.680.and.xc(i)<=0.8) then
-         zt = (xc(i)-0.680)*tan(35.0*pi/180.)
-       else
-         zt = 0.0
-       endif
-
-       Ha(i,j) = max(0.0,zt)
-       if(Ha(i,j)-0.001<=1.e-6) then
-         Maska(i,j) = 0
-         Ha(i,j) = 0.001
-       endif
-     enddo
-     enddo
-     Ha0 = Ha
-
-     do j = 1,Nloc
-     do i = 1,Mloc
-       if(Maska(i,j)==1) then
-         Ua(i,j) = SlideIniU
-       endif
-     enddo
-     enddo
-
-     ! update the thinckness of upper layer
-     do j = 1,Nloc
-     do i = 1,Mloc
-       if(Maska(i,j)==1) then
-         Hc(i,j) = Hc0(i,j)-Ha(i,j)
-       else
-         Hc(i,j) = Hc0(i,j)
-       endif
-     enddo
-     enddo
-
-     call phi_2D_coll(Ua)
-     Ua0 = Ua
-     HUa = Ha*Ua
-     HUa0 = HUa
-
-     ! reconstruct depth at x-y faces                                                                                          
-     do j = 1,Nloc
-     do i = 2,Mloc
-       Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
-     enddo
-     Hfx(1,j) = Hc(1,j)
-     Hfx(Mloc1,j) = Hc(Mloc,j)
-     enddo
-
-     do i = 1,Mloc
-     do j = 2,Nloc
-       Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
-     enddo
-     Hfy(i,1) = Hc(i,1)
-     Hfy(i,Nloc1) = Hc(i,Nloc)
-     enddo
-
-     ! derivatives of water depth at cell center
-     do j = 1,Nloc
-     do i = 1,Mloc
-       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
-       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
-     enddo
-     enddo
 # endif
 
      Tke = Zero
