@@ -1146,11 +1146,13 @@
        endif
 # endif
 
-!# if defined (TWOLAYERSLIDE)
-!       Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &             
-!          Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
-!          Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
-!# endif
+# if defined (TWOLAYERSLIDE)
+       if(D(i,j)>0.05) then
+         Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &             
+            Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
+            Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
+       endif
+# endif
 
        Coef(ic,6) = Coef(ic,6)+Coef(ic,13)
        Coef(ic,7) = Coef(ic,7)+Coef(ic,12)
@@ -4437,12 +4439,12 @@
 # if defined (TWOLAYERSLIDE)
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       tmp1 = abs(Ua(i,j))+sqrt(Grav_LL(i,j)*Ha(i,j))
+       tmp1 = abs(Ua(i,j))+sqrt(Grav_Lz(i,j)*Ha(i,j))
        tmp1 = max(tmp1,Small)
        dxonu = dx/tmp1
        if(dxonu<tmp2) tmp2=dxonu
 
-       tmp1 = abs(Va(i,j))+sqrt(Grav_LL(i,j)*Ha(i,j))
+       tmp1 = abs(Va(i,j))+sqrt(Grav_Lz(i,j)*Ha(i,j))
        tmp1 = max(tmp1,Small)
        dyonv = dy/tmp1
        if(dyonv<tmp2) tmp2=dyonv

@@ -136,9 +136,9 @@
                                               DelxHa,DelxUa,DelxVa,DelxHUa,DelxHVa,DelyHa,DelyUa,DelyVa, &
                                               DelyHUa,DelyHVa,HaxL,HaxR,UaxL,UaxR,VaxL,VaxR,HayL,HayR, &
                                               UayL,UayR,VayL,VayR,Kap,KapxL,KapxR,KapyL,KapyR,SaxL,SaxR, &
-                                              SaxS,SayL,SayR,SayS,DelxKap,DelyKap,DepAng,CosAng, &
-                                              ForceX_UL,ForceY_UL,Grav_LL,DelxGrav,DelyGrav,GravxL,GravxR, &
-                                              GravyL,GravyR,wbar
+                                              SaxS,SayL,SayR,SayS,DelxKap,DelyKap,Slambda, &
+                                              ForceX_UL,ForceY_UL,Grav_LL,DelxGravLz,DelyGravLz,GravxL,GravxR, &
+                                              GravyL,GravyR,wbar,Grav_Lx,Grav_Ly,Grav_Lz
      integer, dimension(:,:), allocatable :: Maska
 # endif
 
