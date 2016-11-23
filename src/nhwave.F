@@ -78,13 +78,6 @@
 !
      call initial
 !
-!    read nesting data (added by Cheng)
-!
-# if defined (COUPLING)
-     call read_nesting_file
-     TIME=TIME_COUPLING_1
-# endif
-!
 !-----------------------------------------------------------------------------------------
 !
 !    Model time stepping
@@ -92,11 +85,6 @@
 !-----------------------------------------------------------------------------------------
 !
      do while (TIME<TOTAL_TIME.and.RUN_STEP<SIM_STEPS)
-	 
-	   ! nesting (added by Cheng)
-# if defined (COUPLING)
-       call OneWayCoupling
-# endif
 
        ! time step     
        call estimate_dt
@@ -215,11 +203,6 @@
          endif
 # endif
 
-         ! nesting (added by Cheng)
-# if defined (COUPLING)
-         call OneWayCoupling
-# endif
-
        enddo
 
 # if defined (BALANCE2D)
@@ -238,9 +221,6 @@
          Screen_Count = Screen_Count-Screen_Intv
          call statistics
        endif
-	   
-	   ! added by Cheng for recording Hmax
-	   call max_min_property
 
        ! probe output to files
        if(NSTAT>0) then
@@ -261,11 +241,6 @@
        endif
       
      end do
-	 
-     ! close nesting file (added by Cheng)
-# if defined (COUPLING)
-     CLOSE(11)
-# endif
 
      ! write out wave height and setup
      if(WAVE_AVERAGE_ON) then
@@ -1082,10 +1057,6 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by cheng for nesting, search (COUPLING) to find rest in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
      i = Ibeg
      do k = Kbeg,Kend
      do j = Jbeg,Jend
@@ -1098,9 +1069,6 @@
        Coef(ic,14) = Zero
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -1108,9 +1076,6 @@
      ! right side
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      i = Iend
      do k = Kbeg,Kend
@@ -1124,9 +1089,6 @@
        Coef(ic,12) = Zero
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -1134,9 +1096,6 @@
      ! front side
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
 # endif
      j = Jbeg
      do k = Kbeg,Kend
@@ -1150,9 +1109,6 @@
        Coef(ic,15) = Zero
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -1160,9 +1116,6 @@
      ! back side
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
 # endif
      j = Jend
      do k = Kbeg,Kend
@@ -1176,9 +1129,6 @@
        Coef(ic,11) = Zero
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -1270,11 +1220,7 @@
      real(SP),dimension(:,:,:),allocatable :: R2,R3,R4
      real(SP) :: dedt,Umag,Dz1,Cdrag,Ustar2,Wtop,Wbot
      integer :: i,j,k,n,Ista,Nlen
-     ! added by Cheng for limiting the maximum Froude number
-# if defined(FROUDE_CAP)
-     REAL(SP) :: FroudeU,DUU,Dangle
-# endif
-	 
+
      Nlen = Kend-Kbeg+1
 
      allocate(qz(Mloc,Nloc))
@@ -1918,28 +1864,6 @@
      enddo
      enddo
      enddo
-	 
-	 ! added by Cheng for limiting the maximum Froude number
-# if defined(FROUDE_CAP)
-     DO K=Kbeg,Kend
-     DO J=Jbeg,Jend
-     DO I=Ibeg,Iend
-       IF(Mask(I,J)>0)THEN
-         FroudeU=SQRT(grav*D(I,J))*FROUDECAP*D(I,J)
-         DUU=SQRT(DU(I,J,K)**2+DV(I,J,K)**2)
-         IF(DUU>FroudeU)THEN
-          Dangle=atan2(DV(I,J,K),DU(I,J,K))
-          DU(I,J,K)=FroudeU*COS(Dangle)
-          DV(I,J,K)=FroudeU*SIN(Dangle)
-         ENDIF
-         IF(ABS(DW(I,J,K))>FroudeU)THEN
-          DW(I,J,K)=SIGN(FroudeU,DW(I,J,K))
-         ENDIF
-       ENDIF
-     ENDDO
-     ENDDO
-     ENDDO
-# endif
 
      ! boundary conditions and final velocity
      call get_UVW  
@@ -2885,11 +2809,7 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by cheng for nesting. Please search (COUPLING) for others in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
-	 do j = Jbeg,Jend
+     do j = Jbeg,Jend
      do k = Kbeg,Kend
        if(Bc_X0==1.or.Bc_X0==2) then
          Ex(Ibeg,j,k) = Zero
@@ -2905,18 +2825,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
@@ -2935,9 +2849,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -2945,9 +2856,6 @@
      ! front and back side
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
@@ -2960,18 +2868,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
@@ -2984,9 +2886,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -3601,116 +3500,6 @@
        enddo
        enddo
      endif
-	 
-	 ! Added by Cheng Zhang, internal wavemaker for irregular waves 
-     if(WaveMaker(1:7)=='INT_IRR') then
-       Source_Area = 0.0
-       do i = Ibeg,Iend
-         if(xc(i)>=Xsource_West.and.xc(i)<=Xsource_East) then
-           Source_Area = Source_Area+dx*D(i,Jbeg+1)
-         endif
-       enddo
-
-# if defined (PARALLEL)
-       call MPI_ALLREDUCE(Source_Area,myvar,1,MPI_SP,MPI_SUM,MPI_COMM_WORLD,ier)  
-       Source_Area = myvar/float(PY)
-# endif
-
-       do j = Jbeg,Jend
-       do i = Ibeg,Iend
-         SourceC(i,j) = Zero
-         if(xc(i)>=Xsource_West.and.xc(i)<=Xsource_East.and. &
-              yc(j)>=Ysource_Suth.and.yc(j)<=Ysource_Nrth) then
-           do nfreq = 1,NumFreq
-           do ndir = 1,NumDir
-             Per_Wave = 1.0/Freq(nfreq)
-             Segma = 2.0*pi/Per_Wave
-             Celerity = sqrt(Grav*Dep_Wave)
-             Wave_Length = Celerity*Per_Wave
-             Wave_Number = 2.0*pi/Wave_Length
-       
-             Iter = 0
-   95        Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 105
-             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  & 
-               Grav*tanh(Wave_Number*Dep_Wave)
-             Wave_Number = Wave_Number-Fk/Fkdif
-             Iter = Iter+1
-             goto 95
-   105        continue
-             Wave_Length = 2.0*pi/Wave_Number
-             Celerity = Wave_Length/Per_Wave
-
-             ! adjust wave direction for periodic bc
-             Angle = Dire(ndir)*pi/180.
-             if(Angle>zero) then
-               tmp3 = zero
-               tmp1 = Wave_Number
-               nk = 0
-               do while (tmp3<Angle)
-                 nk = nk+1
-                 tmp2 = nk*2.0*pi/(Nglob*dy)
-                 if(tmp2>=tmp1) then
-                   tmp3 = 0.5*pi-small
-                 else
-                   tmp3 = asin(tmp2/tmp1)
-                 endif
-               enddo
-
-               ! judge between nk-1 and nk which is closer                                          
-               tmp4 = asin((nk-1)*2.0*pi/(Nglob*dy)/tmp1)
-               if(abs(tmp4-Angle)<abs(Angle-tmp3)) then
-                 Angle = tmp4
-               else
-                 Angle = tmp3
-               endif
-             elseif (Angle<zero) then
-               tmp3 = zero
-               tmp1 = Wave_Number
-               nk = 0
-               do while (tmp3>Angle)
-                 nk = nk+1
-                tmp2 = nk*2.0*pi/(Nglob*dy)
-                 if(tmp2>=tmp1) then
-                   tmp3 = -0.5*pi+small
-                 else
-                   tmp3 = -asin(tmp2/tmp1)
-                 endif
-               enddo
-
-               ! judge between nk-1 and nk which is closer                                          
-               tmp4= asin((nk-1)*2.0*pi/(Nglob*dy)/tmp1)
-               if(abs(tmp4-Angle)<abs(Angle-tmp3)) then
-                 Angle = tmp4
-               else
-                 Angle = tmp3
-               endif
-			 else
-			   Angle = 0.0
-             endif
-
-             WnumX = Wave_Number*cos(Angle)
-             WnumY = Wave_Number*sin(Angle)
-
-             ! wave height for each component
-         
-             Amp_Wave = 2.0*Wave_Spc2d(ndir,nfreq)
-             Phs_lag = (dy/2.0+(j-Jbeg)*dy)*WnumY
-			 
-			 if(nfreq==1) then
-			   SourceC(i,j) = SourceC(i,j)+2*Celerity/Source_Area*  &
-                  (Amp_Wave/2*cos(pi/2-Segma*time+Phs_lag+  &
-				  Random_Phs(ndir,nfreq))+eta_mean)
-			 else
-               SourceC(i,j) = SourceC(i,j)+Celerity*Amp_Wave/Source_Area*  &
-                  cos(pi/2-Segma*time+Phs_lag+Random_Phs(ndir,nfreq)) 
-			 endif
-           enddo
-           enddo
-         endif
-       enddo
-       enddo
-     endif
 
      ! internal wavemaker for jonswap spectrum
      if((WaveMaker(1:7)=='INT_JON').or.(WaveMaker(1:7)=='INT_TMA')) then
@@ -4199,17 +3988,6 @@
          enddo
          enddo
          close(iu)
-	   ! added by Cheng to get the velocity at each layer
-	   elseif(zstat(n).eq.-1.0) then
-	     do j = Jbeg,Jend
-         do i = Ibeg,Iend
-           if(xstat(n)>=x(i).and.xstat(n)<=x(i+1).and.  &
-              ystat(n)>=y(j).and.ystat(n)<=y(j+1)) then
-             write(iu,'(100E14.6)') time,eta(i,j),(u(i,j,k),v(i,j,k),w(i,j,k),k=Kbeg,Kend)
-           endif
-         enddo
-         enddo
-		 close(iu)
        else
          do j = Jbeg,Jend
          do i = Ibeg,Iend
@@ -4358,18 +4136,6 @@
      if(OUT_A) then
        file=TRIM(FDIR)//'upwp_'//TRIM(FILE_NAME)
        call putfile3D(file,UpWp)
-     endif
-	 
-	 !added by Cheng for varying depth
-     if(OUT_Z) then
-       file=TRIM(FDIR)//'depth_'//TRIM(FILE_NAME)
-       call putfile2D(file,Hc)
-     endif
-	 
-	 !added by Cheng for recording Hmax
-     if(OUT_M) then
-       file=TRIM(FDIR)//'hmax_'//TRIM(FILE_NAME)
-       call putfile2D(file,HeightMax)
      endif
 
 # if defined (VEGETATION)
@@ -4765,10 +4531,6 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by Cheng for nesting. Please search for others with (COUPLING) in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        if(Bc_X0==1) then  ! free-slip wall
@@ -4830,18 +4592,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do k = Kbeg,Kend
      do j = Jbeg,Jend
@@ -4915,18 +4671,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
 # endif
      do k = Kbeg,Kend
      do i = Ibeg,Iend
@@ -4960,18 +4710,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
 # endif
      do k = Kbeg,Kend
      do i = Ibeg,Iend
@@ -5005,9 +4749,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -5249,10 +4990,6 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by Cheng for nesting. Please search for others with (COUPLING) in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        if(Bc_X0==1) then  ! free-slip wall
@@ -5303,18 +5040,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do k = Kbeg,Kend
      do j = Jbeg,Jend
@@ -5356,21 +5087,20 @@
          enddo
        elseif(Bc_Xn==6) then
          do i = 1,Nghost
-		 ! Changed by Cheng from Sommerfeld to Orlanski open boundary condition
-           Cg = -(U0(Iend+i-1,j,k)-U00(Iend+i-1,j,k)+1.e-16)/  &
-                 (U00(Iend+i-1,j,k)-U00(Iend+i-2,j,k)+1.e-16)
-!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
+!           Cg = -(U0(Iend+i-1,j,k)-U00(Iend+i-1,j,k)+1.e-16)/  &
+!                 (U00(Iend+i-1,j,k)-U00(Iend+i-2,j,k)+1.e-16)
+           Cg = sqrt(Grav*D(Iend,j))*dt/dx
            Cg = max(min(Cg,1.0),0.0)
            U(Iend+i,j,k) = Cg*U0(Iend+i-1,j,k)+(1.0-Cg)*U0(Iend+i,j,k)
 
-           Cg =-(V0(Iend+i-1,j,k)-V00(Iend+i-1,j,k)+1.e-16)/  &
-                 (V00(Iend+i-1,j,k)-V00(Iend+i-2,j,k)+1.e-16)
-           Cg= max(min(Cg,1.0),0.0)
+!           Cg =-(V0(Iend+i-1,j,k)-V00(Iend+i-1,j,k)+1.e-16)/  &
+!                 (V00(Iend+i-1,j,k)-V00(Iend+i-2,j,k)+1.e-16)
+!           Cg= max(min(Cg,1.0),0.0)
            V(Iend+i,j,k) = Cg*V0(Iend+i-1,j,k)+(1.0-Cg)*V0(Iend+i,j,k)
            
-           Cg =-(W0(Iend+i-1,j,k)-W00(Iend+i-1,j,k)+1.e-16)/  &
-                 (W00(Iend+i-1,j,k)-W00(Iend+i-2,j,k)+1.e-16)
-           Cg= max(min(Cg,1.0),0.0)
+!           Cg =-(W0(Iend+i-1,j,k)-W00(Iend+i-1,j,k)+1.e-16)/  &
+!                 (W00(Iend+i-1,j,k)-W00(Iend+i-2,j,k)+1.e-16)
+!           Cg= max(min(Cg,1.0),0.0)
            W(Iend+i,j,k) = Cg*W0(Iend+i-1,j,k)+(1.0-Cg)*W0(Iend+i,j,k)
 
            DU(Iend+i,j,k) = D(Iend+i,j)*U(Iend+i,j,k)
@@ -5389,18 +5119,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
 # endif
      do k = Kbeg,Kend
      do i = Ibeg,Iend
@@ -5434,18 +5158,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
 # endif
      do k = Kbeg,Kend
      do i = Ibeg,Iend
@@ -5479,9 +5197,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -5856,17 +5571,13 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by Cheng for nesting. Please search for others with (COUPLING) in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
      do j = Jbeg,Jend
        if(Bc_X0==1.or.Bc_X0==2) then  ! free/no-slip wall
          do i = 1,Nghost
            D(Ibeg-i,j) = D(Ibeg+i-1,j)
          enddo
        elseif(Bc_X0==3) then ! inflow
-         if((WaveMaker(1:7)=='LEF_TID').or.(WaveMaker(1:7)=='FLUX_LR')) then ! FLUX_LR is added by Cheng
+         if(WaveMaker(1:7)=='LEF_TID') then
            do i = 0,Nghost
              D(Ibeg-i,j) = Din_X0(j)
            enddo
@@ -5885,18 +5596,12 @@
          enddo
        endif
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do j = Jbeg,Jend
        if(Bc_Xn==1.or.Bc_Xn==2) then 
@@ -5913,11 +5618,10 @@
          enddo
        elseif(Bc_Xn==6) then 
          do i = 1,Nghost
-		 ! Changed by Cheng from Sommerfeld to Orlanski open boundary condition 
-           Cg =-(Eta0(Iend+i-1,j)-Eta00(Iend+i-1,j)+1.e-16)/  &
-                 (Eta00(Iend+i-1,j)-Eta00(Iend+i-2,j)+1.e-16)
-!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
-           Cg= max(min(Cg,1.0),0.0)  
+!           Cg =-(Eta0(Iend+i-1,j)-Eta00(Iend+i-1,j)+1.e-16)/  &
+!                 (Eta00(Iend+i-1,j)-Eta00(Iend+i-2,j)+1.e-16)
+!           Cg= max(min(Cg,1.0),0.0)
+           Cg = sqrt(Grav*D(Iend,j))*dt/dx
            Eta(Iend+i,j) = Cg*Eta0(Iend+i-1,j)+(1.0-Cg)*Eta0(Iend+i,j)
            D(Iend+i,j) = Hc(Iend+i,j)+Eta(Iend+i,j)
          enddo
@@ -5927,9 +5631,6 @@
          enddo
        endif
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -5937,18 +5638,12 @@
 ! y-direction and corners                                                                                                     
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
-# endif 
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
 # endif     
        do i = 1,Mloc
        do j = 1,Nghost
          D(i,j) = D(i,Jbeg+Nghost-j)
        enddo
        enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -5956,17 +5651,11 @@
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
 # endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
-# endif
        do i = 1,Mloc
        do j = 1,Nghost
          D(i,Jend+j) = D(i,Jend-j+1)
        enddo
        enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -6295,11 +5984,11 @@
      real(SP) :: Tim0(8),Cin0(8)
 # endif
 
-     Uavg_Left = 0.39
-     Uavg_Right = 0.39
+!     Uavg_Left = 0.116
+!     Uavg_Right = 0.116
 
-     FluxL = 0.0
-     FluxR = 0.0
+     FluxL = 3.7632e-2
+     FluxR = 3.7632e-2
 
      if(TRamp>0.0) then
        Ramp = tanh(TIME/TRamp)
@@ -6311,8 +6000,7 @@
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
      do j = 1,Nloc
-       ! Ein_X0(j) = 1.5*Eta(Ibeg,j)-0.5*Eta(Ibeg+1,j)
-	   Ein_X0(j) = 0.0 ! modified by Cheng to lock the influx boundary condition
+       Ein_X0(j) = 1.5*Eta(Ibeg,j)-0.5*Eta(Ibeg+1,j)
        Din_X0(j) = Ein_X0(j)+Hfx(Ibeg,j)
      enddo
 
@@ -6322,10 +6010,9 @@
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev1 = sigc(k)*Din_X0(j)
-	   ! changed by Cheng to impose velocity rather than flux
-       Uin_X0(j,k) = Ufric/Kappa*log(30.*Zlev1/Zob)*Ramp
-       FluxL = FluxL+dsig(k)*Din_X0(j)*dy*Uin_X0(j,k)
-!       Uin_X0(j,k) = FluxL/Din_X0(j)
+!       Uin_X0(j,k) = Ufric/Kappa*log(30.*Zlev1/Zob)*Ramp
+!       FluxL = FluxL+dsig(k)*Din_X0(j)*dy*Uin_X0(j,k)
+       Uin_X0(j,k) = FluxL/Din_X0(j)
        Win_X0(j,k) = 0.0
        Vin_X0(j,k) = 0.0
 
@@ -6383,9 +6070,8 @@
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev2 = sigc(k)*Din_Xn(j)
-	   ! changed by Cheng to impose velocity rather than flux
-       Uin_Xn(j,k) = FluxL/(Din_Xn(Jbeg)*dy*float(Nglob))
-!       Uin_Xn(j,k) = FluxR/Din_Xn(j)
+!       Uin_Xn(j,k) = FluxL/(Din_Xn(Jbeg)*dy*float(Nglob))
+       Uin_Xn(j,k) = FluxR/Din_Xn(j)
        Win_Xn(j,k) = 0.0
        Vin_Xn(j,k) = 0.0
 
@@ -8651,19 +8337,11 @@
     ! at boundaries
     call flux_scalar_bc(IVAR,Scalx,Scaly,Scalz)
 
-    ! Schmidt number (fixed by Cheng for RNG)
+    ! Schmidt number
     if(IVAR==1) then  ! tke eq.
-      if (RNG) then
-        SchtH = 0.72
-      else
-        SchtH = 1.0
-      endif
+      SchtH = 1.0
     elseif(IVAR==2) then  ! epsilon eq.
-      if (RNG) then
-         SchtH = 0.72
-      else
-         SchtH = 1.3
-      endif
+      SchtH = 1.3
     elseif(IVAR==5) then ! bubble
       SchtH = 0.7
     elseif(IVAR==6) then ! sediment
@@ -8759,10 +8437,10 @@
     do j = Jbeg,Jend
     do i = Ibeg,Iend
       if(Mask(i,j)==0) cycle
-      R5(i,j,k) = -1.0/dx*(Scalx(i+1,j,k)-Scalx(i,j,k))  &
-                  -1.0/dy*(Scaly(i,j+1,k)-Scaly(i,j,k))  &
-                  -1.0/dsig(k)*(Scalz(i,j,k+1)-Scalz(i,j,k)) &
-                  +Sdiffx(i,j,k)+Sdiffy(i,j,k)
+      R5(i,j,k) = -1.0/dx*(Scalx(i+1,j,k)-Scalx(i,j,k))-  &
+                  1.0/dy*(Scaly(i,j+1,k)-Scaly(i,j,k))  &
+                  -1.0/dsig(k)*(Scalz(i,j,k+1)-Scalz(i,j,k))+ &
+                  Sdiffx(i,j,k)+Sdiffy(i,j,k)
     enddo
     enddo
     enddo
@@ -8832,9 +8510,6 @@
     integer :: i,j,k
 
     ! temporarily set it here
-	! added by Cheng for initialization
-	Scal_X0 = Zero
-	Scal_Xn = Zero
 # if defined (SEDIMENT)
     Scal_X0 = Sed_X0
     Scal_Xn = Sed_Xn
@@ -8848,10 +8523,6 @@
 # if defined (PARALLEL)
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
-! added by Cheng for nesting. Please search for others with (COUPLING) in this subroutine
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_WEST)THEN
-# endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
        if(Bc_X0==1.or.Bc_X0==2) then
@@ -8861,18 +8532,12 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
 
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
-# endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
@@ -8883,9 +8548,6 @@
 !       endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif      
@@ -8894,9 +8556,6 @@
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
 # endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_SOUTH)THEN
-# endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
        if(Bc_Y0==1.or.Bc_Y0==2) then
@@ -8904,9 +8563,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -8915,9 +8571,6 @@
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
 # endif
-# if defined (COUPLING)
-    IF(.NOT.IN_DOMAIN_NORTH)THEN
-# endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
        if(Bc_Yn==1.or.Bc_Yn==2) then
@@ -8925,9 +8578,6 @@
        endif
      enddo
      enddo
-# if defined (COUPLING)
-    ENDIF
-# endif
 # if defined (PARALLEL)
      endif
 # endif
@@ -11809,13 +11459,7 @@
       if(D(i,j)>=Dmin.and.Mask(i,j)==1) then
         Tke(i,j,k) = DTke(i,j,k)/D(i,j)
         Eps(i,j,k) = DEps(i,j,k)/D(i,j)
-
-        ! If turbulence is too small, assume small eddy viscosity (added by Cheng)
-        if(Tke(i,j,k)<1.e-6.or.Eps(i,j,k)<1.e-6) then
-          CmuVt(i,j,k) = Cmut_min
-        else
-          CmuVt(i,j,k) = Cmiu*Tke(i,j,k)**2/Eps(i,j,k)
-        endif
+        CmuVt(i,j,k) = Cmiu*Tke(i,j,k)**2/Eps(i,j,k)
       else
         Tke(i,j,k) = Tke_min
         Eps(i,j,k) = Eps_min
@@ -14641,1071 +14285,5 @@
     return
     end subroutine read_porosity
 # endif
-
-!---------------------------------------------------------------------
-!   Record the max runup of wave
-!   By Fengyan Shi (Cheng Zhang), 20/11/2016
-!---------------------------------------------------------------------
-SUBROUTINE max_min_property
-     use global
-     implicit none
-	integer :: i,j
- 
-      DO j = Jbeg,Jend
-      DO i = Ibeg,Iend
-       IF(OUT_M)THEN
-        IF(MASK(i,j).GT.0)THEN
-        IF(Eta(i,j).GT.HeightMax(i,j)) HeightMax(i,j)=Eta(i,j)
-        ENDIF
-       ENDIF
-	   
-      ENDDO
-      ENDDO
- 
-END SUBROUTINE max_min_property
-
-!---------------------------------------------------------------------
-!   Hot start function for the simulation
-!   including subroutine read_2d and subroutine read_3d
-!   By Fengyan Shi (Cheng Zhang), 21/11/2016
-!---------------------------------------------------------------------
-SUBROUTINE hot_start
-      use global
-     implicit none
-     integer :: i,j,k,Iglob,Jglob
-     character(LEN=80) :: file=''
-     REAL(SP),DIMENSION(:,:,:),ALLOCATABLE :: TMP_READ
-     REAL(SP),DIMENSION(Mloc,Nloc) :: R1
-     REAL(SP) :: TIME0,Cmiu
-	 
-    if (RNG) then
-       cmiu = 0.085
-    else
-       cmiu = 0.09
-    endif
-
-     open(5,file='time0.dat')
-     read(5,*) TIME0,Icount
-     close(5)
-
-     TIME=TIME0
-
-     file=TRIM(Eta_HotStart_File)
-     call read_2d(Eta,file)
-     
-     file=TRIM(U_HotStart_File)
-     call read_3d(u,file)
-
-     file=TRIM(V_HotStart_File)
-     call read_3d(v,file)
-
-     file=TRIM(W_HotStart_File)
-     call read_3d(w,file)
-
-     file=TRIM(P_HotStart_File)
-     call read_3d(p,file)
-
-
-    IF(VISCOUS_FLOW)THEN
-!     file=TRIM(Rho_HotStart_File)
-!     call read_3d(Rho,file)
-
-     file=TRIM(TKE_HotStart_File)
-     call read_3d(Tke,file)
-
-     file=TRIM(EPS_HotStart_File)
-     call read_3d(Eps,file)
-    ENDIF
-
-# if defined (SALINITY)
-     file=TRIM(Sali_HotStart_File)
-     call read_3d(Sali,file)
-
-     file=TRIM(Temp_HotStart_File)
-     call read_3d(Temp,file)
-
-# endif
-
-! prepare all initials
-
-! eta
-     ! collect data into ghost cells
-     call phi_2D_coll(Eta)
-     Eta0 = Eta
-     Mask = 1
-     do j = 1,Nloc
-     do i = 1,Mloc
-       if((Eta(i,j)+Hc(i,j))<=MinDep) then
-         Mask(i,j) = 0
-         Eta(i,j) = MinDep-Hc(i,j)
-       else
-         Mask(i,j) = 1
-       endif
-     enddo
-     enddo
-
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-      Mask9(i,j) = Mask(i,j)*Mask(i-1,j)*Mask(i+1,j)  &
-                *Mask(i+1,j+1)*Mask(i,j+1)*Mask(i-1,j+1) &
-                *Mask(i+1,j-1)*Mask(i,j-1)*Mask(i-1,j-1)
-     enddo
-     enddo
-
-     D = max(Hc+Eta, MinDep)
-
-! uvw
-
-
-     call vel_bc(1)
-# if defined (PARALLEL)
-     call phi_3D_exch(U)
-     call phi_3D_exch(V)
-     call phi_3D_exch(W)
-# endif
-
-# if defined (SALINITY)
-! sali
-     call sali_bc(1)  
-# endif  
-
-     do k = 1,Kloc
-     do j = 1,Nloc
-     do i = 1,Mloc
-       DU(i,j,k) = D(i,j)*U(i,j,k)*Mask(i,j)
-       DV(i,j,k) = D(i,j)*V(i,j,k)*Mask(i,j)
-       DW(i,j,k) = D(i,j)*W(i,j,k)*Mask(i,j)
-# if defined (SALINITY)
-       DSali(I,J,K)=D(I,J)*Sali(I,J,K)
-       DTemp(I,J,K)=D(I,J)*Temp(I,J,K)
-# endif
-     enddo
-     enddo
-     enddo
-
-  IF(VISCOUS_FLOW)THEN
-     DO K=1,Kloc
-     DO J=1,Nloc
-     DO I=1,Mloc
-       DTke(I,J,K)=D(I,J)*Tke(I,J,K)
-       DEps(I,J,K)=D(I,J)*Eps(I,J,K)
-     ENDDO
-     ENDDO
-     ENDDO
-
-    do i = 1,Mloc
-    do j = 1,Nloc
-    do k = 1,Kloc
-      if(D(i,j)>=MinDep.and.Mask(i,j)==1) then
-        CmuVt(i,j,k) = Cmiu*Tke(i,j,k)**2/MAX(Eps(i,j,k),Eps_min)
-      else
-        CmuVt(i,j,k) = Cmut_min
-      endif
-    enddo
-    enddo
-    enddo
-
-    CmuHt = CmuVt   ! for IHturb>=10
-   
-   ELSE
-    do i = 1,Mloc
-    do j = 1,Nloc
-    do k = 1,Kloc       
-       CmuVt(I,J,K) = Cmut_min
-       CmuHt(I,J,K) = Cmut_min
-    enddo
-    enddo
-    enddo
-
-   ENDIF ! end viscous_flow
-
-
-#if defined (SALINITY)
-     call eval_dens
-# endif
-
-END SUBROUTINE hot_start
-
-SUBROUTINE read_2d(phi,filename)
-      use global
-     implicit none
-     integer :: i,j,k, Jglob,Iglob
-     REAL(SP),DIMENSION(:,:),ALLOCATABLE :: TMP_READ
-     REAL(SP),INTENT(OUT) :: PHI(Mloc,Nloc)
-     character(len=80),INTENT(in) :: filename
-
-     ALLOCATE (TMP_READ(Mglob,Nglob))
-
-    
-     OPEN(5,FILE=trim(filename),STATUS='OLD')
-        DO J=1,Nglob
-          READ(5,*)(TMP_READ(I,J),I=1,Mglob)
-        ENDDO
-     CLOSE(5)
-
-# if defined (PARALLEL)
- 
-       DO J=Jbeg,Jend
-       DO I=Ibeg,Iend
-           Iglob = npx*(Mloc-2*Nghost)+i-Nghost
-           Jglob = npy*(Nloc-2*Nghost)+j-Nghost
-         phi(I,J)=TMP_READ(Iglob,Jglob)
-       ENDDO
-       ENDDO
-# else
-
-       DO J=Jbeg,Jend
-       DO I=Ibeg,Iend
-           Iglob = i-Nghost
-           Jglob = j-Nghost
-           phi(I,J)=TMP_READ(Iglob,Jglob)
-       ENDDO
-       ENDDO
-  
- 
-# endif
-
- 
-     DEALLOCATE (TMP_READ)
-END SUBROUTINE read_2d
-
-SUBROUTINE read_3d(phi,filename)
-      use global
-     implicit none
-     integer :: i,j,k,Jglob,Iglob
-     REAL(SP),INTENT(OUT) :: PHI(Mloc,Nloc,Kloc)
-     character(len=80),INTENT(in) :: filename
-     REAL(SP),DIMENSION(:,:,:),ALLOCATABLE :: TMP_READ
-  
-     ALLOCATE (TMP_READ(Mglob,Nglob,Kglob))
-     
-    
-     OPEN(5,FILE=trim(filename),STATUS='OLD')
-       DO K=1,Kglob
-        DO J=1,Nglob
-          READ(5,*)(TMP_READ(I,J,K),I=1,Mglob)
-        ENDDO
-       ENDDO
-     CLOSE(5)
-
-# if defined (PARALLEL)
-       DO K=Kbeg,Kend
-       DO J=Jbeg,Jend
-       DO I=Ibeg,Iend
-           Iglob = npx*(Mloc-2*Nghost)+i-Nghost
-           Jglob = npy*(Nloc-2*Nghost)+j-Nghost
-         phi(I,J,K)=TMP_READ(Iglob,Jglob,K-Nghost)
-       ENDDO
-       ENDDO
-      
-     ENDDO
-# else
-       DO K=Kbeg,Kend
-       DO J=Jbeg,Jend
-       DO I=Ibeg,Iend
-           Iglob = i-Nghost
-           Jglob = j-Nghost
-           phi(I,J,K)=TMP_READ(Iglob,Jglob,K-Nghost)
-       ENDDO
-       ENDDO
-  
-     ENDDO
-# endif
-
-
-     DEALLOCATE (TMP_READ)
-END SUBROUTINE read_3d
-
-! added by Cheng for nesting (following two subroutines)
-# if defined (COUPLING)
-!---------------------------------------------------
-!    This subroutine is used to read nesting file at the first time
-!    Called by 
-!       main
-!    Last update: 05/15/2013, fyshi
-!---------------------------------------------------
-SUBROUTINE READ_NESTING_FILE
-     use global
-     use input_util
-     implicit none
-     INTEGER :: I,J,K
-       OPEN(11,FILE=TRIM(COUPLING_FILE))
-         READ(11,*)  ! title
-         READ(11,*)  ! boundary info
-! boundary basic info including point number of coupling, start point, etc
-! east
-         READ(11,*)  ! east
-         READ(11,*) N_COUPLING_EAST,J_START_EAST
-! west 
-         READ(11,*)  ! west
-         READ(11,*) N_COUPLING_WEST,J_START_WEST
-! south 
-         READ(11,*)  ! south
-         READ(11,*) N_COUPLING_SOUTH,I_START_SOUTH
-! north 
-         READ(11,*)  ! north
-         READ(11,*) N_COUPLING_NORTH,I_START_NORTH
-
-! read time and variable at the first level
-
-         READ(11,*) ! time start title
-         READ(11,*) TIME_COUPLING_1 
-! initialize time_2
-         TIME_COUPLING_2 = TIME_COUPLING_1
-
-! east
-         IF(N_COUPLING_EAST.GT.0)THEN
-           ALLOCATE(U_COUPLING_EAST(N_COUPLING_EAST,Kglob,2),&
-               V_COUPLING_EAST(N_COUPLING_EAST,Kglob,2),&
-               W_COUPLING_EAST(N_COUPLING_EAST,Kglob,2),&
-               Z_COUPLING_EAST(N_COUPLING_EAST,2), &
-               P_COUPLING_EAST(N_COUPLING_EAST,Kglob,2))
-# if defined (SALINITY)
-           ALLOCATE(S_COUPLING_EAST(N_COUPLING_EAST,Kglob,2))
-# endif	
-# if defined (TEMPERATURE)	
-           ALLOCATE(T_COUPLING_EAST(N_COUPLING_EAST,Kglob,2))
-# endif
-               
-             READ(11,*)   ! east
-             READ(11,119)(Z_COUPLING_EAST(I,2),I=1,N_COUPLING_EAST)
-             READ(11,119)((U_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119)((V_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119)((W_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119)((P_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# if defined (SALINITY)
-             READ(11,119)((S_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-             READ(11,119)((T_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# endif	
-!   initialize first step
-             U_COUPLING_EAST(:,:,1)=U_COUPLING_EAST(:,:,2)
-             V_COUPLING_EAST(:,:,1)=V_COUPLING_EAST(:,:,2)
-             W_COUPLING_EAST(:,:,1)=W_COUPLING_EAST(:,:,2)
-             Z_COUPLING_EAST(:,1)=Z_COUPLING_EAST(:,2)
-             P_COUPLING_EAST(:,:,1)=P_COUPLING_EAST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_EAST(:,:,1)=S_COUPLING_EAST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_EAST(:,:,1)=T_COUPLING_EAST(:,:,2)
-# endif
-         ELSE
-             READ(11,*)
-
-         ENDIF ! n_coupling_east
-119      FORMAT(5E16.6)
-
-! west
-         IF(N_COUPLING_WEST.GT.0)THEN
-           ALLOCATE(U_COUPLING_WEST(N_COUPLING_WEST,Kglob,2),&
-               V_COUPLING_WEST(N_COUPLING_WEST,Kglob,2),&
-               W_COUPLING_WEST(N_COUPLING_WEST,Kglob,2),&
-               Z_COUPLING_WEST(N_COUPLING_WEST,2),&
-               P_COUPLING_WEST(N_COUPLING_WEST,Kglob,2))
-# if defined (SALINITY)
-           ALLOCATE(S_COUPLING_WEST(N_COUPLING_WEST,Kglob,2))
-# endif	
-# if defined (TEMPERATURE)
-           ALLOCATE(T_COUPLING_WEST(N_COUPLING_WEST,Kglob,2))
-# endif
-
-             READ(11,*)   ! west
-             READ(11,119)(Z_COUPLING_WEST(I,2),I=1,N_COUPLING_WEST)
-             READ(11,119)((U_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119)((V_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119)((W_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119)((P_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# if defined (SALINITY)
-             READ(11,119)((S_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-             READ(11,119)((T_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# endif
-!   initialize first step
-             U_COUPLING_WEST(:,:,1)=U_COUPLING_WEST(:,:,2)
-             V_COUPLING_WEST(:,:,1)=V_COUPLING_WEST(:,:,2)
-             W_COUPLING_WEST(:,:,1)=W_COUPLING_WEST(:,:,2)
-             Z_COUPLING_WEST(:,1)=Z_COUPLING_WEST(:,2)
-             P_COUPLING_WEST(:,:,1)=P_COUPLING_WEST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_WEST(:,:,1)=S_COUPLING_WEST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_WEST(:,:,1)=T_COUPLING_WEST(:,:,2)
-# endif	
-         ELSE
-             READ(11,*)
-
-         ENDIF ! n_coupling_west
-! south
-         IF(N_COUPLING_SOUTH.GT.0)THEN
-           ALLOCATE(U_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2),&
-               V_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2),&
-               W_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2),&
-               Z_COUPLING_SOUTH(N_COUPLING_SOUTH,2),&
-               P_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2))
-# if defined (SALINITY)
-           ALLOCATE(S_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2))
-# endif	
-# if defined (TEMPERATURE)
-           ALLOCATE(T_COUPLING_SOUTH(N_COUPLING_SOUTH,Kglob,2))
-# endif	
-             READ(11,*)   ! south
-             READ(11,119)(Z_COUPLING_SOUTH(I,2),I=1,N_COUPLING_SOUTH)
-             READ(11,119)((U_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119)((V_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119)((W_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119)((P_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# if defined (SALINITY)
-             READ(11,119)((S_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-             READ(11,119)((T_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# endif
-!   initialize first step
-             U_COUPLING_SOUTH(:,:,1)=U_COUPLING_SOUTH(:,:,2)
-             V_COUPLING_SOUTH(:,:,1)=V_COUPLING_SOUTH(:,:,2)
-             W_COUPLING_SOUTH(:,:,1)=W_COUPLING_SOUTH(:,:,2)
-             Z_COUPLING_SOUTH(:,1)=Z_COUPLING_SOUTH(:,2)
-             P_COUPLING_SOUTH(:,:,1)=P_COUPLING_SOUTH(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_SOUTH(:,:,1)=S_COUPLING_SOUTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_SOUTH(:,:,1)=T_COUPLING_SOUTH(:,:,2)
-# endif
-         ELSE
-             READ(11,*)
-
-         ENDIF ! n_coupling_south
-! north
-         IF(N_COUPLING_NORTH.GT.0)THEN
-           ALLOCATE(U_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2),&
-               V_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2),&
-               W_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2),&
-               Z_COUPLING_NORTH(N_COUPLING_NORTH,2), &
-               P_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2))
-# if defined (SALINITY)
-           ALLOCATE(S_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2))
-# endif	
-# if defined (TEMPERATURE)
-           ALLOCATE(T_COUPLING_NORTH(N_COUPLING_NORTH,Kglob,2))
-# endif
-             READ(11,*)   ! north
-             READ(11,119)(Z_COUPLING_NORTH(I,2),I=1,N_COUPLING_NORTH)
-             READ(11,119)((U_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119)((V_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119)((W_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119)((P_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# if defined (SALINITY)
-             READ(11,119)((S_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-             READ(11,119)((T_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# endif	
-!   initialize first step
-             U_COUPLING_NORTH(:,:,1)=U_COUPLING_NORTH(:,:,2)
-             V_COUPLING_NORTH(:,:,1)=V_COUPLING_NORTH(:,:,2)
-             W_COUPLING_NORTH(:,:,1)=W_COUPLING_NORTH(:,:,2)
-             Z_COUPLING_NORTH(:,1)=Z_COUPLING_NORTH(:,2)
-             P_COUPLING_NORTH(:,:,1)=P_COUPLING_NORTH(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_NORTH(:,:,1)=S_COUPLING_NORTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_NORTH(:,:,1)=T_COUPLING_NORTH(:,:,2)
-# endif	
-         ELSE
-             READ(11,*)
-
-         ENDIF ! n_coupling_north
-
-
-! specify boundary start points
-
-! west boundary
-   IF(N_COUPLING_WEST>0)THEN
-# if defined (PARALLEL)
-    if ( n_west .eq. MPI_PROC_NULL ) then
-      Kstart_WEST=J_START_WEST+Nghost -npy*Nglob/py
-      Kend_WEST = J_START_WEST+Nghost+N_COUPLING_WEST-1 -npy*Nglob/py
-      IF((Kstart_WEST>Nghost.AND.Kstart_WEST<Nloc-Nghost+1).OR.&
-     (Kend_WEST<Nloc-Nghost+1.AND.Kend_WEST>Nghost))THEN
-       IF(Kstart_WEST<Nghost+1)THEN
-         Kshift_WEST= -Kstart_WEST+Nghost+1
-         Kstart_WEST=Nghost+1
-       ELSE
-         Kshift_WEST=-(Kstart_WEST-Nghost)+1
-       ENDIF
-       IF(Kend_WEST>Nloc-Nghost)THEN
-         Kend_WEST=Nloc-Nghost
-       ENDIF
-       IN_DOMAIN_WEST=.TRUE.
-      ELSE
-       IF(Kstart_WEST<=Nghost.AND.Kend_WEST>=Nloc-Nghost+1)THEN
-         Kshift_WEST=-Kstart_WEST+Nghost+1
-         Kstart_WEST = Nghost+1
-         Kend_WEST = Nloc-Nghost
-         IN_DOMAIN_WEST=.TRUE.
-       ELSE
-         IN_DOMAIN_WEST=.FALSE.
-       ENDIF
-      ENDIF
-! check print*,myid,Kshift_WEST,Kstart_WEST,Kend_WEST
-     endif
-# else
-      Kstart_WEST=J_START_WEST+Nghost
-      Kend_WEST = J_START_WEST+Nghost+N_COUPLING_WEST-1
-      Kshift_WEST = -(Kstart_WEST-Nghost)+1
-      IN_DOMAIN_WEST = .TRUE.
-# endif
-
-   ENDIF
-
-! east boundary
-   IF(N_COUPLING_EAST>0)THEN
-# if defined (PARALLEL)
-    if ( n_east .eq. MPI_PROC_NULL ) then
-      Kstart_EAST=J_START_EAST+Nghost -npy*Nglob/py
-      Kend_EAST = J_START_EAST+Nghost+N_COUPLING_EAST-1 -npy*Nglob/py
-      IF((Kstart_EAST>Nghost.AND.Kstart_EAST<Nloc-Nghost+1).OR.&
-     (Kend_EAST<Nloc-Nghost+1.AND.Kend_EAST>Nghost))THEN
-       IF(Kstart_EAST<Nghost+1)THEN
-         Kshift_EAST= -Kstart_EAST+Nghost+1
-         Kstart_EAST=Nghost+1
-       ELSE
-         Kshift_EAST=-(Kstart_EAST-Nghost)+1
-       ENDIF
-       IF(Kend_EAST>Nloc-Nghost)THEN
-         Kend_EAST=Nloc-Nghost
-       ENDIF
-       IN_DOMAIN_EAST=.TRUE.
-      ELSE
-
-       IF(Kstart_EAST<=Nghost.AND.Kend_EAST>=Nloc-Nghost+1)THEN
-         Kshift_EAST=-Kstart_EAST+Nghost+1
-         Kstart_EAST = Nghost+1
-         Kend_EAST = Nloc-Nghost
-         IN_DOMAIN_EAST=.TRUE.
-       ELSE
-         IN_DOMAIN_EAST=.FALSE.
-       ENDIF
-      ENDIF
-
-    endif
-# else
-      Kstart_EAST=J_START_EAST+Nghost
-      Kend_EAST = J_START_EAST+Nghost+N_COUPLING_EAST-1
-      Kshift_EAST = -(Kstart_EAST-Nghost)+1
-      IN_DOMAIN_EAST = .TRUE.
-# endif
-    ENDIF
-
-! south boundary
-   IF(N_COUPLING_SOUTH>0)THEN
-# if defined (PARALLEL)
-    if ( n_suth .eq. MPI_PROC_NULL ) then
-      Kstart_SOUTH=I_START_SOUTH+Nghost -npx*Mglob/px
-      Kend_SOUTH = I_START_SOUTH+Nghost+N_COUPLING_SOUTH-1 -npx*Mglob/px
-      IF((Kstart_SOUTH>Nghost.AND.Kstart_SOUTH<Mloc-Nghost+1).OR.&
-     (Kend_SOUTH<Mloc-Nghost+1.AND.Kend_SOUTH>Nghost))THEN
-       IF(Kstart_SOUTH<Nghost+1)THEN
-         Kshift_SOUTH= -Kstart_SOUTH+Nghost+1
-         Kstart_SOUTH=Nghost+1
-       ELSE
-         Kshift_SOUTH=-(Kstart_SOUTH-Nghost)+1
-       ENDIF
-       IF(Kend_SOUTH>Mloc-Nghost)THEN
-         Kend_SOUTH=Mloc-Nghost
-       ENDIF
-       IN_DOMAIN_SOUTH=.TRUE.
-      ELSE
-
-       IF(Kstart_SOUTH<=Nghost.AND.Kend_SOUTH>=Mloc-Nghost+1)THEN
-         Kshift_SOUTH=-Kstart_SOUTH+Nghost+1
-         Kstart_SOUTH = Nghost+1
-         Kend_SOUTH = Mloc-Nghost
-         IN_DOMAIN_SOUTH=.TRUE.
-       ELSE
-         IN_DOMAIN_SOUTH=.FALSE.
-       ENDIF
-      ENDIF
-
-    endif
-# else
-      Kstart_SOUTH=I_START_SOUTH+Nghost
-      Kend_SOUTH = I_START_SOUTH+Nghost+N_COUPLING_SOUTH-1
-      Kshift_SOUTH = -(Kstart_SOUTH-Nghost)+1
-      IN_DOMAIN_SOUTH = .TRUE.
-# endif
-   ENDIF
-
-! north boundary
-   IF(N_COUPLING_NORTH>0)THEN
-# if defined (PARALLEL)
-    if ( n_nrth .eq. MPI_PROC_NULL ) then
-      Kstart_NORTH=I_START_NORTH+Nghost -npx*Mglob/px
-      Kend_NORTH = I_START_NORTH+Nghost+N_COUPLING_NORTH-1 -npx*Mglob/px
-      IF((Kstart_NORTH>Nghost.AND.Kstart_NORTH<Mloc-Nghost+1).OR.&
-     (Kend_NORTH<Mloc-Nghost+1.AND.Kend_NORTH>Nghost))THEN
-       IF(Kstart_NORTH<Nghost+1)THEN
-         Kshift_NORTH= -Kstart_NORTH+Nghost+1
-         Kstart_NORTH=Nghost+1
-       ELSE
-         Kshift_NORTH=-(Kstart_NORTH-Nghost)+1
-       ENDIF
-       IF(Kend_NORTH>Mloc-Nghost)THEN
-         Kend_NORTH=Mloc-Nghost
-       ENDIF
-       IN_DOMAIN_NORTH=.TRUE.
-      ELSE
-
-       IF(Kstart_NORTH<=Nghost.AND.Kend_NORTH>=Mloc-Nghost+1)THEN
-         Kshift_NORTH=-Kstart_NORTH+Nghost+1
-         Kstart_NORTH = Nghost+1
-         Kend_NORTH = Mloc-Nghost
-         IN_DOMAIN_NORTH=.TRUE.
-       ELSE
-         IN_DOMAIN_NORTH=.FALSE.
-       ENDIF
-      ENDIF
-
-    endif
-# else
-      Kstart_NORTH=I_START_NORTH+Nghost
-      Kend_NORTH = I_START_NORTH+Nghost+N_COUPLING_NORTH-1
-      Kshift_NORTH = -(Kstart_NORTH-Nghost)+1
-      IN_DOMAIN_NORTH = .TRUE.
-# endif
-   ENDIF
-
-END SUBROUTINE READ_NESTING_FILE
-# endif
-
-# if defined (COUPLING)
-!-------------------------------------------------------------------
-!   This subroutine is used to pass coupling variables into ghost cells                                                         
-!   Called by
-!      MAIN
-!   Update: 05/15/2013 Fengyan Shi, University of Delaware                                       
-!-------------------------------------------------------------------
-SUBROUTINE OneWayCoupling
-    USE GLOBAL
-    IMPLICIT NONE
-    INTEGER :: I,J,K
-    REAL(SP) :: tmp1,tmp2
-    LOGICAL, SAVE :: FirstReadCoupling = .TRUE.
-
-119      FORMAT(5E16.6)  ! this is a fixed format for I/O
- 
-! determine time slot
-
-    IF(TIME>TIME_COUPLING_1.AND.TIME>TIME_COUPLING_2) THEN
-         TIME_COUPLING_1=TIME_COUPLING_2
-         
-         READ(11,*,END=120) ! time coupling
-         READ(11,*,END=120) TIME_COUPLING_2 
-! east
-         IF(N_COUPLING_EAST.GT.0)THEN
-             READ(11,*,END=120)   ! east
-
-             U_COUPLING_EAST(:,:,1)=U_COUPLING_EAST(:,:,2)
-             V_COUPLING_EAST(:,:,1)=V_COUPLING_EAST(:,:,2)
-             W_COUPLING_EAST(:,:,1)=W_COUPLING_EAST(:,:,2)
-             Z_COUPLING_EAST(:,1)=Z_COUPLING_EAST(:,2)
-             P_COUPLING_EAST(:,:,1)=P_COUPLING_EAST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_EAST(:,:,1)=S_COUPLING_EAST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_EAST(:,:,1)=T_COUPLING_EAST(:,:,2)
-# endif
-
-             READ(11,119,END=120)(Z_COUPLING_EAST(I,2),I=1,N_COUPLING_EAST)
-             READ(11,119,END=120)((U_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119,END=120)((V_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119,END=120)((W_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-             READ(11,119,END=120)((P_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# if defined (SALINITY)
-             READ(11,119,END=120)((S_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-			 READ(11,119,END=120)((T_COUPLING_EAST(I,J,2),I=1,N_COUPLING_EAST),J=1,Kglob)
-# endif
-			 
-            IF (FirstReadCoupling)THEN
-             U_COUPLING_EAST(:,:,1)=U_COUPLING_EAST(:,:,2)
-             V_COUPLING_EAST(:,:,1)=V_COUPLING_EAST(:,:,2)
-             W_COUPLING_EAST(:,:,1)=W_COUPLING_EAST(:,:,2)
-             Z_COUPLING_EAST(:,1)=Z_COUPLING_EAST(:,2)
-             P_COUPLING_EAST(:,:,1)=P_COUPLING_EAST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_EAST(:,:,1)=S_COUPLING_EAST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_EAST(:,:,1)=T_COUPLING_EAST(:,:,2)
-# endif
-            ENDIF
-
-         ELSE
-             READ(11,*,END=120)   ! east            
-         ENDIF
-! west
-         IF(N_COUPLING_WEST.GT.0)THEN
-             READ(11,*,END=120)   ! west
-
-             U_COUPLING_WEST(:,:,1)=U_COUPLING_WEST(:,:,2)
-             V_COUPLING_WEST(:,:,1)=V_COUPLING_WEST(:,:,2)
-             W_COUPLING_WEST(:,:,1)=W_COUPLING_WEST(:,:,2)
-             Z_COUPLING_WEST(:,1)=Z_COUPLING_WEST(:,2)
-             P_COUPLING_WEST(:,:,1)=P_COUPLING_WEST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_WEST(:,:,1)=S_COUPLING_WEST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_WEST(:,:,1)=T_COUPLING_WEST(:,:,2)
-# endif
-
-             READ(11,119,END=120)(Z_COUPLING_WEST(I,2),I=1,N_COUPLING_WEST)
-             READ(11,119,END=120)((U_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119,END=120)((V_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119,END=120)((W_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-             READ(11,119,END=120)((P_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# if defined (SALINITY)
-			 READ(11,119,END=120)((S_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-			 READ(11,119,END=120)((T_COUPLING_WEST(I,J,2),I=1,N_COUPLING_WEST),J=1,Kglob)
-# endif	
-			IF (FirstReadCoupling)THEN
-             U_COUPLING_WEST(:,:,1)=U_COUPLING_WEST(:,:,2)
-             V_COUPLING_WEST(:,:,1)=V_COUPLING_WEST(:,:,2)
-             W_COUPLING_WEST(:,:,1)=W_COUPLING_WEST(:,:,2)
-             Z_COUPLING_WEST(:,1)=Z_COUPLING_WEST(:,2)
-             P_COUPLING_WEST(:,:,1)=P_COUPLING_WEST(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_WEST(:,:,1)=S_COUPLING_WEST(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_WEST(:,:,1)=T_COUPLING_WEST(:,:,2)
-# endif
-            ENDIF
-
-         ELSE
-             READ(11,*,END=120)   ! west            
-         ENDIF
-! south
-         IF(N_COUPLING_SOUTH.GT.0)THEN
-             READ(11,*,END=120)   ! south
-
-             U_COUPLING_SOUTH(:,:,1)=U_COUPLING_SOUTH(:,:,2)
-             V_COUPLING_SOUTH(:,:,1)=V_COUPLING_SOUTH(:,:,2)
-             W_COUPLING_SOUTH(:,:,1)=W_COUPLING_SOUTH(:,:,2)
-             Z_COUPLING_SOUTH(:,1)=Z_COUPLING_SOUTH(:,2)
-             P_COUPLING_SOUTH(:,:,1)=P_COUPLING_SOUTH(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_SOUTH(:,:,1)=S_COUPLING_SOUTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_SOUTH(:,:,1)=T_COUPLING_SOUTH(:,:,2)
-# endif
-
-             READ(11,119,END=120)(Z_COUPLING_SOUTH(I,2),I=1,N_COUPLING_SOUTH)
-             READ(11,119,END=120)((U_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119,END=120)((V_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119,END=120)((W_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-             READ(11,119,END=120)((P_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# if defined (SALINITY)
-			 READ(11,119,END=120)((S_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-			 READ(11,119,END=120)((T_COUPLING_SOUTH(I,J,2),I=1,N_COUPLING_SOUTH),J=1,Kglob)
-# endif
-			IF (FirstReadCoupling)THEN
-             U_COUPLING_SOUTH(:,:,1)=U_COUPLING_SOUTH(:,:,2)
-             V_COUPLING_SOUTH(:,:,1)=V_COUPLING_SOUTH(:,:,2)
-             W_COUPLING_SOUTH(:,:,1)=W_COUPLING_SOUTH(:,:,2)
-             Z_COUPLING_SOUTH(:,1)=Z_COUPLING_SOUTH(:,2)
-             P_COUPLING_SOUTH(:,:,1)=P_COUPLING_SOUTH(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_SOUTH(:,:,1)=S_COUPLING_SOUTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_SOUTH(:,:,1)=T_COUPLING_SOUTH(:,:,2)
-# endif
-            ENDIF
-
-         ELSE
-             READ(11,*,END=120)   ! south            
-         ENDIF
-! north
-         IF(N_COUPLING_NORTH.GT.0)THEN
-             READ(11,*,END=120)   ! north
-
-             U_COUPLING_NORTH(:,:,1)=U_COUPLING_NORTH(:,:,2)
-             V_COUPLING_NORTH(:,:,1)=V_COUPLING_NORTH(:,:,2)
-             W_COUPLING_NORTH(:,:,1)=W_COUPLING_NORTH(:,:,2)
-             Z_COUPLING_NORTH(:,1)=Z_COUPLING_NORTH(:,2)
-             P_COUPLING_NORTH(:,:,1)=P_COUPLING_NORTH(:,:,2)
-# if defined (SALINITY)
-             S_COUPLING_NORTH(:,:,1)=S_COUPLING_NORTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_NORTH(:,:,1)=T_COUPLING_NORTH(:,:,2)
-# endif	
-
-             READ(11,119,END=120)(Z_COUPLING_NORTH(I,2),I=1,N_COUPLING_NORTH)
-             READ(11,119,END=120)((U_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119,END=120)((V_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119,END=120)((W_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-             READ(11,119,END=120)((P_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# if defined (SALINITY)
-			 READ(11,119,END=120)((S_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# endif	
-# if defined (TEMPERATURE)
-			 READ(11,119,END=120)((T_COUPLING_NORTH(I,J,2),I=1,N_COUPLING_NORTH),J=1,Kglob)
-# endif	
-		  IF (FirstReadCoupling)THEN
-             U_COUPLING_NORTH(:,:,1)=U_COUPLING_NORTH(:,:,2)
-             V_COUPLING_NORTH(:,:,1)=V_COUPLING_NORTH(:,:,2)
-             W_COUPLING_NORTH(:,:,1)=W_COUPLING_NORTH(:,:,2)
-             Z_COUPLING_NORTH(:,1)=Z_COUPLING_NORTH(:,2)
-             P_COUPLING_NORTH(:,:,1)=P_COUPLING_NORTH(:,:,2)
-# if defined (SALINITY)
-			 S_COUPLING_NORTH(:,:,1)=S_COUPLING_NORTH(:,:,2)
-# endif	
-# if defined (TEMPERATURE)
-             T_COUPLING_NORTH(:,:,1)=T_COUPLING_NORTH(:,:,2)
-# endif	
-           ENDIF
-
-         ELSE
-             READ(11,*,END=120)   ! north            
-         ENDIF
-
-         FirstReadCoupling = .FALSE.
-
-    ENDIF  !stime>time_2 and time_1
-
-120 CONTINUE
-
-    tmp2=1.0
-    tmp1=ZERO
-
-    IF(TIME>TIME_COUPLING_1)THEN
-      IF(TIME_COUPLING_1.EQ.TIME_COUPLING_2)THEN
-        ! no more data
-        tmp2=ZERO
-        tmp1=1.0
-      ELSE
-      tmp2=(TIME_COUPLING_2-TIME) &
-            /MAX(SMALL, ABS(TIME_COUPLING_2-TIME_COUPLING_1))
-      tmp1=1.0_SP - tmp2;
-      ENDIF  ! no more data?
-    ENDIF ! time>time_1
-
-
-! west boundary
-   IF(N_COUPLING_WEST>0)THEN
-# if defined (PARALLEL)
-    if ( n_west .eq. MPI_PROC_NULL ) then
-# endif
-     IF(IN_DOMAIN_WEST)THEN
-
-      DO J=Kstart_WEST,Kend_WEST 
-      DO I=1,Nghost
-        ETA(I,J)=Z_COUPLING_WEST(J-Nghost+Kshift_WEST,2)*tmp1&
-                +Z_COUPLING_WEST(J-Nghost+Kshift_WEST,1)*tmp2
-        D(I,J)=ETA(I,J)+Hc(I,J)
-      DO K=1+Nghost,Kglob+Nghost
-        U(I,J,K)=U_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +U_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2
-        V(I,J,K)=V_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +V_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2  
-        W(I,J,K)=W_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +W_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2  
-        P(I,J,K)=P_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +P_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2 
-# if defined (SALINITY)
-        Sali(I,J,K)=S_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +S_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2
-# endif	
-# if defined (TEMPERATURE)
-        Temp(I,J,K)=T_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,2)*tmp1&
-                +T_COUPLING_WEST(J-Nghost+Kshift_WEST,K-Nghost,1)*tmp2
-# endif	
-
-        DU(I,J,K)=D(I,J)*U(I,J,K)
-        DV(I,J,K)=D(I,J)*V(I,J,K)
-        DW(I,J,K)=D(I,J)*W(I,J,K)   
-# if defined (SALINITY)		
-        Dsali(I,J,K)=D(I,J)*Sali(I,J,K) 
-# endif	
-# if defined (TEMPERATURE)		
-        Dtemp(I,J,K)=D(I,J)*Temp(I,J,K)   
-# endif		
-
-      ENDDO
-      ENDDO
-      ENDDO
-
-!print*,'intp',Sali(1,Jbeg+1,Kend),Sali(2,Jbeg+1,Kend),Sali(3,Jbeg+1,Kend),Sali(4,Jbeg+1,Kend)
-!J=Kstart_WEST
-!print*,'swet',S_COUPLING_WEST(J-Nghost+Kshift_WEST,kglob,2),S_COUPLING_WEST(J-Nghost+Kshift_WEST,kglob,1)
-!print*,'calc',S_COUPLING_WEST(J-Nghost+Kshift_WEST,kglob,2)*tmp1+S_COUPLING_WEST(J-Nghost+Kshift_WEST,kglob,1)*tmp2
-
-     ENDIF  ! end in domain
-# if defined (PARALLEL)
-    endif
-# endif
-    ENDIF ! end of n_coupling_west>0
-
-
-! east boundary
-   IF(N_COUPLING_EAST>0)THEN
-# if defined (PARALLEL)
-    if ( n_east .eq. MPI_PROC_NULL ) then
-# endif
-     IF(IN_DOMAIN_EAST)THEN
-      DO J=Kstart_EAST,Kend_EAST  
-      DO I=Iend+1,Iend+Nghost
-        ETA(I,J)=Z_COUPLING_EAST(J-Nghost+Kshift_EAST,2)*tmp1&
-                +Z_COUPLING_EAST(J-Nghost+Kshift_EAST,1)*tmp2
-        D(I,J)=ETA(I,J)+Hc(I,J)
-      DO K=1+Nghost,Kglob+Nghost
-        U(I,J,K)=U_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +U_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-        V(I,J,K)=V_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +V_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-        W(I,J,K)=W_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +W_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-        P(I,J,K)=P_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +P_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-# if defined (SALINITY)	
-        Sali(I,J,K)=S_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +S_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-# endif	
-# if defined (TEMPERATURE)
-        Temp(I,J,K)=T_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,2)*tmp1&
-                +T_COUPLING_EAST(J-Nghost+Kshift_EAST,K-Nghost,1)*tmp2
-# endif	
-
-        DU(I,J,K)=D(I,J)*U(I,J,K)
-        DV(I,J,K)=D(I,J)*V(I,J,K)
-        DW(I,J,K)=D(I,J)*W(I,J,K)   
-# if defined (SALINITY)			
-        Dsali(I,J,K)=D(I,J)*Sali(I,J,K)  
-# endif	
-# if defined (TEMPERATURE)
-        Dtemp(I,J,K)=D(I,J)*Temp(I,J,K) 
-# endif	
-      ENDDO
-      ENDDO
-      ENDDO
-     ENDIF  ! end in domain
-# if defined (PARALLEL)
-    endif
-# endif
-    ENDIF ! end of n_coupling_east>0
-
-! south boundary
-   IF(N_COUPLING_SOUTH>0)THEN
-# if defined (PARALLEL)
-    if ( n_suth .eq. MPI_PROC_NULL ) then
-# endif
-     IF(IN_DOMAIN_SOUTH)THEN
-      DO I=Kstart_SOUTH,Kend_SOUTH  
-      DO J=1,Nghost
-        ETA(I,J)=Z_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,2)*tmp1&
-                +Z_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,1)*tmp2
-        D(I,J)=ETA(I,J)+Hc(I,J)
-      DO K=1+Nghost,Kglob+Nghost    
-        U(I,J,K)=U_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +U_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-        V(I,J,K)=V_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +V_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-        W(I,J,K)=W_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +W_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-        P(I,J,K)=P_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +P_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-# if defined (SALINITY)	
-        Sali(I,J,K)=S_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +S_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-# endif	
-# if defined (TEMPERATURE)
-        Temp(I,J,K)=T_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,2)*tmp1&
-                +T_COUPLING_SOUTH(I-Nghost+Kshift_SOUTH,K-Nghost,1)*tmp2
-# endif	
-
-        DU(I,J,K)=D(I,J)*U(I,J,K)
-        DV(I,J,K)=D(I,J)*V(I,J,K)
-        DW(I,J,K)=D(I,J)*W(I,J,K)  
-# if defined (SALINITY)		
-        Dsali(I,J,K)=D(I,J)*Sali(I,J,K)  
-# endif	
-# if defined (TEMPERATURE)
-        Dtemp(I,J,K)=D(I,J)*Temp(I,J,K) 
-# endif	
-      ENDDO
-      ENDDO
-      ENDDO
-     ENDIF  ! end in domain
-# if defined (PARALLEL)
-    endif
-# endif
-    ENDIF ! end of n_coupling_south>0
-
-! north boundary
-   IF(N_COUPLING_NORTH>0)THEN
-# if defined (PARALLEL)
-    if ( n_nrth .eq. MPI_PROC_NULL ) then
-# endif
-     IF(IN_DOMAIN_NORTH)THEN
-      DO I=Kstart_NORTH,Kend_NORTH  
-      DO J=Jend+1,Jend+Nghost
-        ETA(I,J)=Z_COUPLING_NORTH(I-Nghost+Kshift_NORTH,2)*tmp1&
-                +Z_COUPLING_NORTH(I-Nghost+Kshift_NORTH,1)*tmp2
-        D(I,J)=ETA(I,J)+Hc(I,J)
-      DO K=1+Nghost,Kglob+Nghost       
-        U(I,J,K)=U_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +U_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-        V(I,J,K)=V_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +V_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-        W(I,J,K)=W_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +W_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-        P(I,J,K)=P_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +P_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-# if defined (SALINITY)
-        Sali(I,J,K)=S_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +S_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-# endif	
-# if defined (TEMPERATURE)
-        Temp(I,J,K)=T_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,2)*tmp1&
-                +T_COUPLING_NORTH(I-Nghost+Kshift_NORTH,K-Nghost,1)*tmp2
-# endif	
-
-        DU(I,J,K)=D(I,J)*U(I,J,K)
-        DV(I,J,K)=D(I,J)*V(I,J,K)
-        DW(I,J,K)=D(I,J)*W(I,J,K)  
-# if defined (SALINITY)		
-        Dsali(I,J,K)=D(I,J)*Sali(I,J,K)  
-# endif	
-# if defined (TEMPERATURE)
-        Dtemp(I,J,K)=D(I,J)*Temp(I,J,K) 
-# endif
-      ENDDO
-      ENDDO
-      ENDDO
-     ENDIF  ! end in domain
-# if defined (PARALLEL)
-    endif
-# endif
-    ENDIF ! end of n_coupling_north>0
-
-END SUBROUTINE OneWayCoupling
-# endif 
-! end nesting
 
 !------------------------The End----------------------------------------------
