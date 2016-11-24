@@ -54,6 +54,23 @@ DepConst = 0.3
 INITIAL_EUVW = F
 INITIAL_SALI = F
 
+! -----------------HOT START----------------------------------
+HOTSTART = F
+Eta_HotStart_File = ./results/eta_00083
+U_HotStart_File = ./results/u_00083
+V_HotStart_File = ./results/v_00083
+W_HotStart_File = ./results/w_00083
+P_HotStart_File = ./results/p_00083
+Sali_HotStart_File = ./results/sali_00083
+Temp_HotStart_File = ./results/temp_00083
+Rho_HotStart_File = ./results/rho_00083
+TKE_HotStart_File = ./results/k_00083
+EPS_HotStart_File = ./results/d_00083
+
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
+
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
 HIGH_ORDER = SECOND
@@ -91,6 +108,9 @@ NON_HYDRO = T
 
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
+
+! --------------------FOURDE CAP----------------------------------
+FROUDE_CAP = 10.0
 
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
@@ -168,6 +188,7 @@ BC_Zn = 1
 ! INT_SOL - internal wavemaker for solitary wave
 ! INT_JON - internal wavemaker for JONSWAP spectrum
 ! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! INT_IRR - internal wavemaker for irregular wave (need irr2d.txt)
 ! FLUX_LR - impose flux at both left and right boundaries
 ! FOCUSED - left boundary focusing wave packet (isolated whitecap)
 ! WAV_CUR - left boundary coexisting waves and currents
@@ -318,6 +339,7 @@ PLOT_INTV_STAT = 0.01
 ! OUT_F = sediment concentration
 ! OUT_G = bed elevation
 ! OUT_I = salinity
+! OUT_Z = varying bathymetry
 ! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
@@ -335,4 +357,5 @@ OUT_T = F
 OUT_F = F
 OUT_G = F
 OUT_I = F
+OUT_Z = F
 OUT_M = F

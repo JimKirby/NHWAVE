@@ -67,6 +67,10 @@ Rho_HotStart_File = ./results/rho_00050
 TKE_HotStart_File = ./results/k_00050
 EPS_HotStart_File = ./results/d_00050
 
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
+
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
 HIGH_ORDER = SECOND
@@ -105,7 +109,7 @@ NON_HYDRO = T
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
-! --------------------FOURDE CAP ----------------------------------
+! --------------------FOURDE CAP----------------------------------
 FROUDE_CAP = 1.0
 
 ! ---------------------RAMP-UP--------------------------------
@@ -335,6 +339,7 @@ PLOT_INTV_STAT = 0.01
 ! OUT_F = sediment concentration
 ! OUT_G = bed elevation
 ! OUT_I = salinity
+! OUT_Z = varying bathymetry
 ! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
@@ -351,5 +356,6 @@ OUT_A = F
 OUT_T = F
 OUT_F = F
 OUT_G = F
+OUT_Z = F
 OUT_I = F
 OUT_M = T

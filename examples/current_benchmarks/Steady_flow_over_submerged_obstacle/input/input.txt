@@ -67,6 +67,10 @@ Rho_HotStart_File = ./results/rho_00050
 TKE_HotStart_File = ./results/k_00050
 EPS_HotStart_File = ./results/d_00050
 
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
+
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
 HIGH_ORDER = SECOND
@@ -105,7 +109,7 @@ NON_HYDRO = F
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
-! --------------------FOURDE CAP ----------------------------------
+! --------------------FOURDE CAP----------------------------------
 FROUDE_CAP = 0.5
 
 ! ---------------------RAMP-UP--------------------------------

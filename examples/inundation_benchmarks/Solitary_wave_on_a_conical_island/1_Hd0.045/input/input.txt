@@ -67,6 +67,10 @@ Rho_HotStart_File = ./results/rho_00009
 TKE_HotStart_File = ./results/k_00009
 EPS_HotStart_File = ./results/d_00009
 
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
+
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
 HIGH_ORDER = SECOND
@@ -184,6 +188,7 @@ BC_Zn = 1
 ! INT_SOL - internal wavemaker for solitary wave
 ! INT_JON - internal wavemaker for JONSWAP spectrum
 ! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! INT_IRR - internal wavemaker for irregular wave (need irr2d.txt)
 ! FLUX_LR - impose flux at both left and right boundaries
 ! FOCUSED - left boundary focusing wave packet (isolated whitecap)
 ! WAV_CUR - left boundary coexisting waves and currents
@@ -334,6 +339,7 @@ PLOT_INTV_STAT = 0.01
 ! OUT_F = sediment concentration
 ! OUT_G = bed elevation
 ! OUT_I = salinity
+! OUT_Z = varying bathymetry
 ! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
@@ -351,4 +357,5 @@ OUT_T = F
 OUT_F = F
 OUT_G = F
 OUT_I = F
+OUT_Z = F
 OUT_M = T
