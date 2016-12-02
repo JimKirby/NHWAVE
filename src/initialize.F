@@ -221,18 +221,21 @@
      CALL GET_Float_VAL(Plot_Start,FILE_NAME,'PLOT_START',line)
      CALL GET_Float_VAL(Plot_Intv,FILE_NAME,'PLOT_INTV',line)
      CALL GET_Float_VAL(Screen_Intv,FILE_NAME,'SCREEN_INTV',line)
+	 CALL GET_LOGICAL_VAL(HOTSTART,FILE_NAME,'HOTSTART',line) ! added by Cheng for hot start
 # if defined (PARALLEL)
      if(myid.eq.0) WRITE(3,'(A11,I12)')'SIM_STEPS= ', SIM_STEPS
      if(myid.eq.0) WRITE(3,'(A12,F8.2)')'TOTAL_TIME= ', TOTAL_TIME
      if(myid.eq.0) WRITE(3,'(A11,F8.2)')'PLOT_START= ', Plot_Start
      if(myid.eq.0) WRITE(3,'(A11,F8.2)')'PLOT_INTV= ', Plot_Intv
      if(myid.eq.0) WRITE(3,'(A13,F8.2)')'SCREEN_INTV= ', Screen_Intv
+	 if(myid.eq.0) WRITE(3,'(A11,L4)')'HOTSTART= ',HOTSTART ! added by Cheng for hot start
 # else
      WRITE(3,'(A11,I12)')'SIM_STEPS= ', SIM_STEPS
      WRITE(3,'(A12,F8.2)')'TOTAL_TIME= ', TOTAL_TIME
      WRITE(3,'(A11,F8.2)')'PLOT_START= ', Plot_Start
      WRITE(3,'(A11,F8.2)')'PLOT_INTV= ', Plot_Intv
      WRITE(3,'(A13,F8.2)')'SCREEN_INTV= ', Screen_Intv
+	 WRITE(3,'(A11,L4)')'HOTSTART= ',HOTSTART ! added by Cheng for hot start
 # endif
 
      ! courant number
@@ -250,6 +253,18 @@
 # else
      WRITE(3,'(A16,F8.3)')'VISCOUS_NUMBER= ',VISCOUS_NUMBER
 # endif
+
+! added by Cheng for limiting the maximum Froude number
+# if defined (FROUDE_CAP)
+     CALL GET_Float_VAL(FROUDECAP,FILE_NAME,'FROUDE_CAP',line)
+# if defined (PARALLEL)
+     if(myid.eq.0) WRITE(3,'(A13,F8.3)')'FROUDE_CAP= ',FROUDECAP
+# else
+     WRITE(3,'(A13,F8.3)')'FROUDE_CAP= ',FROUDECAP
+# endif
+
+# endif
+! end froude cap
 
      ! minimum depth
      CALL GET_Float_VAL(MinDep,FILE_NAME,'MinDep',line)
@@ -288,6 +303,25 @@
      WRITE(3,'(A6,F8.3)')'Chs= ',Chs
      WRITE(3,'(A11,L4)')'RNG= ',RNG
 # endif
+
+! added by Cheng for hot start
+     IF(HOTSTART)THEN
+       CALL GET_STRING_VAL(Eta_HotStart_File,FILE_NAME,'Eta_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(U_HotStart_File,FILE_NAME,'U_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(V_HotStart_File,FILE_NAME,'V_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(W_HotStart_File,FILE_NAME,'W_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(P_HotStart_File,FILE_NAME,'P_HotStart_File',line,ierr)
+# if defined (SALINITY)
+       CALL GET_STRING_VAL(Sali_HotStart_File,FILE_NAME,'Sali_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(Temp_HotStart_File,FILE_NAME,'Temp_HotStart_File',line,ierr)
+# endif
+      IF(VISCOUS_FLOW)THEN
+       ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(TKE_HotStart_File,FILE_NAME,'TKE_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(EPS_HotStart_File,FILE_NAME,'EPS_HotStart_File',line,ierr)
+      ENDIF
+     ENDIF 
+! end hotstart
 
      ! bathymetry     
      CALL GET_STRING_VAL(DEPTH_TYPE,FILE_NAME,'DEPTH_TYPE',line,ierr)
@@ -679,6 +713,51 @@
        enddo
        enddo
      ENDIF
+	 
+     ! Added by Cheng Zhang,irregular wave internal wavemaker
+     IF(WaveMaker(5:7)=='IRR') then
+       open(14,file='irr2d.txt')
+       read(14,*) NumFreq,NumDir
+       if(NumFreq>MaxNumFreq) then
+# if defined (PARALLEL)
+         if(myid.eq.0) then
+           write(3,'(A)') 'Please set a larger MaxNumFreq in mod_glob.F'
+           stop
+         endif
+# else
+         write(3,'(A)') 'Please set a larger MaxNumFreq in mod_glob.F'
+         stop
+# endif
+       endif
+       if(NumDir>MaxNumDir) then
+# if defined (PARALLEL)
+         if(myid.eq.0) then
+           write(3,'(A)') 'Please set a larger MaxNumDir in mod_glob.F'
+           stop
+         endif
+# else
+         write(3,'(A)') 'Please set a larger MaxNumDir in mod_glob.F'
+         stop
+# endif
+       endif
+       do i = 1,NumFreq
+         read(14,*) Freq(i)
+       enddo
+       do i = 1,NumDir
+         read(14,*) Dire(i)
+       enddo
+       do j = 1,NumFreq
+       do i = 1,NumDir
+         read(14,*) Wave_Spc2d(i,j)
+       enddo
+       enddo
+	   do j = 1,NumFreq
+       do i = 1,NumDir
+         read(14,*) Random_Phs(i,j)
+       enddo
+       enddo
+       close(14)
+     ENDIF
 
 ! JONSWAP spectrum
      if((WaveMaker(5:7)=='JON').or.(WaveMaker(5:7)=='TMA')) then
@@ -758,22 +837,16 @@
        CALL GET_Float_VAL(Sponge_East_Width,FILE_NAME,'Sponge_East_Width',line)
        CALL GET_Float_VAL(Sponge_South_Width,FILE_NAME,'Sponge_South_Width',line)
        CALL GET_Float_VAL(Sponge_North_Width,FILE_NAME,'Sponge_North_Width',line)
-       CALL GET_Float_VAL(R_Sponge,FILE_NAME,'R_Sponge',line)
-       CALL GET_Float_VAL(A_Sponge,FILE_NAME,'A_Sponge',line)
 # if defined (PARALLEL)
        if(myid.eq.0) WRITE(3,'(A19,F6.3)')'Sponge_West_Width= ', Sponge_West_Width
        if(myid.eq.0) WRITE(3,'(A19,F6.3)')'Sponge_East_Width= ', Sponge_East_Width
        if(myid.eq.0) WRITE(3,'(A20,F6.3)')'Sponge_South_Width= ', Sponge_South_Width
        if(myid.eq.0) WRITE(3,'(A20,F6.3)')'Sponge_North_Width= ', Sponge_North_Width
-       if(myid.eq.0) WRITE(3,'(A10,F6.3)')'R_Sponge= ', R_Sponge
-       if(myid.eq.0) WRITE(3,'(A10,F6.3)')'A_Sponge= ', A_Sponge
 # else
        WRITE(3,'(A19,F6.3)')'Sponge_West_Width= ', Sponge_West_Width
        WRITE(3,'(A19,F6.3)')'Sponge_East_Width= ', Sponge_East_Width
        WRITE(3,'(A20,F6.3)')'Sponge_South_Width= ', Sponge_South_Width
        WRITE(3,'(A20,F6.3)')'Sponge_North_Width= ', Sponge_North_Width
-       WRITE(3,'(A10,F6.3)')'R_Sponge= ', R_Sponge
-       WRITE(3,'(A10,F6.3)')'A_Sponge= ', A_Sponge
 # endif
      ENDIF
 
@@ -930,6 +1003,8 @@
      CALL GET_LOGICAL_VAL(OUT_T,FILE_NAME,'OUT_T',line)
      CALL GET_LOGICAL_VAL(OUT_G,FILE_NAME,'OUT_G',line)
      CALL GET_LOGICAL_VAL(OUT_I,FILE_NAME,'OUT_I',line)
+	 CALL GET_LOGICAL_VAL(OUT_Z,FILE_NAME,'OUT_Z',line) !added by Cheng for varying depth
+	 CALL GET_LOGICAL_VAL(OUT_M,FILE_NAME,'OUT_M',line) !added by Cheng for recording Hmax
 # if defined (PARALLEL)
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_H= ',OUT_H
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_E= ',OUT_E
@@ -947,6 +1022,8 @@
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_T= ',OUT_T
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_G= ',OUT_G
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_I= ',OUT_I
+	 if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_Z= ',OUT_Z !added by Cheng for varying depth
+	 if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_M= ',OUT_M !added by Cheng for recording Hmax
 # else
      WRITE(3,'(A7,L4)') 'OUT_H= ',OUT_H
      WRITE(3,'(A7,L4)') 'OUT_E= ',OUT_E
@@ -964,6 +1041,18 @@
      WRITE(3,'(A7,L4)') 'OUT_T= ',OUT_T
      WRITE(3,'(A7,L4)') 'OUT_G= ',OUT_G
      WRITE(3,'(A7,L4)') 'OUT_I= ',OUT_I
+	 WRITE(3,'(A7,L4)') 'OUT_Z= ',OUT_Z !added by Cheng for varying depth
+	 WRITE(3,'(A7,L4)') 'OUT_M= ',OUT_M !added by Cheng for recording Hmax
+# endif
+
+! added by Cheng for nesting
+# if defined (COUPLING)
+      CALL GET_STRING_VAL(COUPLING_FILE,FILE_NAME,'COUPLING_FILE',line,ierr)
+# if defined (PARALLEL)
+      if (myid.eq.0) WRITE(3,'(A15,A50)')'COUPLING_FILE:', COUPLING_FILE
+# else
+      WRITE(3,'(A15,A50)')'COUPLING_FILE:', COUPLING_FILE
+# endif
 # endif
 
 # if defined (PARALLEL)
@@ -1072,7 +1161,8 @@
               EtaxL(Mloc1,Nloc),EtaxR(Mloc1,Nloc),EtayL(Mloc,Nloc1),EtayR(Mloc,Nloc1), &
               DelxEta(Mloc,Nloc),DelyEta(Mloc,Nloc),DelxD(Mloc,Nloc),DelyD(Mloc,Nloc),Sponge(Mloc,Nloc), &
               Setup(Mloc,Nloc),WaveHeight(Mloc,Nloc),Umean(Mloc,Nloc),Vmean(Mloc,Nloc),Num_Zero_Up(Mloc,Nloc), &
-              Emax(Mloc,Nloc),Emin(Mloc,Nloc),WdU(Mloc,Nloc),WdV(Mloc,Nloc),Wsx(Mloc,Nloc),Wsy(Mloc,Nloc))
+              Emax(Mloc,Nloc),Emin(Mloc,Nloc),WdU(Mloc,Nloc),WdV(Mloc,Nloc),Wsx(Mloc,Nloc),Wsy(Mloc,Nloc), &
+			  HeightMax(Mloc,Nloc))
 
      ! three-dimensional vars
      ALLOCATE(U(Mloc,Nloc,Kloc),V(Mloc,Nloc,Kloc),W(Mloc,Nloc,Kloc),Omega(Mloc,Nloc,Kloc1), &
@@ -1300,6 +1390,7 @@
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt
 # endif
+     Hc = Zero ! added by Cheng for initialization
 !
 !    read bathymetry at grid points
 !
@@ -1597,6 +1688,8 @@
      DelyDU = Zero
      DelxDV = Zero
      DelyDV = Zero
+     DelxDW = Zero
+     DelyDW = Zero
      DelzO = Zero
      Sponge = One
      Cmu = Visc
@@ -1626,6 +1719,8 @@
      Ein_Xn = Zero
      Din_Xn = Zero   
 
+     HeightMax = Zero ! added by cheng for recording Hmax
+	 
      Setup = Zero
      WaveHeight = Zero
      Umean = Zero
@@ -1775,6 +1870,11 @@
      DEps = Zero
      DTke0 = Zero
      DEps0 = Zero
+
+     !added by m.derakhti            
+     Wsx = Zero
+     Wsy = Zero
+	 
 # if defined (VEGETATION)
      Tke_w = Zero
      Eps_w = Zero
@@ -2191,6 +2291,11 @@
 # endif
      endif
 # endif
+
+    ! added by Cheng for hot start
+     if(HOTSTART)then
+       call hot_start
+     endif
 
 !
 !    SSP Runge-Kutta method parameters
