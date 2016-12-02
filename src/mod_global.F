@@ -108,6 +108,36 @@
      real(SP) :: SlideUt,SlideA0,SlideDens
 # endif
 
+# if defined (LANDSLIDE_COMPREHENSIVE)
+! more comprehensive slide setting including multi-slides, rectangular shape
+! rotational etc
+     real(SP) :: kb_slide,kw_slide, &
+                 acceleration_lab
+
+! for multiple slides
+     CHARACTER(LEN=80) :: MultiSlidesFile
+     CHARACTER(LEN=80) :: VoidString
+     INTEGER :: NumSlides
+     REAL(SP),DIMENSION(:),ALLOCATABLE :: T_slide,b_slide,w_slide,e_slide,alpha_slide, &
+                 x0_slide,y0_slide,term_v,slope_slide
+     REAL(SP),DIMENSION(:),ALLOCATABLE :: uslide,ac_slide
+     REAL(SP),DIMENSION(:),ALLOCATABLE  :: subaer_center2water, &
+                                   subaer_center2water0,Coulomb_phi
+     REAL(SP),DIMENSION(:),ALLOCATABLE  :: Smax_slide,SlideStartTime
+
+! add base bathymetry for landslide fyshi
+     real(SP), dimension(:,:), allocatable :: Dep0,DepC0    
+     LOGICAL :: SLIDE_SHAPE_BOX 
+     LOGICAL :: SMFCut,Slide,SlideStop
+     real(SP) :: sf_slide,tf_slide,ut_slide,ACC_lab
+     real(SP) :: XX0_Slide,YY0_Slide ! used for grilli ellipse case
+
+     REAL(SP),DIMENSION(:,:),ALLOCATABLE :: EleMax,EleMin
+     REAL(SP) :: SlideErrorRange = 0.01  ! avoid sharp edge in box cases 
+
+# endif 
+! end comprehensive
+
 # if defined (BALANCE2D)
      real(SP), dimension(:,:), allocatable :: DUDT2D,DVDT2D,DEDX2D,DEDY2D,DPDX2D,DPDY2D,DIFFX2D,DIFFY2D,  &
                 TAUBX2D,TAUBY2D,FVEGX2D,FVEGY2D,ADVX2D,ADVY2D
