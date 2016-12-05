@@ -108,6 +108,11 @@
        endif
 # endif
 
+# if defined (LANDSLIDE_COMPREHENSIVE)
+       call update_bathymetry_comprehensive
+# endif
+! end landslide comprehensive
+
 # if defined (POROUSMEDIA)
        ! update porosity
        call read_porosity
@@ -1195,6 +1200,13 @@
             Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
        endif
 # endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+       Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
+            Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
+            Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
+# endif
+! end landslide comprehensive
 
 # if defined (TWOLAYERSLIDE)
        if(D(i,j)>0.05) then
@@ -7361,6 +7373,298 @@
      end subroutine update_bathymetry
 # endif
  
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+
+     subroutine update_bathymetry_comprehensive
+!------------------------------------------------------
+!    This subroutine is used to update time-varying bathymetry 
+!    Called by 
+!       main 
+!    update: 12/05/2011, Gangfeng Ma 
+!    update: 04/13/2012, Fengyan Shi
+!    fyshi make a standard slide application    
+!-----------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j,m,n,iter,kslide
+     real(SP) :: Hd,alpha0,L0,T,bl,wl,e,kb,kw,x0,x1,x2,xr,Hb(Mloc,Nloc), &
+          xt,xt1,zt,zt1,ut,t0,a0,ht,s0,st,yt,Hslide(Mloc1,Nloc1)
+     REAL(SP) :: edge_width
+     real(SP) :: S_Slide, tmax_slide, del_slide, Sdel_slide, ks_slide !CO
+     real(SP) :: CD_form,Cn_Coulomb,gamma_rho,Cf_skin,Cm,FF,F1,F2,F3
+              
+     ! save old bathymetry
+     Ho = Hc
+
+     ut = term_v(1)
+     ut_slide = term_v(1)
+
+   IF(ANA_BATHY)THEN
+!      if use analytical slide, 1)need iteration 2) ac is time-dependent
+     Hd=1.5  
+     T = T_slide(1)
+     bl = b_slide(1)
+     wl = w_slide(1)
+     e = e_slide(1)
+     alpha0 = slope_slide(1)*3.1415926/180.0
+     kb = 2.0*acosh(1.0/e)/bl
+     kw = 2.0*acosh(1.0/e)/wl
+     x0=x0_slide(1)
+     xr = 0.0
+
+     a0 = acceleration_lab
+     t0 = ut/a0
+     s0 = ut**2/a0
+     st = s0*log(cosh(time/t0))
+     L0 = x0/cos(alpha0)-T*tan(alpha0)+st
+     x1 = (L0-bl/2.)*cos(alpha0)+xr
+     x2 = (L0+bl/2.)*cos(alpha0)+xr
+
+   ELSE
+
+     IF(SLIDE_SHAPE_BOX) THEN  ! more conservative, usually for box-shape application
+
+! ---
+
+      DO kslide=1,NumSlides
+
+       IF(TIME > SlideStartTime(Kslide))THEN
+
+       CD_form=0.3   ! form drag
+       Cn_Coulomb=tan(Coulomb_phi(kslide)*3.1415926/180.0)
+       gamma_rho=2650.0/1000.0
+       Cf_skin=0.005
+       Cm=3.1415926*T_slide(kslide)/2.0/b_slide(kslide)
+
+        FF=b_slide(kslide)*0.5-subaer_center2water(kslide)
+        if (FF<0.0)FF=0.0
+        if (FF>b_slide(kslide))FF=b_slide(kslide)
+        F1=b_slide(kslide)*gamma_rho+Cm*FF
+        F2=-0.5*(Cf_skin*FF/T_slide(kslide)+Cd_form)
+        F3=(b_slide(kslide)*gamma_rho-FF)*grav*  &
+           (sin(slope_slide(kslide)*pi/180.0)-  &
+             Cn_Coulomb*cos(slope_slide(kslide)*pi/180.0))
+
+        uslide(kslide)=uslide(kslide)+dt*1.0/F1*(F2*uslide(kslide)*uslide(kslide)+F3)
+        subaer_center2water(kslide)=subaer_center2water(kslide)-uslide(kslide)*dt
+
+        if(abs(subaer_center2water(kslide)- &
+           subaer_center2water0(kslide))>Smax_slide(kslide)) uslide(kslide)=0.0
+       
+! ---
+
+       if (uslide(kslide) > term_v(kslide)) uslide(kslide) = term_v(kslide)
+  
+       x0_slide(kslide) = x0_slide(kslide)+dt*uslide(kslide)*cos(alpha_slide(kslide))
+       y0_slide(kslide) = y0_slide(kslide)+dt*uslide(kslide)*sin(alpha_slide(kslide))
+
+       ENDIF ! end slide start time
+
+      ENDDO ! end kslide
+
+     ELSE ! Grilli slide
+
+if (Slide) then !Slide CO
+   if (SlideStop) then !CO Add Slide Stopping from Grilli and Watts (2005) appendix
+      tmax_slide = ut_slide/ac_slide(1)*acosh(exp(Smax_slide(1)/(ut_slide**2/ac_slide(1))))
+      del_slide = tmax_slide/(ut_slide/ac_slide(1))-tmax_slide/(ut_slide/ac_slide(1))*0.1
+      Sdel_slide = ut_slide**2/ac_slide(1)*log(cosh(del_slide))
+      ks_slide = (ut_slide*(tanh(del_slide)))/(Smax_slide(1)-Sdel_slide)
+
+      S_Slide = ut_slide**2/ac_slide(1)*log(cosh(time*ac_slide(1)/ut_slide))*COS(slope_slide(1)*pi/180)
+      if (time > del_slide*ut_slide/ac_slide(1)) then 
+      S_Slide = Sdel_slide+(Smax_slide(1)-Sdel_slide)*  &
+          (1-exp(-ks_slide*(time-del_slide*ut_slide/ac_slide(1))))  &
+          *COS(slope_slide(1)*pi/180)
+      endif
+
+   else ! Continuous slide movement
+      S_Slide = ut_slide**2/ac_slide(1)*log(cosh(time*ac_slide(1)/ut_slide))*COS(slope_slide(1)*pi/180)
+   endif
+
+
+else !Slump CO
+!      uslide = 3.1415926/2.0*sf_slide/tf_slide*sin(time*3.1415926/tf_slide)
+      S_Slide = sf_slide/2*(1-cos(time*3.1415926/tf_slide))*COS(slope_slide(1)*pi/180)
+     
+      if (time > tf_slide)then
+      S_Slide = sf_slide*COS(slope_slide(1)*pi/180)
+      else
+      endif
+endif
+     x0_slide(1) = XX0_Slide+S_Slide*cos(alpha_slide(1)) !CO
+     y0_slide(1) = YY0_Slide+S_Slide*sin(alpha_slide(1)) !CO
+
+
+     ENDIF ! conservative vs. grilli
+
+   ENDIF
+
+     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
+
+# if defined (PARALLEL)
+       if(myid.eq.0) write(*,*) 'DEPTH_TYPE has to be cell_center'
+# else
+       write(*,*) 'DEPTH_TYPE has to be cell_center'
+# endif       
+
+     elseif(trim(adjustl(DEPTH_TYPE))=='CELL_CENTER') then
+       ! base bathymetry 
+   IF(ANA_BATHY)THEN   ! lab analytical slide
+
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)<=xr) then
+           Hb(i,j) = -(xr-xc(i))*tan(alpha0)
+         elseif(xc(i)<=Hd/tan(alpha0)+xr) then
+           Hb(i,j) = (xc(i)-xr)*tan(alpha0)
+         else
+           Hb(i,j) = Hd
+         endif
+         ! temporarily no runup
+       !  Hb(i,j) = max(0.01,Hb(i,j))
+       enddo
+       enddo
+
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)<=x1.or.xc(i)>=x2.or.yc(j)>=wl/2.) then
+           Hc(i,j) = Hb(i,j)
+         else
+           iter = 1
+           xt = (xc(i)-xr)/cos(alpha0)-L0
+           zt = T/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yc(j))-e)
+      60   xt1 = ((xc(i)-xr)/cos(alpha0)-zt*tan(alpha0))-L0
+           zt1 = T/(1-e)*(1.0/cosh(kb*xt1)/cosh(kw*yc(j))-e)
+           if(abs(zt1-zt)/abs(zt)>1.e-8) then
+             iter = iter+1
+             if(iter>20) write(*,*) 'too many iterations!'
+             zt = zt1
+             goto 60
+           endif
+           Hc(i,j) = Hb(i,j)-max(0.0,zt1)/cos(alpha0)  
+         endif
+       enddo
+       enddo
+
+   ELSEIF(SLIDE_SHAPE_BOX) THEN  ! box shape
+       Hb=DepC0
+       Hc=DepC0
+
+       ! add landslide
+! to keep consistent with slide bathy at grid, assuming slide bathy at grid point
+
+       DO kslide = 1, NumSlides
+
+       edge_width=T_slide(KSLIDE)
+       Hslide=0.0_SP
+
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend1
+         xt = (x(i)-x0_slide(KSLIDE))*cos(alpha_slide(KSLIDE))+(y(j)-y0_slide(KSLIDE))*sin(alpha_slide(KSLIDE))
+         yt = -(x(i)-x0_slide(KSLIDE))*sin(alpha_slide(KSLIDE))+(y(j)-y0_slide(KSLIDE))*cos(alpha_slide(KSLIDE))
+
+         IF(abs(xt)<=0.5*b_slide(KSLIDE)-0.5*edge_width.AND.abs(yt)<=0.5*w_slide(KSLIDE)  &
+                 +SlideErrorRange)THEN
+            ht=T_slide(KSLIDE)
+         ELSEIF(abs(xt)>0.5*b_slide(KSLIDE)-0.5*edge_width  &
+            .AND.abs(xt)<0.5*b_slide(KSLIDE)+0.5*edge_width.AND.abs(yt)<=0.5*w_slide(KSLIDE)  &
+                 +SlideErrorRange)THEN
+            ht=T_slide(KSLIDE)-T_slide(KSLIDE)*(abs(xt)-0.5*b_slide(KSLIDE)+0.5*edge_width)/edge_width
+         ELSE
+            ht=0.0_SP
+         ENDIF
+         Hslide(I,J) = max(0.0,ht)
+       enddo
+       enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+!         Hc(i,j) = Hb(i,j)-ht
+         Hc(i,j) = Hc(i,j)-ht
+       enddo
+       enddo
+
+      ENDDO ! end Kslide
+
+
+   ELSE  ! ellipse shape (original in version 1.1)
+       Hb=DepC0
+
+       ! add landslide
+! to keep consistent with slide bathy at grid, assuming slide bathy at grid point
+
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend1
+         xt = (x(i)-x0_slide(1))*cos(alpha_slide(1))+(y(j)-y0_slide(1))*sin(alpha_slide(1))
+         yt = -(x(i)-x0_slide(1))*sin(alpha_slide(1))+(y(j)-y0_slide(1))*cos(alpha_slide(1))
+         ht = T_slide(1)/(1-e_slide(1))*(1./cosh(kb_slide*xt)/cosh(kw_slide*yt)-e_slide(1))
+         Hslide(I,J) = max(0.0,ht)
+       enddo
+       enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+         Hc(i,j) = Hb(i,j)-ht
+       enddo
+       enddo
+
+    ENDIF  ! end analytical slide
+
+     endif ! end cell center
+
+     ! ghost cells
+     call phi_2D_coll(Hc)
+
+     ! reconstruct depth at x-y faces
+     do j = 1,Nloc
+     do i = 2,Mloc
+       Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
+     enddo
+     Hfx(1,j) = Hfx(2,j)
+     Hfx(Mloc1,j) = Hfx(Mloc,j)
+     enddo
+
+     do i = 1,Mloc
+     do j = 2,Nloc
+       Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
+     enddo
+     Hfy(i,1) = Hfy(i,2)
+     Hfy(i,Nloc1) = Hfy(i,Nloc)
+     enddo
+
+     ! derivatives of water depth at cell center
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
+       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
+     enddo
+     enddo
+
+     ! time derivative of water depth
+     DeltHo = DeltH
+
+     DeltH = zero
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DeltH(i,j) = (Hc(i,j)-Ho(i,j))/dt
+     enddo
+     enddo
+
+     ! second-order time derivative
+     if(RUN_STEP>2) Delt2H = (DeltH-DeltHo)/dt
+
+     end subroutine update_bathymetry_comprehesive
+
+# endif
+! end landslide comprehensive
 
      subroutine RandomU
 !-------------------------------------------------
