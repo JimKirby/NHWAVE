@@ -1320,8 +1320,11 @@
 
      ! three-dimensional vars
 
+# if defined (LANDSLIDE_COMPREHENSIVE)
 ! fyshi add base bathymetry for landslide
      ALLOCATE(Dep0(Mloc1,Nloc1),DepC0(Mloc,Nloc))
+# endif
+
      ALLOCATE(U(Mloc,Nloc,Kloc),V(Mloc,Nloc,Kloc),W(Mloc,Nloc,Kloc),Omega(Mloc,Nloc,Kloc1), &
               P(Mloc,Nloc,Kloc1),DU(Mloc,Nloc,Kloc),DV(Mloc,Nloc,Kloc),DW(Mloc,Nloc,Kloc),  &
               U0(Mloc,Nloc,Kloc),V0(Mloc,Nloc,Kloc),W0(Mloc,Nloc,Kloc),  &
