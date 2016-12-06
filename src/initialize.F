@@ -1701,9 +1701,8 @@
 
      end subroutine read_bathymetry
 
-# if defined (LANDSLIDE_COMPREHENSIVE)
 
-     subroutine read_bathymetry
+     subroutine read_bathymetry_comprehensive
 !------------------------------------------------------ 
 !    This subroutine is used to read bathymetry                                                
 !    Called by  
@@ -1717,14 +1716,14 @@
      integer :: i,j,m,n,iter,iglob,jglob,Kslide
      integer :: Maskp(Mglob+1,Nglob+1)
      real(SP), dimension(Mglob+1,Nglob+1) :: HG
-     real(SP), dimension(Mglob,Nglob) :: HCG
-# if defined (LANDSLIDE)
+!     real(SP), dimension(Mglob,Nglob) :: HCG
+# if defined (LANDSLIDE_COMPREHENSIVE)
      real(SP) :: Hd,alpha0,L0,T,bl,wl,e,kb,kw,x0,x1,x2,xr,Hb(Mloc,Nloc),&
               xt,xt1,zt,zt1,ht,yt,Hslide(Mloc1,Nloc1)
      real(SP) :: edge_width
 # endif
 
-# if defined (LANDSLIDE)
+# if defined (LANDSLIDE_COMPREHENSIVE)
    IF(ANA_BATHY)THEN
 !      if use analytical slide, 1)need iteration 2) ac is time-dependent
      Hd=1.5  
@@ -1820,7 +1819,7 @@
 
        if(ANA_BATHY) then
 
-# if defined (LANDSLIDE)
+# if defined (LANDSLIDE_COMPREHENSIVE)
          ! base bathymetry                                                                     
          do j = Jbeg,Jend
          do i = Ibeg,Iend
@@ -1884,7 +1883,7 @@
          enddo
 # endif
 
-# if defined (LANDSLIDE)
+# if defined (LANDSLIDE_COMPREHENSIVE)
          ! add the landslide
 
       DepC0 = Hc   ! save base bathymetry 
@@ -2018,10 +2017,9 @@
      enddo
 
 
-     end subroutine read_bathymetry
+     end subroutine read_bathymetry_comprehensive
 
-# endif
-! end landslide comprehensive
+
 
 !
 !------------------------------------------------------------------------------------------
