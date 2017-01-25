@@ -1,0 +1,26 @@
+--------------------------------------------------------------------------------------
+
+                               NHWAVE update records
+
+--------------------------------------------------------------------------------------
+
+UPDATE_00001
+by Cheng Zhang
+23/11/2016
+
+＊Bug Fixes
+，Fixed two bugs that leaded to unstability since two variables were not initialized.
+
+＊Additions to Functions
+，Added a function to record max runup of wave.
+，Added a function to record varying bathymetry.
+，Added a function to hot start simulation.
+，Added a function to limit max maximum Froude number.
+，Added a function to generate irregular waves with a internal wave maker.
+，Added a function to impose nesting data as boundary conditions.
+
+＊Changes
+，Changed Sommerfeld open boundary condition to Orlanski open boundary condition.
+，Changed subroutine flux_left_right_boundary to impose velocity at inflow boundary.
+，Changed subroutine probes to output velocity components at each layer when setting 
+ z=-1.0 in stat.txt
