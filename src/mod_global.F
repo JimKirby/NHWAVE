@@ -43,6 +43,7 @@
      character(len=80) :: DEPTH_TYPE
      character(len=80) :: dt_constraint
      character(len=80) :: CONVECTION
+     character(len=80) :: DEPTH_FILE
 
 # if defined (PARALLEL)
      integer :: myid,ier
@@ -108,6 +109,36 @@
      real(SP) :: SlideUt,SlideA0,SlideDens
 # endif
 
+# if defined (LANDSLIDE_COMPREHENSIVE)
+! more comprehensive slide setting including multi-slides, rectangular shape
+! rotational etc
+     real(SP) :: kb_slide,kw_slide, &
+                 acceleration_lab
+
+! for multiple slides
+     CHARACTER(LEN=80) :: MultiSlidesFile
+     CHARACTER(LEN=80) :: VoidString
+     INTEGER :: NumSlides
+     REAL(SP),DIMENSION(:),ALLOCATABLE :: T_slide,b_slide,w_slide,e_slide,alpha_slide, &
+                 x0_slide,y0_slide,term_v,slope_slide
+     REAL(SP),DIMENSION(:),ALLOCATABLE :: uslide,ac_slide
+     REAL(SP),DIMENSION(:),ALLOCATABLE  :: subaer_center2water, &
+                                   subaer_center2water0,Coulomb_phi
+     REAL(SP),DIMENSION(:),ALLOCATABLE  :: Smax_slide,SlideStartTime
+
+! add base bathymetry for landslide fyshi
+     real(SP), dimension(:,:), allocatable :: Dep0,DepC0    
+     LOGICAL :: SLIDE_SHAPE_BOX 
+     LOGICAL :: SMFCut,Slide,SlideStop
+     real(SP) :: sf_slide,tf_slide,ut_slide,ACC_lab
+     real(SP) :: XX0_Slide,YY0_Slide ! used for grilli ellipse case
+
+     REAL(SP),DIMENSION(:,:),ALLOCATABLE :: EleMax,EleMin
+     REAL(SP) :: SlideErrorRange = 0.01  ! avoid sharp edge in box cases 
+
+# endif 
+! end comprehensive
+
 # if defined (BALANCE2D)
      real(SP), dimension(:,:), allocatable :: DUDT2D,DVDT2D,DEDX2D,DEDY2D,DPDX2D,DPDY2D,DIFFX2D,DIFFY2D,  &
                 TAUBX2D,TAUBY2D,FVEGX2D,FVEGY2D,ADVX2D,ADVY2D
@@ -136,9 +167,9 @@
                                               DelxHa,DelxUa,DelxVa,DelxHUa,DelxHVa,DelyHa,DelyUa,DelyVa, &
                                               DelyHUa,DelyHVa,HaxL,HaxR,UaxL,UaxR,VaxL,VaxR,HayL,HayR, &
                                               UayL,UayR,VayL,VayR,Kap,KapxL,KapxR,KapyL,KapyR,SaxL,SaxR, &
-                                              SaxS,SayL,SayR,SayS,DelxKap,DelyKap,DepAng,CosAng, &
-                                              ForceX_UL,ForceY_UL,Grav_LL,DelxGrav,DelyGrav,GravxL,GravxR, &
-                                              GravyL,GravyR,wbar
+                                              SaxS,SayL,SayR,SayS,DelxKap,DelyKap,Slambda, &
+                                              ForceX_UL,ForceY_UL,Grav_LL,DelxGravLz,DelyGravLz,GravxL,GravxR, &
+                                              GravyL,GravyR,wbar,Grav_Lx,Grav_Ly,Grav_Lz
      integer, dimension(:,:), allocatable :: Maska
 # endif
 
@@ -154,23 +185,29 @@
                 NumFreq,NumDir,NSTAT,WaveheightID,ProdType
      integer :: Bc_X0,Bc_Xn,Bc_Y0,Bc_Yn,Bc_Z0,Bc_Zn
      real(SP) :: dt,dt_old,dt_min,dt_max,dt_ini,dx,dy,Theta,CFL,VISCOUS_NUMBER,MinDep,TIME,TOTAL_TIME,Plot_Intv,  &
-                 Screen_Intv,Screen_Count,Plot_Count,Visc,Cvs,Chs,Zob,Tke_min,Eps_min,Cmut_min,Cd0,Plot_Start,Plot_Intv_Stat, &
-                 Plot_Count_Stat,xstat(200),ystat(200),zstat(200),Wave_Ave_Start,Wave_Ave_End,Schmidt,TRamp,Grd_R,Yield_Stress,Plastic_Visc, &
+                 Screen_Intv,Screen_Count,Plot_Count,Visc,Cvs,Chs,Zob,Tke_min,  &
+                 Eps_min,Cmut_min,Cd0,Plot_Start,Plot_Intv_Stat, &
+                 Plot_Count_Stat,xstat(200),ystat(200),zstat(200),Wave_Ave_Start,  & 
+                 Wave_Ave_End,Schmidt,TRamp,Grd_R,Yield_Stress,Plastic_Visc, &
                  Mud_Visc,Water_Depth,WindU,WindV,slat,fcor,Pgrad0,DepConst
-     real(SP) :: Amp_Wave,Per_Wave,Dep_Wave,Theta_Wave,Freq(MaxNumFreq),Dire(MaxNumDir),Wave_Spc2d(MaxNumDir,MaxNumFreq), &
-                 Random_Phs(MaxNumDir,MaxNumFreq),Hm0,Tp,Freq_Min,Freq_Max,Jon_Spc(MaxNumFreq),RanPhs(MaxNumFreq),Cur_Wave
+     real(SP) :: Amp_Wave,Per_Wave,Dep_Wave,Theta_Wave,Freq(MaxNumFreq),  &
+                 Dire(MaxNumDir),Wave_Spc2d(MaxNumDir,MaxNumFreq), &
+                 Random_Phs(MaxNumDir,MaxNumFreq),Hm0,Tp,Freq_Min,Freq_Max,  & 
+                 Jon_Spc(MaxNumFreq),RanPhs(MaxNumFreq),Cur_Wave
      real(SP) :: Sponge_West_Width,Sponge_East_Width,Sponge_South_Width,Sponge_North_Width, &
                  Xsource_West,Xsource_East,Ysource_Suth,Ysource_Nrth
      real(SP), dimension(3) :: ALPHA,BETA
 
      ! M.Derakhti added this for FOCUSED wavemaker 
      integer :: nwave,Component_Amp_Type
-     real(SP) :: k_center,f_center,x_breaking,t_breaking,Slope_group,normalized_delta_f,depth_comp,eta_mean,sd_return          
+     real(SP) :: k_center,f_center,x_breaking,t_breaking,Slope_group,normalized_delta_f,  &
+                 depth_comp,eta_mean,sd_return     
      real(SP), dimension(12000) :: Amp_i,f_i,k_i,Phase_i
 
      ! real arrays
      real(SP), dimension(:), allocatable :: x,xc,y,yc,sig,dsig,sigc,Ein_X0,Din_X0,Ein_Xn,Din_Xn
-     real(SP), dimension(:,:), allocatable :: Ho,H,Hc,HCG,Hc0,Hfx,Hfy,DeltH,DeltHo,Delt2H,DelxH,DelyH,D,D0,Eta,Eta0,Eta00, &
+     real(SP), dimension(:,:), allocatable :: Ho,H,Hc,HCG,Hc0,Hfx,Hfy,DeltH,DeltHo,Delt2H,  &
+                                              DelxH,DelyH,D,D0,Eta,Eta0,Eta00, &
                                               SourceX,SourceY,SourceC,DxL,DxR,DyL,DyR,EtaxL,EtaxR,EtayL,EtayR, &
                                               DelxEta,DelyEta,DelxD,DelyD,Uin_X0,Vin_X0,Win_X0,Uin_Xn,Vin_Xn, &
                                               Win_Xn,Bc_Prs,Sponge,Setup,WaveHeight,Umean,Vmean,Emax,Emin,WdU,WdV,Wsx,Wsy, &
@@ -260,6 +297,22 @@
 	 ! added by Cheng for limiting the maximum Froude number
 # if defined (FROUDE_CAP)
      REAL(SP) :: FROUDECAP
+# endif
+	 
+	 ! added by Cheng for fluid slide
+# if defined (FLUIDSLIDE)
+     CHARACTER(LEN=80) :: Slide_File	
+     real(SP), dimension(:,:), allocatable :: SldM0, SldN0, SldZ0, SldDZ0
+     real(SP), dimension(:,:), allocatable :: SldM1, SldN1, SldZ1, SldDZ1
+     real(SP), dimension(:,:), allocatable :: SldMs, SldNs, SldZs, SldDZs
+     real(SP), dimension(:,:), allocatable :: SldWZ
+     real(SP), dimension(:,:), allocatable :: SldUs, SldVs
+     real(SP) :: SLIDE_DENSITY
+     real(SP) :: SLIDE_VISCOSITY
+     real(SP) :: SLIDE_ROUGHNESS
+     real(SP) :: SLIDE_MINTHICK 
+     real(SP) :: SLIDE_DIFF 
+     real(SP) :: SLIDE_RKC1, SLIDE_RKC2, SLIDE_RKDT    	 
 # endif
 
      End Module GLOBAL

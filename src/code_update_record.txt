@@ -24,3 +24,18 @@ by Cheng Zhang
 ，Changed subroutine flux_left_right_boundary to impose velocity at inflow boundary.
 ，Changed subroutine probes to output velocity components at each layer when setting 
  z=-1.0 in stat.txt
+ 
+ 
+UPDATE_00002
+by Cheng Zhang
+08/03/2017
+
+＊Additions to Functions
+，Added a subroutine for fluid slide simulation.
+，Added a subroutine for comprehensive landslide bathymetry discription(from Fengyan).
+，Added a function to impose wall friction on east, west, south and/or north walls.
+，Added a function to identify 2D and 3D solid slide in input file.
+，Added a function for 3D solid triangular slide.
+
+＊Changes
+，Changed long sentences to short ones to avoid compile problems.

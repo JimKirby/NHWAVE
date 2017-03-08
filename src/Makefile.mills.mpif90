@@ -23,6 +23,8 @@
 #	      FLAG_14 = -DPOROUSMEDIA
          FLAG_15 = -DFROUDE_CAP
 #         FLAG_16 = -DCOUPLING
+#         FLAG_17 = -DFLUIDSLIDE
+#         FLAG_18 = -DLANDSLIDE_COMPREHENSIVE
 #--------------------------------------------------------------------------
 #  mpi defs 
 #--------------------------------------------------------------------------
