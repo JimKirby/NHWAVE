@@ -72,7 +72,11 @@
 !
 !    read bathymetry
 !
+# if defined(LANDSLIDE_COMPREHENSIVE)
+     call read_bathymetry_comprehensive
+# else
      call read_bathymetry
+# endif
 !
 !    initialize model run
 !
@@ -103,10 +107,20 @@
 
 # if defined (LANDSLIDE)
        ! run landslide-generated tsunami
-       if(trim(SlideType)=='RIGID') then
+       if(SlideType(1:5)=='RIGID') then ! modified by Cheng to identify 2d and 3d landslide
          call update_bathymetry
        endif
 # endif
+
+!added by Cheng for viscous slide
+# if defined (FLUIDSLIDE)
+       call update_bathymetry
+# endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+       call update_bathymetry_comprehensive
+# endif
+! end landslide comprehensive
 
 # if defined (POROUSMEDIA)
        ! update porosity
@@ -481,7 +495,7 @@
      ! update velocities for calculating IB forces
      call get_UVW     
 
-     ! calculate forcing at obstacle boundary                                                                                       
+     ! calculate forcing at obstacle boundary                                                                                    
      call imm_obs
 
      do k = Kbeg,Kend
@@ -1189,12 +1203,26 @@
      do i = Ibeg,Iend
        ic = indx(i,j,k)
 # if defined (LANDSLIDE)
-       if(trim(SlideType)=='RIGID') then
+       if(SlideType(1:5)=='RIGID') then ! modified by Cheng to identify 2d and 3d landslide
          Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
             Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
             Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
        endif
 # endif
+
+!added by Cheng for viscous slide
+# if defined (FLUIDSLIDE)
+       Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
+            Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
+            Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
+# endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+       Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
+            Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
+            Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
+# endif
+! end landslide comprehense
 
 # if defined (TWOLAYERSLIDE)
        if(D(i,j)>0.05) then
@@ -1379,8 +1407,8 @@
        if(Mask(i,j)==0) cycle
        do k = Kbeg,Kend
          R3(i,j,k) = -1.0/dx*(Gx(i+1,j,k)-Gx(i,j,k))-1.0/dy*(Gy(i,j+1,k)-Gy(i,j,k)) &   
-                        -1.0/dsig(k)*(Gz(i,j,k+1)-Gz(i,j,k))-fcor*DU(i,j,k)+DRhoY(i,j,k)  &                                                
-                        +SourceY(i,j)+Diffyx(i,j,k)+Diffyy(i,j,k)+ExtForceY(i,j,k)                                                           
+                        -1.0/dsig(k)*(Gz(i,j,k+1)-Gz(i,j,k))-fcor*DU(i,j,k)+DRhoY(i,j,k)  &
+                        +SourceY(i,j)+Diffyx(i,j,k)+Diffyy(i,j,k)+ExtForceY(i,j,k)
 # if defined (CORALREEF)
          if(Hc(i,j)<0.12) then
            Umag = sqrt(U(i,j,k)**2+V(i,j,k)**2+W(i,j,k)**2)
@@ -2182,7 +2210,7 @@
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
-       if(Bc_X0==1.or.Bc_X0==2) then
+       if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! added by Cheng for wall friction
          Ex(Ibeg,j,k) = Zero
        elseif(Bc_X0==3) then
          Ex(Ibeg,j,k) = Din_X0(j)*Uin_X0(j,k)
@@ -2198,7 +2226,7 @@
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
-       if(Bc_Xn==1.or.Bc_Xn==2) then
+       if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_Xn==5) then ! added by Cheng for wall friction
          Ex(Iend1,j,k) = Zero
        elseif(Bc_Xn==3) then
          Ex(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)
@@ -2215,7 +2243,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Y0==1.or.Bc_Y0==2) then
+       if(Bc_Y0==1.or.Bc_Y0==2.or.Bc_Y0==5) then ! added by Cheng for wall friction
          Ey(i,Jbeg,k) = Zero
        endif
      enddo
@@ -2229,7 +2257,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Yn==1.or.Bc_Yn==2) then
+       if(Bc_Yn==1.or.Bc_Yn==2.or.Bc_Yn==5) then ! added by Cheng for wall friction
          Ey(i,Jend1,k) = Zero
        endif
      enddo
@@ -2893,7 +2921,7 @@
 # endif
 	 do j = Jbeg,Jend
      do k = Kbeg,Kend
-       if(Bc_X0==1.or.Bc_X0==2) then
+       if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! added by Cheng for wall friction
          Ex(Ibeg,j,k) = Zero
          Fx(Ibeg,j,k) = 0.5*Grav*(EtaxR(Ibeg,j)*EtaxR(Ibeg,j)+2.0*EtaxR(Ibeg,j)*hfx(Ibeg,j))
          Gx(Ibeg,j,k) = Zero
@@ -2922,7 +2950,7 @@
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
-       if(Bc_Xn==1.or.Bc_Xn==2) then
+       if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_Xn==5) then ! added by Cheng for wall friction
          Ex(Iend1,j,k) = Zero
          Fx(Iend1,j,k) = 0.5*Grav*(EtaxL(Iend1,j)*EtaxL(Iend1,j)+  &
                   2.0*EtaxL(Iend1,j)*hfx(Iend1,j))
@@ -2953,7 +2981,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Y0==1.or.Bc_Y0==2) then
+       if(Bc_Y0==1.or.Bc_Y0==2.or.Bc_Y0==5) then ! added by Cheng for wall friction
          Ey(i,Jbeg,k) = Zero
          Fy(i,Jbeg,k) = Zero
          Gy(i,Jbeg,k) = 0.5*Grav*(EtayR(i,Jbeg)*EtayR(i,Jbeg)+  &
@@ -2977,7 +3005,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Yn==1.or.Bc_Yn==2) then
+       if(Bc_Yn==1.or.Bc_Yn==2.or.Bc_Yn==5) then ! added by Cheng for wall friction
          Ey(i,Jend1,k) = Zero
          Fy(i,Jend1,k) = Zero
          Gy(i,Jend1,k) = 0.5*Grav*(EtayL(i,Jend1)*EtayL(i,Jend1)+  &
@@ -4644,6 +4672,10 @@
 # if defined (PARALLEL)
      real(SP) :: myvar
 # endif
+     ! added by Cheng for fluid slide
+# if defined (FLUIDSLIDE)
+     real(SP) :: dt_landslide
+# endif
 
      ! save previous time step
      dt_old = dt
@@ -4691,6 +4723,30 @@
      tmp2 = myvar
 # endif
      dt_courant = CFL*tmp2
+	 
+	 ! added by Cheng for fluid slide
+# if defined (FLUIDSLIDE)
+     ! time step limit due to the landslide 
+     tmp2 = Large
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       tmp1 = abs(SldUs(i,j))+sqrt(Grav*SldDZs(i,j))
+       tmp1 = max(tmp1,Small)
+       dxonu = dx/tmp1
+       if(dxonu<tmp2) tmp2=dxonu
+
+       tmp1 = abs(SldVs(i,j))+sqrt(Grav*SldDZs(i,j))
+       tmp1 = max(tmp1,Small)
+       dyonv = dy/tmp1
+       if(dyonv<tmp2) tmp2=dyonv
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call MPI_ALLREDUCE(tmp2,myvar,1,MPI_SP,MPI_MIN,MPI_COMM_WORLD,ier)
+     tmp2 = myvar
+# endif
+     dt_landslide = 0.1d0*CFL*tmp2
+# endif
 
      ! time step limit due to explicit viscous stress terms
      dt_viscous = Large
@@ -4743,6 +4799,11 @@
        dt_constraint = 'VISCOUS'
      elseif(dt==dt_max) then
        dt_constraint = 'MAXIMUM'
+	 ! added by Cheng for fluid slide
+# if defined (FLUIDSLIDE)
+     elseif(dt==dt_landslide) then
+       dt_constraint = 'LANDSLD'	
+# endif
      endif  
 
      end subroutine estimate_dt
@@ -4820,6 +4881,22 @@
            DV(Ibeg-i,j,k) = DV(Ibeg+i-1,j,k)
            DW(Ibeg-i,j,k) = DW(Ibeg+i-1,j,k)
          enddo
+       elseif(Bc_X0==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dx/2.0/Zob))**2
+         endif
+         Phi = dx*Cdrag*sqrt(V(Ibeg,j,k)**2+W(Ibeg,j,k)**2)/(Cmu(Ibeg,j,k)+CmuHt(Ibeg,j,k))
+         Phi = dmin1(Phi,2.0)
+         do i =1,Nghost
+           U(Ibeg-i,j,k) = -U(Ibeg+i-1,j,k)
+           V(Ibeg-i,j,k) = (1.0-Phi)*V(Ibeg+i-1,j,k)
+           W(Ibeg-i,j,k) = (1.0-Phi)*W(Ibeg+i-1,j,k)
+           DU(Ibeg-i,j,k) = D(i,j)*U(Ibeg-i,j,k)
+           DV(Ibeg-i,j,k) = D(i,j)*V(Ibeg-i,j,k)
+           DW(Ibeg-i,j,k) = D(i,j)*W(Ibeg-i,j,k)
+         enddo
        elseif(Bc_X0==8) then  ! specify u,v,w at ghost cells
          do i = 1,Nghost
            U(Ibeg-i,j,k) = Uin_X0(j,k)
@@ -4882,6 +4959,22 @@
            DU(Iend+i,j,k) = DU(Iend-i+1,j,k)
            DV(Iend+i,j,k) = DV(Iend-i+1,j,k)
            DW(Iend+i,j,k) = DW(Iend-i+1,j,k)
+         enddo
+       elseif(Bc_Xn==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dx/2.0/Zob))**2
+         endif
+         Phi = dx*Cdrag*sqrt(V(Iend,j,k)**2+W(Iend,j,k)**2)/(Cmu(Iend,j,k)+CmuHt(Iend,j,k))
+         Phi = dmin1(Phi,2.0)
+         do i =1,Nghost
+           U(Iend+i,j,k) = -U(Iend-i+1,j,k)
+           V(Iend+i,j,k) = (1.0-Phi)*V(Iend-i+1,j,k)
+           W(Iend+i,j,k) = (1.0-Phi)*W(Iend-i+1,j,k)
+           DU(Iend+i,j,k) = D(i,j)*U(Iend+i,j,k)
+           DV(Iend+i,j,k) = D(i,j)*V(Iend+i,j,k)
+           DW(Iend+i,j,k) = D(i,j)*W(Iend+i,j,k)
          enddo
        elseif(Bc_Xn==6) then
          do i = 1,Nghost
@@ -4959,6 +5052,22 @@
            DV(i,Jbeg-j,k) = DV(i,Jbeg+j-1,k)
            DW(i,Jbeg-j,k) = DW(i,Jbeg+j-1,k)
          enddo
+       elseif(Bc_Y0==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dy/2.0/Zob))**2
+         endif
+         Phi = dy*Cdrag*sqrt(U(i,Jbeg,k)**2+W(i,Jbeg,k)**2)/(Cmu(i,Jbeg,k)+CmuHt(i,Jbeg,k))
+         Phi = dmin1(Phi,2.0)
+         do j =1,Nghost
+           U(i,Jbeg-j,k) = (1.0-Phi)*U(i,Jbeg+j-1,k)
+           V(i,Jbeg-j,k) = -V(i,Jbeg+j-1,k)
+           W(i,Jbeg-j,k) = (1.0-Phi)*W(i,Jbeg+j-1,k)
+           DU(i,Jbeg-j,k) = D(i,j)*U(i,Jbeg-j,k)
+           DV(i,Jbeg-j,k) = D(i,j)*V(i,Jbeg-j,k)
+           DW(i,Jbeg-j,k) = D(i,j)*W(i,Jbeg-j,k)
+         enddo
        endif
      enddo
      enddo
@@ -5003,6 +5112,22 @@
            DU(i,Jend+j,k) = DU(i,Jend-j+1,k)
            DV(i,Jend+j,k) = DV(i,Jend-j+1,k)
            DW(i,Jend+j,k) = DW(i,Jend-j+1,k)
+         enddo
+       elseif(Bc_Yn==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dy/2.0/Zob))**2
+         endif
+         Phi = dy*Cdrag*sqrt(U(i,Jend,k)**2+W(i,Jend,k)**2)/(Cmu(i,Jend,k)+CmuHt(i,Jend,k))
+         Phi = dmin1(Phi,2.0)
+         do j =1,Nghost
+           U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
+           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
+           DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
+           DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
+           DW(i,Jend+j,k) = D(i,j)*W(i,Jend+j,k)
          enddo
        endif
      enddo
@@ -5293,6 +5418,22 @@
            DV(Ibeg-i,j,k) = DV(Ibeg+i-1,j,k)
            DW(Ibeg-i,j,k) = DW(Ibeg+i-1,j,k)
          enddo
+       elseif(Bc_X0==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dx/2.0/Zob))**2
+         endif
+         Phi = dx*Cdrag*sqrt(V(Ibeg,j,k)**2+W(Ibeg,j,k)**2)/(Cmu(Ibeg,j,k)+CmuHt(Ibeg,j,k))
+         Phi = dmin1(Phi,2.0)
+         do i =1,Nghost
+           U(Ibeg-i,j,k) = -U(Ibeg+i-1,j,k)
+           V(Ibeg-i,j,k) = (1.0-Phi)*V(Ibeg+i-1,j,k)
+           W(Ibeg-i,j,k) = (1.0-Phi)*W(Ibeg+i-1,j,k)
+           DU(Ibeg-i,j,k) = D(i,j)*U(Ibeg-i,j,k)
+           DV(Ibeg-i,j,k) = D(i,j)*V(Ibeg-i,j,k)
+           DW(Ibeg-i,j,k) = D(i,j)*W(Ibeg-i,j,k)
+         enddo
        elseif(Bc_X0==8) then  ! specify u,v,w at ghost cells
          do i = 1,Nghost
            U(Ibeg-i,j,k) = Uin_X0(j,k)
@@ -5355,6 +5496,22 @@
            DU(Iend+i,j,k) = DU(Iend-i+1,j,k)
            DV(Iend+i,j,k) = DV(Iend-i+1,j,k)
            DW(Iend+i,j,k) = DW(Iend-i+1,j,k)
+         enddo
+       elseif(Bc_Xn==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dx/2.0/Zob))**2
+         endif
+         Phi = dx*Cdrag*sqrt(V(Iend,j,k)**2+W(Iend,j,k)**2)/(Cmu(Iend,j,k)+CmuHt(Iend,j,k))
+         Phi = dmin1(Phi,2.0)
+         do i =1,Nghost
+           U(Iend+i,j,k) = -U(Iend-i+1,j,k)
+           V(Iend+i,j,k) = (1.0-Phi)*V(Iend-i+1,j,k)
+           W(Iend+i,j,k) = (1.0-Phi)*W(Iend-i+1,j,k)
+           DU(Iend+i,j,k) = D(i,j)*U(Iend+i,j,k)
+           DV(Iend+i,j,k) = D(i,j)*V(Iend+i,j,k)
+           DW(Iend+i,j,k) = D(i,j)*W(Iend+i,j,k)
          enddo
        elseif(Bc_Xn==6) then
          do i = 1,Nghost
@@ -5433,6 +5590,22 @@
            DV(i,Jbeg-j,k) = DV(i,Jbeg+j-1,k)
            DW(i,Jbeg-j,k) = DW(i,Jbeg+j-1,k)
          enddo
+       elseif(Bc_Y0==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dy/2.0/Zob))**2
+         endif
+         Phi = dy*Cdrag*sqrt(U(i,Jbeg,k)**2+W(i,Jbeg,k)**2)/(Cmu(i,Jbeg,k)+CmuHt(i,Jbeg,k))
+         Phi = dmin1(Phi,2.0)
+         do j =1,Nghost
+           U(i,Jbeg-j,k) = (1.0-Phi)*U(i,Jbeg+j-1,k)
+           V(i,Jbeg-j,k) = -V(i,Jbeg+j-1,k)
+           W(i,Jbeg-j,k) = (1.0-Phi)*W(i,Jbeg+j-1,k)
+           DU(i,Jbeg-j,k) = D(i,j)*U(i,Jbeg-j,k)
+           DV(i,Jbeg-j,k) = D(i,j)*V(i,Jbeg-j,k)
+           DW(i,Jbeg-j,k) = D(i,j)*W(i,Jbeg-j,k)
+         enddo
        endif
      enddo
      enddo
@@ -5477,6 +5650,22 @@
            DU(i,Jend+j,k) = DU(i,Jend-j+1,k)
            DV(i,Jend+j,k) = DV(i,Jend-j+1,k)
            DW(i,Jend+j,k) = DW(i,Jend-j+1,k)
+         enddo
+       elseif(Bc_Yn==5) then ! added by Cheng for wall friction
+         if(ibot==1) then
+           Cdrag = Cd0
+         else
+           Cdrag = 1./(1./Kappa*log(30.0*dy/2.0/Zob))**2
+         endif
+         Phi = dy*Cdrag*sqrt(U(i,Jend,k)**2+W(i,Jend,k)**2)/(Cmu(i,Jend,k)+CmuHt(i,Jend,k))
+         Phi = dmin1(Phi,2.0)
+         do j =1,Nghost
+           U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
+           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
+           DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
+           DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
+           DW(i,Jend+j,k) = D(i,j)*W(i,Jend+j,k)
          enddo
        endif
      enddo
@@ -5863,7 +6052,7 @@
     IF(.NOT.IN_DOMAIN_WEST)THEN
 # endif
      do j = Jbeg,Jend
-       if(Bc_X0==1.or.Bc_X0==2) then  ! free/no-slip wall
+       if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! free/no-slip wall ! added by Cheng for wall friction
          do i = 1,Nghost
            D(Ibeg-i,j) = D(Ibeg+i-1,j)
          enddo
@@ -5901,7 +6090,7 @@
     IF(.NOT.IN_DOMAIN_EAST)THEN
 # endif
      do j = Jbeg,Jend
-       if(Bc_Xn==1.or.Bc_Xn==2) then 
+       if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_Xn==5) then ! added by Cheng for wall friction
          do i = 1,Nghost
            D(Iend+i,j) = D(Iend-i+1,j)
          enddo
@@ -7278,7 +7467,8 @@
 
      end subroutine solitary_wave_left_boundary
 
-# if defined (LANDSLIDE) 
+	 ! changed by Cheng for fluid slide
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE)
      subroutine update_bathymetry
 !------------------------------------------------------
 !    This subroutine is used to update time-varying bathymetry 
@@ -7289,36 +7479,194 @@
      use global
      implicit none
      integer :: i,j,m,n,iter
+# if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,y0,xt,yt,zt,ut,t0,a0, &
            s0,st,slope0
+!     ! added by Cheng for analytical dh/dt (need to comment code for numerical dh/dt)
+!     real(SP) :: DeltS,Delt2S
+     ! added by Cheng for 3D triangle landslide
+!     real(SP) :: coef_a,coef_b,coef_c,xgb,xgn,xg,yg,ztm,alpha1
+# endif
+! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     integer :: RKIT
+# endif
      
      ! save old bathymetry
      Ho = Hc
 
-     e = 0.717
-     alpha0 = SlideAngle*pi/180.
-     slope0 = SlopeAngle*pi/180. 
-     kb = 2.0*acosh(1.0/e)/SlideL
-     kw = 2.0*acosh(1.0/e)/SlideW
-     ut = SlideUt
-     a0 = SlideA0
-     t0 = ut/a0
-     s0 = ut**2/a0
-     st = s0*log(cosh(time/t0))*cos(slope0)
-     x0 = SlideX0+st*cos(alpha0)
-     y0 = SlideY0+st*sin(alpha0)
+# if defined (LANDSLIDE)
+     if(SlideType(1:8)=='RIGID_2D') then
+	 ! 2D landslide (added by Cheng for 2d landslide)
+       e = 0.75
+       slope0 = SlopeAngle*pi/180. 
+       kb = 2.0*acosh(1.0/sqrt(e))/SlideL
+       ut = SlideUt
+       a0 = SlideA0
+       t0 = ut/a0
+       s0 = ut**2/a0
+       st = s0*log(cosh(time/t0))*cos(slope0)
+       x0 = SlideX0+st
+       y0 = SlideY0
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         xt = xc(i)-x0
+         zt = SlideT/(1-e)*((1.0/cosh(kb*xt))**2-e)
+         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+       enddo
+       enddo
+       ! cosine shape (added by Cheng to smooth the angle out)
+!       slope0 = SlopeAngle*pi/180. 
+!       ut = SlideUt
+!       a0 = SlideA0
+!       t0 = ut/a0
+!       s0 = ut**2/a0
+!       st = s0*log(cosh(time/t0))*cos(slope0)
+!       x0 = SlideX0+st
+!       y0 = SlideY0
+!       do j = Jbeg,Jend
+!       do i = Ibeg,Iend
+!         xt = xc(i)-x0
+!		 zt = zero
+!		 if (xt<=SlideL/2.0 .and. xt>=-SlideL/2.0) then
+!           zt = SlideT/2.0*(1.0-cos(2.0*pi*(xt-SlideL/2.0)/SlideL))
+!		 endif
+!         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+!       enddo
+!       enddo
+     elseif(SlideType(1:8)=='RIGID_3D') then
+	 ! 3D landslide
+!	   ! modified by Cheng for analytical dh/dt
+!	   DeltH = zero
+!	   Delt2H = zero
+       e = 0.717
+       alpha0 = SlideAngle*pi/180.
+       slope0 = SlopeAngle*pi/180. 
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       ut = SlideUt
+       a0 = SlideA0
+       t0 = ut/a0
+       s0 = ut**2/a0
+       st = s0*log(cosh(time/t0))*cos(slope0)
+!	   ! modified by Cheng for analytical dh/dt
+!	   DeltS=s0/t0*tanh(time/t0)*cos(slope0)
+!	   Delt2s=s0/(t0**2)/cosh(time/t0)**2*cos(slope0)
+       x0 = SlideX0+st*cos(alpha0)
+       y0 = SlideY0+st*sin(alpha0)
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         xt = (xc(i)-x0)*cos(alpha0)+(yc(j)-y0)*sin(alpha0)
+         yt = -(xc(i)-x0)*sin(alpha0)+(yc(j)-y0)*cos(alpha0)
+         zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+!		 ! modified by Cheng for analytical dh/dt
+!		 if (zt>0.0) then
+!		   DeltH(i,j)=-(kb*(zt+e*SlideT/(1-e))*DeltS*tanh(kb*xt))
+!		   Delt2H(i,j)=-(kb*(zt+e*SlideT/(1-e))*(Delt2S*tanh(kb*xt) &
+!		               -kb*DeltS**2/cosh(kb*xt)**2))
+!		 endif 
+       enddo
+       enddo
+	 ! 3D triangle landslide (added by Cheng)
+!       slope0 = SlopeAngle*pi/180. 
+!	   ! subaerial case
+!	   coef_a = -0.097588
+!	   coef_b = 0.759361
+!	   coef_c = 0.078776
+!	   ! submerged case
+!!	   coef_a = -0.085808
+!!	   coef_b = 0.734798
+!!	   coef_c = -0.034346
+!	   st = (coef_a*time**3+coef_b*time**2+coef_c*time)*cos(slope0)
+!       x0 = SlideX0+st
+!       y0 = SlideY0
+!!      xgb = SlideL*cos(slope0)
+!!	   xgn = SlideL/cos(slope0)
+!       xgb = SlideL-0.2
+!	   xgn = SlideL+0.2
+!	   xg = xgn-xgb
+!	   ztm = xgb*tan(slope0)
+!       do j = Jbeg,Jend
+!       do i = Ibeg,Iend
+!         if(xc(i)>=x0.and.xc(i)<=x0+xgb) then
+!           zt = (xc(i)-x0)*tan(slope0)
+!!		   alpha1 = slope0/2.0*(1.0+cos(pi*(xc(i)-x0-xgb)/xgb)) !cosine curve
+!!		   yg = zt/2.0*tan(alpha1)
+!           yg = 0.1
+!		   if (yc(j)<=SlideW/2.0-yg) then
+!		     zt = zt
+!		   elseif (yc(j)>SlideW/2.0-yg.and.yc(j)<=SlideW/2.0+yg) then
+!!		     zt= zt-(yc(j)-(SlideW/2.0-yg))/tan(alpha1)  ! line
+!			 zt= zt/2.0*(1.0+cos(pi*(yc(j)-(SlideW/2.0-yg))/(2.0*yg)))  !cosine curve
+!		   else
+!             zt = 0.0
+!		   endif
+!         elseif(xc(i)>x0+xgb .and.xc(i)<=x0+xgn) then
+!!		   zt = (xg-(xc(i)-x0-xgb))/tan(slope0)
+!		   zt = ztm/2.0*(1.0+cos(pi*(xc(i)-x0-xgb)/xg))
+!!		   alpha1 = slope0/2.0*(1.0+cos(pi*(xc(i)-x0-xgb)/xg))
+!!		   yg = zt/2.0*tan(alpha1)
+!           yg = 0.1
+!		   if (yc(j)<=SlideW/2.0-yg) then
+!		     zt = zt
+!		   elseif (yc(j)>SlideW/2.0-yg.and.yc(j)<=SlideW/2.0+yg) then
+!!		     zt= zt-(yc(j)-(SlideW/2.0-yg))/tan(alpha1)
+!			 zt= zt/2.0*(1.0+cos(pi*(yc(j)-(SlideW/2.0-yg))/(2.0*yg)))
+!		   else
+!             zt = 0.0
+!		   endif
+!         else
+!           zt = 0.0
+!         endif
+!         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+!       enddo
+!       enddo
+     endif
+# endif
 
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       xt = (xc(i)-x0)*cos(alpha0)+(yc(j)-y0)*sin(alpha0)
-       yt = -(xc(i)-x0)*sin(alpha0)+(yc(j)-y0)*cos(alpha0)
-       zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
-       Hc(i,j) = Hc0(i,j)-max(0.0,zt)
-     enddo
-     enddo
+! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     SldWZ = Eta !D-Hc
+	 
+     SldZs=SldZ0;   SldDZs=SldDZ0
+     SldNs=SldN0;   SldMs=SldM0
+     DO RKIT=1,3
+       IF (RKIT.EQ.1) THEN
+	 SLIDE_RKC1=1.0d0; SLIDE_RKC2=0.0d0; SLIDE_RKDT=dt
+       ELSEIF (RKIT.EQ.2) THEN
+	 SLIDE_RKC1=3.0d0/4.0d0; SLIDE_RKC2=1.0d0/4.0d0; SLIDE_RKDT=1.0d0/4.0d0*dt
+       ELSEIF (RKIT.EQ.3) THEN
+	 SLIDE_RKC1=1.0d0/3.0d0; SLIDE_RKC2=2.0d0/3.0d0; SLIDE_RKDT=2.0d0/3.0d0*dt
+       ENDIF
+
+       call nlmassF90();      call nlmmntF90()
+
+       SldZs=SldZ1;   SldDZs=SldDZ1
+       SldNs=SldN1;   SldMs=SldM1
+     ENDDO
+     
+     SldZ0=SldZ1;   SldDZ0=SldDZ1
+     SldN0=SldN1;   SldM0=SldM1
+
+     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
+       write(*,*) 'DEPTH_TYPE has to be cell_center'
+     elseif(trim(adjustl(DEPTH_TYPE))=='CELL_CENTER') then
+
+       ! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         Hc(i,j) = Hc0(i,j)-SldDZ1(i,j)
+       enddo
+       enddo
+     endif ! end cell center
+# endif
 
      ! ghost cells
      call phi_2D_coll(Hc)
+	 ! modified by Cheng for analytical dh/dt
+!	 call phi_2D_coll(DeltH)
+!	 call phi_2D_coll(Delt2H)
 
      ! reconstruct depth at x-y faces
      do j = 1,Nloc
@@ -7361,7 +7709,302 @@
      end subroutine update_bathymetry
 # endif
  
+# if defined (LANDSLIDE_COMPREHENSIVE)
 
+     subroutine update_bathymetry_comprehensive
+!------------------------------------------------------
+!    This subroutine is used to update time-varying bathymetry 
+!    Called by 
+!       main 
+!    update: 12/05/2011, Gangfeng Ma 
+!    update: 04/13/2012, Fengyan Shi
+!    fyshi make a standard slide application    
+!-----------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j,m,n,iter,kslide
+     real(SP) :: Hd,alpha0,L0,T,bl,wl,e,kb,kw,x0,x1,x2,xr,Hb(Mloc,Nloc), &
+          xt,xt1,zt,zt1,ut,t0,a0,ht,s0,st,yt,Hslide(Mloc1,Nloc1)
+     REAL(SP) :: edge_width
+     real(SP) :: S_Slide, tmax_slide, del_slide, Sdel_slide, ks_slide !CO
+     real(SP) :: CD_form,Cn_Coulomb,gamma_rho,Cf_skin,Cm,FF,F1,F2,F3
+              
+     ! save old bathymetry
+     Ho = Hc
+
+     ut = term_v(1)
+     ut_slide = term_v(1)
+
+   IF(ANA_BATHY)THEN
+!      if use analytical slide, 1)need iteration 2) ac is time-dependent
+     Hd=1.5  
+     T = T_slide(1)
+     bl = b_slide(1)
+     wl = w_slide(1)
+     e = e_slide(1)
+     alpha0 = slope_slide(1)*3.1415926/180.0
+     kb = 2.0*acosh(1.0/e)/bl
+     kw = 2.0*acosh(1.0/e)/wl
+     x0=x0_slide(1)
+     xr = 0.0
+
+     a0 = acceleration_lab
+     t0 = ut/a0
+     s0 = ut**2/a0
+     st = s0*log(cosh(time/t0))
+     L0 = x0/cos(alpha0)-T*tan(alpha0)+st
+     x1 = (L0-bl/2.)*cos(alpha0)+xr
+     x2 = (L0+bl/2.)*cos(alpha0)+xr
+
+   ELSE
+
+     IF(SLIDE_SHAPE_BOX) THEN  ! more conservative, usually for box-shape application
+
+! ---
+
+      DO kslide=1,NumSlides
+
+       IF(TIME > SlideStartTime(Kslide))THEN
+
+       CD_form=0.3   ! form drag
+       Cn_Coulomb=tan(Coulomb_phi(kslide)*3.1415926/180.0)
+       gamma_rho=2650.0/1000.0
+       Cf_skin=0.005
+       Cm=3.1415926*T_slide(kslide)/2.0/b_slide(kslide)
+
+        FF=b_slide(kslide)*0.5-subaer_center2water(kslide)
+        if (FF<0.0)FF=0.0
+        if (FF>b_slide(kslide))FF=b_slide(kslide)
+        F1=b_slide(kslide)*gamma_rho+Cm*FF
+        F2=-0.5*(Cf_skin*FF/T_slide(kslide)+Cd_form)
+        F3=(b_slide(kslide)*gamma_rho-FF)*grav*  &
+           (sin(slope_slide(kslide)*pi/180.0)-  &
+             Cn_Coulomb*cos(slope_slide(kslide)*pi/180.0))
+
+        uslide(kslide)=uslide(kslide)+dt*1.0/F1*(F2*uslide(kslide)*uslide(kslide)+F3)
+        subaer_center2water(kslide)=subaer_center2water(kslide)-uslide(kslide)*dt
+
+        if(abs(subaer_center2water(kslide)- &
+           subaer_center2water0(kslide))>Smax_slide(kslide)) uslide(kslide)=0.0
+       
+! ---
+
+       if (uslide(kslide) > term_v(kslide)) uslide(kslide) = term_v(kslide)
+  
+       x0_slide(kslide) = x0_slide(kslide)+dt*uslide(kslide)*cos(alpha_slide(kslide))
+       y0_slide(kslide) = y0_slide(kslide)+dt*uslide(kslide)*sin(alpha_slide(kslide))
+
+       ENDIF ! end slide start time
+
+      ENDDO ! end kslide
+
+     ELSE ! Grilli slide
+
+if (Slide) then !Slide CO
+   if (SlideStop) then !CO Add Slide Stopping from Grilli and Watts (2005) appendix
+      tmax_slide = ut_slide/ac_slide(1)*acosh(exp(Smax_slide(1)/(ut_slide**2/ac_slide(1))))
+      del_slide = tmax_slide/(ut_slide/ac_slide(1))-tmax_slide/(ut_slide/ac_slide(1))*0.1
+      Sdel_slide = ut_slide**2/ac_slide(1)*log(cosh(del_slide))
+      ks_slide = (ut_slide*(tanh(del_slide)))/(Smax_slide(1)-Sdel_slide)
+
+      S_Slide = ut_slide**2/ac_slide(1)*log(cosh(time*ac_slide(1)/ut_slide))*COS(slope_slide(1)*pi/180)
+      if (time > del_slide*ut_slide/ac_slide(1)) then 
+      S_Slide = Sdel_slide+(Smax_slide(1)-Sdel_slide)*  &
+          (1-exp(-ks_slide*(time-del_slide*ut_slide/ac_slide(1))))  &
+          *COS(slope_slide(1)*pi/180)
+      endif
+
+   else ! Continuous slide movement
+      S_Slide = ut_slide**2/ac_slide(1)*log(cosh(time*ac_slide(1)/ut_slide))*COS(slope_slide(1)*pi/180)
+   endif
+
+
+else !Slump CO
+!      uslide = 3.1415926/2.0*sf_slide/tf_slide*sin(time*3.1415926/tf_slide)
+      S_Slide = sf_slide/2*(1-cos(time*3.1415926/tf_slide))*COS(slope_slide(1)*pi/180)
+     
+      if (time > tf_slide)then
+      S_Slide = sf_slide*COS(slope_slide(1)*pi/180)
+      else
+      endif
+endif
+     x0_slide(1) = XX0_Slide+S_Slide*cos(alpha_slide(1)) !CO
+     y0_slide(1) = YY0_Slide+S_Slide*sin(alpha_slide(1)) !CO
+
+
+     ENDIF ! conservative vs. grilli
+
+   ENDIF
+
+     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
+
+# if defined (PARALLEL)
+       if(myid.eq.0) write(*,*) 'DEPTH_TYPE has to be cell_center'
+# else
+       write(*,*) 'DEPTH_TYPE has to be cell_center'
+# endif       
+
+     elseif(trim(adjustl(DEPTH_TYPE))=='CELL_CENTER') then
+       ! base bathymetry 
+   IF(ANA_BATHY)THEN   ! lab analytical slide
+
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)<=xr) then
+           Hb(i,j) = -(xr-xc(i))*tan(alpha0)
+         elseif(xc(i)<=Hd/tan(alpha0)+xr) then
+           Hb(i,j) = (xc(i)-xr)*tan(alpha0)
+         else
+           Hb(i,j) = Hd
+         endif
+         ! temporarily no runup
+       !  Hb(i,j) = max(0.01,Hb(i,j))
+       enddo
+       enddo
+
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)<=x1.or.xc(i)>=x2.or.yc(j)>=wl/2.) then
+           Hc(i,j) = Hb(i,j)
+         else
+           iter = 1
+           xt = (xc(i)-xr)/cos(alpha0)-L0
+           zt = T/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yc(j))-e)
+      60   xt1 = ((xc(i)-xr)/cos(alpha0)-zt*tan(alpha0))-L0
+           zt1 = T/(1-e)*(1.0/cosh(kb*xt1)/cosh(kw*yc(j))-e)
+           if(abs(zt1-zt)/abs(zt)>1.e-8) then
+             iter = iter+1
+             if(iter>20) write(*,*) 'too many iterations!'
+             zt = zt1
+             goto 60
+           endif
+           Hc(i,j) = Hb(i,j)-max(0.0,zt1)/cos(alpha0)  
+         endif
+       enddo
+       enddo
+
+
+
+
+   ELSEIF(SLIDE_SHAPE_BOX) THEN  ! box shape
+       Hb=DepC0
+       Hc=DepC0
+
+       ! add landslide
+! to keep consistent with slide bathy at grid, assuming slide bathy at grid point
+
+       DO kslide = 1, NumSlides
+
+       edge_width=T_slide(KSLIDE)
+       Hslide=0.0_SP
+
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend1
+         xt = (x(i)-x0_slide(KSLIDE))*cos(alpha_slide(KSLIDE))+(y(j)-y0_slide(KSLIDE))*sin(alpha_slide(KSLIDE))
+         yt = -(x(i)-x0_slide(KSLIDE))*sin(alpha_slide(KSLIDE))+(y(j)-y0_slide(KSLIDE))*cos(alpha_slide(KSLIDE))
+
+         IF(abs(xt)<=0.5*b_slide(KSLIDE)-0.5*edge_width.AND.abs(yt)<=0.5*w_slide(KSLIDE)  &
+                 +SlideErrorRange)THEN
+            ht=T_slide(KSLIDE)
+         ELSEIF(abs(xt)>0.5*b_slide(KSLIDE)-0.5*edge_width  &
+            .AND.abs(xt)<0.5*b_slide(KSLIDE)+0.5*edge_width.AND.abs(yt)<=0.5*w_slide(KSLIDE)  &
+                 +SlideErrorRange)THEN
+            ht=T_slide(KSLIDE)-T_slide(KSLIDE)*(abs(xt)-0.5*b_slide(KSLIDE)+0.5*edge_width)/edge_width
+         ELSE
+            ht=0.0_SP
+         ENDIF
+         Hslide(I,J) = max(0.0,ht)
+       enddo
+       enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+!         Hc(i,j) = Hb(i,j)-ht
+         Hc(i,j) = Hc(i,j)-ht
+       enddo
+       enddo
+
+      ENDDO ! end Kslide
+
+
+
+   ELSE  ! ellipse shape (original in version 1.1)
+       Hb=DepC0
+
+       ! add landslide
+! to keep consistent with slide bathy at grid, assuming slide bathy at grid point
+
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend1
+         xt = (x(i)-x0_slide(1))*cos(alpha_slide(1))+(y(j)-y0_slide(1))*sin(alpha_slide(1))
+         yt = -(x(i)-x0_slide(1))*sin(alpha_slide(1))+(y(j)-y0_slide(1))*cos(alpha_slide(1))
+         ht = T_slide(1)/(1-e_slide(1))*(1./cosh(kb_slide*xt)/cosh(kw_slide*yt)-e_slide(1))
+         Hslide(I,J) = max(0.0,ht)
+       enddo
+       enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+         Hc(i,j) = Hb(i,j)-ht
+       enddo
+       enddo
+
+    ENDIF  ! end analytical slide
+
+     endif ! end cell center
+
+     ! ghost cells
+     call phi_2D_coll(Hc)
+
+     ! reconstruct depth at x-y faces
+     do j = 1,Nloc
+     do i = 2,Mloc
+       Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
+     enddo
+     Hfx(1,j) = Hfx(2,j)
+     Hfx(Mloc1,j) = Hfx(Mloc,j)
+     enddo
+
+     do i = 1,Mloc
+     do j = 2,Nloc
+       Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
+     enddo
+     Hfy(i,1) = Hfy(i,2)
+     Hfy(i,Nloc1) = Hfy(i,Nloc)
+     enddo
+
+     ! derivatives of water depth at cell center
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
+       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
+     enddo
+     enddo
+
+     ! time derivative of water depth
+     DeltHo = DeltH
+
+     DeltH = zero
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DeltH(i,j) = (Hc(i,j)-Ho(i,j))/dt
+     enddo
+     enddo
+
+     ! second-order time derivative
+     if(RUN_STEP>2) Delt2H = (DeltH-DeltHo)/dt
+
+     end subroutine update_bathymetry_comprehensive
+
+# endif
+! end landslide comprehensive
+ 
      subroutine RandomU
 !-------------------------------------------------
 !    This subroutine is used to generate random
@@ -7583,10 +8226,10 @@
          VelGrad = Zero; Stress = Zero
          VelGrad(1,1) = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)            
          VelGrad(1,2) = (U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)          
-         VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                               
+         VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))
          VelGrad(2,1) = (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)              
          VelGrad(2,2) = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)               
-         VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                                       
+         VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))
          VelGrad(3,1) = (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                  
          VelGrad(3,2) = (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                  
          VelGrad(3,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
@@ -7826,10 +8469,14 @@
      do i = Ibeg,Iend
        if(Mask(i,j)==0) cycle
        !viscosity at k+1/2 and k-1/2 using linear interpolation method
-       nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Schmidt
-       nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuVt(i,j,k)+L2top*CmuVt(i,j,k+1))/Schmidt
-       nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Schmidt
-       nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Schmidt
+       nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+  &
+                 (L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Schmidt
+       nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+  &
+                 (L1top*CmuVt(i,j,k)+L2top*CmuVt(i,j,k+1))/Schmidt
+       nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+  &
+                 (L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Schmidt
+       nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+  &
+                 (L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Schmidt
 
        !Diffxx(i,j,k) = ((0.5*(Cmu(i+1,j,k)+Cmu(i,j,k))+  &
        !        0.5*(CmuHt(i+1,j,k)+CmuHt(i,j,k))/Schmidt)* &
@@ -7839,9 +8486,11 @@
        !        (U(i,j,k)-U(i-1,j,k)))/dx**2
        !Reology effects? CmuR shold be added, I guess.
 
-       Diffxx(i,j,k) = ( 2.0*(0.5*(Cmu(i+1,j,k)+Cmu(i,j,k  ))+0.5*(CmuHt(i+1,j,k)+CmuHt(i,j,k  ))/Schmidt) &
+       Diffxx(i,j,k) = ( 2.0*(0.5*(Cmu(i+1,j,k)+Cmu(i,j,k  ))+  &
+                         0.5*(CmuHt(i+1,j,k)+CmuHt(i,j,k  ))/Schmidt) &
                          *(DU(i+1,j,k)-DU(i,j,k))/dx &
-                        -2.0*(0.5*(Cmu(i,j,k  )+Cmu(i-1,j,k))+0.5*(CmuHt(i,j,k  )+CmuHt(i-1,j,k))/Schmidt) &
+                        -2.0*(0.5*(Cmu(i,j,k  )+Cmu(i-1,j,k))+  &
+                         0.5*(CmuHt(i,j,k  )+CmuHt(i-1,j,k))/Schmidt) &
                          *(DU(i,j,k)-DU(i-1,j,k))/dx &
                        ) /dx & !d/dx[2*nu*d/dx[DU]]
                      + ( 2.0*(Cmu(i+1,j,k)+CmuHt(i+1,j,k)/Schmidt) &
@@ -7853,11 +8502,14 @@
                           +beta_c *DU(i-1,j,k  )*DelxSc(i-1,j,k  )&
                           +gamma_c*DU(i-1,j,k+1)*DelxSc(i-1,j,k+1)) & 
                        ) /2.0/dx & !d/dx[2*nu*d/dSc[DU*DelxSc]]
-                     + ( alpha_c*2.0*(Cmu(i,j,k-1)+CmuHt(i,j,k-1)/Schmidt)*DelxSc(i,j,k-1)&
+                     + ( alpha_c*2.0*(Cmu(i,j,k-1)+  &
+                          CmuHt(i,j,k-1)/Schmidt)*DelxSc(i,j,k-1)&
                          *(DU(i+1,j,k-1)-DU(i-1,j,k-1))/2.0/dx &
-                        +beta_c *2.0*(Cmu(i,j,k  )+CmuHt(i,j,k  )/Schmidt)*DelxSc(i,j,k  )&
+                        +beta_c *2.0*(Cmu(i,j,k  )+  &
+                         CmuHt(i,j,k  )/Schmidt)*DelxSc(i,j,k  )&
                          *(DU(i+1,j,k  )-DU(i-1,j,k  ))/2.0/dx &
-                        +gamma_c*2.0*(Cmu(i,j,k+1)+CmuHt(i,j,k+1)/Schmidt)*DelxSc(i,j,k+1)&
+                        +gamma_c*2.0*(Cmu(i,j,k+1)+  &
+                         CmuHt(i,j,k+1)/Schmidt)*DelxSc(i,j,k+1)&
                          *(DU(i+1,j,k+1)-DU(i-1,j,k+1))/2.0/dx &
                         )  !d/dSc[2*nu*DelxSc*d/dx[DU]]
 
@@ -7871,30 +8523,41 @@
        !        (V(i+1,j+1,k)-V(i-1,j+1,k))-(Cmu(i,j-1,k)+  &
        !        CmuHt(i,j-1,k)/Schmidt)*D(i,j-1)*  &
        !        (V(i+1,j-1,k)-V(i-1,j-1,k)))/(4.0*dx*dy)
-       Diffxy(i,j,k) = ( (0.5*(Cmu(i,j+1,k)+Cmu(i,j,k))+0.5*(CmuHt(i,j+1,k)+CmuHt(i,j,k))/Schmidt) &
+       Diffxy(i,j,k) = ( (0.5*(Cmu(i,j+1,k)+Cmu(i,j,k))+  &
+                          0.5*(CmuHt(i,j+1,k)+CmuHt(i,j,k))/Schmidt) &
                          *(DU(i,j+1,k)-DU(i,j,k))/dy &
-                        -(0.5*(Cmu(i,j,k)+Cmu(i,j-1,k))+0.5*(CmuHt(i,j,k)+CmuHt(i,j-1,k))/Schmidt) &
+                        -(0.5*(Cmu(i,j,k)+Cmu(i,j-1,k))+  &
+                          0.5*(CmuHt(i,j,k)+CmuHt(i,j-1,k))/Schmidt) &
                          *(DU(i,j,k)-DU(i,j-1,k))/dy &
                         ) /dy & !d/dy[2*nu*d/dy[DU]]
                      + ( (Cmu(i,j+1,k)+CmuHt(i,j+1,k)/Schmidt) &
                          *( (DV(i+1,j+1,k)-DV(i-1,j+1,k))/2.0/dx &
-                             +alpha_c*(DelxSc(i,j+1,k-1)*DV(i,j+1,k-1)+DelySc(i,j+1,k-1)*DU(i,j+1,k-1))&
-                             +beta_c *(DelxSc(i,j+1,k  )*DV(i,j+1,k  )+DelySc(i,j+1,k  )*DU(i,j+1,k  ))&
-                             +gamma_c*(DelxSc(i,j+1,k+1)*DV(i,j+1,k+1)+DelySc(i,j+1,k+1)*DU(i,j+1,k+1))&
+                             +alpha_c*(DelxSc(i,j+1,k-1)*DV(i,j+1,k-1)+  &
+                              DelySc(i,j+1,k-1)*DU(i,j+1,k-1))&
+                             +beta_c *(DelxSc(i,j+1,k  )*DV(i,j+1,k  )+  &
+                              DelySc(i,j+1,k  )*DU(i,j+1,k  ))&
+                             +gamma_c*(DelxSc(i,j+1,k+1)*DV(i,j+1,k+1)+  &
+                              DelySc(i,j+1,k+1)*DU(i,j+1,k+1))&
                           )&
                         -(Cmu(i,j-1,k)+CmuHt(i,j-1,k)/Schmidt) &
                          *( (DV(i+1,j-1,k)-DV(i-1,j-1,k))/2.0/dx &
-                             +alpha_c*(DelxSc(i,j-1,k-1)*DV(i,j-1,k-1)+DelySc(i,j-1,k-1)*DU(i,j-1,k-1))&
-                             +beta_c *(DelxSc(i,j-1,k  )*DV(i,j-1,k  )+DelySc(i,j-1,k  )*DU(i,j-1,k  ))&
-                             +gamma_c*(DelxSc(i,j-1,k+1)*DV(i,j-1,k+1)+DelySc(i,j-1,k+1)*DU(i,j-1,k+1))&
+                             +alpha_c*(DelxSc(i,j-1,k-1)*DV(i,j-1,k-1)+  &
+                              DelySc(i,j-1,k-1)*DU(i,j-1,k-1))&
+                             +beta_c *(DelxSc(i,j-1,k  )*DV(i,j-1,k  )+  &
+                              DelySc(i,j-1,k  )*DU(i,j-1,k  ))&
+                             +gamma_c*(DelxSc(i,j-1,k+1)*DV(i,j-1,k+1)+  &
+                              DelySc(i,j-1,k+1)*DU(i,j-1,k+1))&
                           )&
                         ) /2.0/dy & !d/dy[nu*(d/dx[DV]+d/dSc[DelxSc*DV+DelySc*DU])]
                       + ( alpha_c*(Cmu(i,j,k-1)+CmuHt(i,j,k-1)/Schmidt)*DelySc(i,j,k-1)&
-                                 *((DU(i,j+1,k-1)-DU(i,j-1,k-1))/2.0/dy+(DV(i+1,j,k-1)-DV(i-1,j,k-1))/2.0/dx) &
+                                 *((DU(i,j+1,k-1)-DU(i,j-1,k-1))/2.0/dy+  &
+                                  (DV(i+1,j,k-1)-DV(i-1,j,k-1))/2.0/dx) &
                          +beta_c *(Cmu(i,j,k  )+CmuHt(i,j,k  )/Schmidt)*DelySc(i,j,k  )&
-                                 *((DU(i,j+1,k  )-DU(i,j-1,k  ))/2.0/dy+(DV(i+1,j,k  )-DV(i-1,j,k  ))/2.0/dx) &
+                                 *((DU(i,j+1,k  )-DU(i,j-1,k  ))/2.0/dy+  &
+                                  (DV(i+1,j,k  )-DV(i-1,j,k  ))/2.0/dx) &
                          +gamma_c*(Cmu(i,j,k+1)+CmuHt(i,j,k+1)/Schmidt)*DelySc(i,j,k+1)&
-                                 *((DU(i,j+1,k+1)-DU(i,j-1,k+1))/2.0/dy+(DV(i+1,j,k+1)-DV(i-1,j,k+1))/2.0/dx) &
+                                 *((DU(i,j+1,k+1)-DU(i,j-1,k+1))/2.0/dy+  &
+                                  (DV(i+1,j,k+1)-DV(i-1,j,k+1))/2.0/dx) &
                          ) & !d/dSc[nu*DelySc*(d\dy[DU]+d\dx[DV])]
                       + ( ( (nuH_top*DelySl(i,j,k+1)-nuH_bot*DelySl(i,j,k))*alpha_c/dsig(k)&
                            +(nuH_top*DelySl(i,j,k+1)+nuH_bot*DelySl(i,j,k))/dsigck1/(dsigck+dsigck1)&
@@ -7953,11 +8616,14 @@
                           )&
                         ) /2.0/dx & !d/dx[nu*(d/dy[DU]+d/dSc[DelxSc*DV+DelySc*DU])]
                       + ( alpha_c*(Cmu(i,j,k-1)+CmuHt(i,j,k-1)/Schmidt)*DelxSc(i,j,k-1)&
-                                 *((DU(i,j+1,k-1)-DU(i,j-1,k-1))/2.0/dy+(DV(i+1,j,k-1)-DV(i-1,j,k-1))/2.0/dx) &
+                                 *((DU(i,j+1,k-1)-DU(i,j-1,k-1))/2.0/dy+  &
+                                   (DV(i+1,j,k-1)-DV(i-1,j,k-1))/2.0/dx) &
                          +beta_c *(Cmu(i,j,k  )+CmuHt(i,j,k  )/Schmidt)*DelxSc(i,j,k  )&
-                                 *((DU(i,j+1,k  )-DU(i,j-1,k  ))/2.0/dy+(DV(i+1,j,k  )-DV(i-1,j,k  ))/2.0/dx) &
+                                 *((DU(i,j+1,k  )-DU(i,j-1,k  ))/2.0/dy+  &
+                                  (DV(i+1,j,k  )-DV(i-1,j,k  ))/2.0/dx) &
                          +gamma_c*(Cmu(i,j,k+1)+CmuHt(i,j,k+1)/Schmidt)*DelxSc(i,j,k+1)&
-                                 *((DU(i,j+1,k+1)-DU(i,j-1,k+1))/2.0/dy+(DV(i+1,j,k+1)-DV(i-1,j,k+1))/2.0/dx) &
+                                 *((DU(i,j+1,k+1)-DU(i,j-1,k+1))/2.0/dy+  &
+                                    (DV(i+1,j,k+1)-DV(i-1,j,k+1))/2.0/dx) &
                          ) & !d/dSc[nu*DelxSc*(d\dy[DU]+d\dx[DV])]
                       + ( ( (nuH_top*DelxSl(i,j,k+1)-nuH_bot*DelxSl(i,j,k))*alpha_c/dsig(k)&
                            +(nuH_top*DelxSl(i,j,k+1)+nuH_bot*DelxSl(i,j,k))/dsigck1/(dsigck+dsigck1)&
@@ -8856,8 +9522,8 @@
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
-       if(Bc_X0==1.or.Bc_X0==2) then
-        Scalx(Ibeg,j,k) = Zero
+       if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! added by Cheng for wall friction
+         Scalx(Ibeg,j,k) = Zero
        elseif(Bc_X0==3) then
          Scalx(Ibeg,j,k) = Ex(Ibeg,j,k)*Scal_X0(j,k)
        endif
@@ -8878,7 +9544,7 @@
 # endif
      do j = Jbeg,Jend
      do k = Kbeg,Kend
-!       if(Bc_Xn==1.or.Bc_Xn==2) then
+!       if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_X0==5) then ! added by Cheng for wall friction
          Scalx(Iend1,j,k) = Zero
 !       elseif(Bc_Xn==3) then
 !         Scalx(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)*Scal_Xn(j,k)
@@ -8901,7 +9567,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Y0==1.or.Bc_Y0==2) then
+       if(Bc_Y0==1.or.Bc_Y0==2.or.Bc_Y0==5) then ! added by Cheng for wall friction
          Scaly(i,Jbeg,k) = Zero
        endif
      enddo
@@ -8922,7 +9588,7 @@
 # endif
      do i = Ibeg,Iend
      do k = Kbeg,Kend
-       if(Bc_Yn==1.or.Bc_Yn==2) then
+       if(Bc_Yn==1.or.Bc_Yn==2.or.Bc_Yn==5) then ! added by Cheng for wall friction
          Scaly(i,Jend1,k) = Zero
        endif
      enddo
@@ -9002,15 +9668,21 @@
     do j = Jbeg,Jend
     do k = Kbeg,Kend
       if(Mask(i,j)==1.and.D(i,j)>Dmin) then
-        Sij(i,j,k,1) = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)       
-        Sij(i,j,k,2) = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)       
+        Sij(i,j,k,1) = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
+                       (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)       
+        Sij(i,j,k,2) = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
+                       (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)       
         Sij(i,j,k,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
-        Sij(i,j,k,4) = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+ &                             
-              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)) 
+        Sij(i,j,k,4) = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
+                       (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+ &                             
+              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-  &
+                       V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)) 
         Sij(i,j,k,5) = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                      
-              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
+              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
         Sij(i,j,k,6) = 0.5*((U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                      
-              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
+              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-  &
+               W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
       endif
     enddo
     enddo
@@ -9525,15 +10197,21 @@
     do j = Jbeg,Jend
     do k = Kbeg,Kend
       if(Mask9(i,j)==1.and.D(i,j)>Dmin) then
-        S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                                      
-        S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                                      
+        S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
+               (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                                      
+        S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
+              (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                                      
         S33 = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
-        S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &                             
-              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)) 
+        S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
+              (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &                             
+              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+  &
+              (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)) 
         S13 = 0.5*((U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                                                     
-              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
+              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
         S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                                                     
-              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
+              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
         SijSij = S11**2+S22**2+S33**2+2.0*(S12**2+S13**2+S23**2)
         Filter = (dx*dy*dsig(k)*D(i,j))**(1./3.)
         CmuVt(i,j,k) = (Cvs*Filter)**2*sqrt(2.0*SijSij)
@@ -9743,15 +10421,21 @@
       if(ke_model==1) then
         ! linear model
         if(D(i,j)>=Dmin.and.Mask(i,j)==1) then
-          S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
-          S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
+                 (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
+          S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
+                (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           S33 = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1)) 
-          S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &
-              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                   
+          S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
+               (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &
+              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+  &
+               (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                   
           S13 = 0.5*((U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                            
-              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                   
+              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+  &
+               (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                   
           S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                            
-              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
+              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
           Prod_s(i,j,k) = 2.0*CmuVt(i,j,k)*(S11**2+S22**2+S33**2+2.0*(S12**2+S13**2+S23**2))
         endif
       elseif(ke_model==2) then
@@ -9808,16 +10492,19 @@
               delta_nm = 0.
             endif
 
-            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*(VelGrad(n,m)+VelGrad(m,n))-  &
+            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*  &
+                    (VelGrad(n,m)+VelGrad(m,n))-  &
                    (2./3.)*Tke_Old(i,j,k)*delta_nm
 
             do l = 1,3
               ReynoldStress(n,m) = ReynoldStress(n,m)+  &
-                   c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*(VelGrad(n,l)*VelGrad(l,m)+  &
+                 c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   (VelGrad(n,l)*VelGrad(l,m)+  &
                    VelGrad(m,l)*VelGrad(l,n))
               do g = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(g,l)*delta_nm
+                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(g,l)*delta_nm
               enddo
             enddo
 
@@ -9826,16 +10513,19 @@
                    c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(n,g)*VelGrad(m,g)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm
+                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                     VelGrad(l,g)*VelGrad(l,g)*delta_nm
               enddo
             enddo
 
             do g = 1,3
               ReynoldStress(n,m) = ReynoldStress(n,m)+  &
-                   c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(g,n)*VelGrad(g,m)
+                   c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(g,n)*VelGrad(g,m)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm 
+                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(l,g)*delta_nm 
               enddo
             enddo
           enddo
@@ -10409,14 +11099,20 @@
 !                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
 !          VelGrad(3,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
           
-          VelGrad(1,1) = DelxU(i,j,k) + (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
-          VelGrad(1,2) = DelyU(i,j,k) + (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(1,1) = DelxU(i,j,k) +   &
+                      (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
+          VelGrad(1,2) = DelyU(i,j,k) +   &
+                      (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))
-          VelGrad(2,1) = DelxV(i,j,k) + (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
-          VelGrad(2,2) = DelyV(i,j,k) + (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(2,1) = DelxV(i,j,k) +   &
+                      (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
+          VelGrad(2,2) = DelyV(i,j,k) +   &
+                      (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))
-          VelGrad(3,1) = DelxW(i,j,k) + (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
-          VelGrad(3,2) = DelyW(i,j,k) + (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(3,1) = DelxW(i,j,k) +   &
+                      (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
+          VelGrad(3,2) = DelyW(i,j,k) +   &
+                      (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           VelGrad(3,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
 
           ! estimate Reynolds stress
@@ -10448,16 +11144,19 @@
               delta_nm = 0.
             endif
 
-            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*(VelGrad(n,m)+VelGrad(m,n))-  &
+            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*  &
+                   (VelGrad(n,m)+VelGrad(m,n))-  &
                    (2./3.)*Tke_Old(i,j,k)*delta_nm
 
             do l = 1,3
               ReynoldStress(n,m) = ReynoldStress(n,m)+  &
-                   c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*(VelGrad(n,l)*VelGrad(l,m)+  &
+                   c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   (VelGrad(n,l)*VelGrad(l,m)+  &
                    VelGrad(m,l)*VelGrad(l,n))
               do g = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(g,l)*delta_nm
+                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(g,l)*delta_nm
               enddo
             enddo
 
@@ -10466,7 +11165,8 @@
                    c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(n,g)*VelGrad(m,g)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm
+                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(l,g)*delta_nm
               enddo
             enddo
 
@@ -10475,7 +11175,8 @@
                    c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(g,n)*VelGrad(g,m)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm 
+                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(l,g)*delta_nm
               enddo
             enddo
           enddo
@@ -10505,18 +11206,17 @@
           VelGrad(1,1) = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
                   (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(1,2) = (U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
-                  (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                  
-          VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                                        
+                  (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))
           VelGrad(2,1) = (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+  &
-                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                     
+                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(2,2) = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
-                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                     
-          VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                                        
-  
+                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))
           VelGrad(3,1) = (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+  &
-                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                     
+                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(3,2) = (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
-                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                     
+                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           VelGrad(3,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
 
           ! vorticity field and production
@@ -10680,7 +11380,8 @@
       Nlen = 0
       do k = Kbeg,Kend
 # if defined (VEGETATION)
-        R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+Prod_b(i,j,k)+cfk*Prod_v(i,j,k))-DEps(i,j,k)      
+        R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+  &
+                    Prod_b(i,j,k)+cfk*Prod_v(i,j,k))-DEps(i,j,k)  
 # else
         R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+Prod_b(i,j,k))-DEps(i,j,k)                                                   
 # endif
@@ -10689,7 +11390,8 @@
         if(Porosity(i,j,k)<1.0) then
           Umag = sqrt(U(i,j,k)**2+V(i,j,k)**2+W(i,j,k)**2)
           Tke_Inf = 3.7*(1.0-Porosity(i,j,k))*Porosity(i,j,k)**1.5*Umag**2                                                    
-          Eps_Inf = 39.0*(1.0-Porosity(i,j,k))**2.5*Porosity(i,j,k)**2*Umag**3/D50_por
+        R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+  &
+                    Prod_b(i,j,k)+cfk*Prod_v(i,j,k))-DEps(i,j,k)  
           R5(i,j,k) = R5(i,j,k)+D(i,j)*Eps_Inf
         endif
 # endif
@@ -10988,7 +11690,8 @@
     integer :: i,j,k,n,m,l,g,IVAR,Iter,Nlen,ii
     real(SP):: Fk,Fkdif
     !Added by M.Derakhti for gradient BC for Tke and Epsilon at the free surface
-    real(SP), dimension(:,:,:), allocatable :: DelzTke,DelzEps,TkezL,TkezR,EpszL,EpszR,DelxTkezL,DelxEpszL,DelyEpszL,DelyTkezL
+    real(SP), dimension(:,:,:), allocatable :: DelzTke,DelzEps,  &
+              TkezL,TkezR,EpszL,EpszR,DelxTkezL,DelxEpszL,DelyEpszL,DelyTkezL
     real(SP) :: TkeFlux,EpsFlux
     real(SP) :: L1top,L2top,L1bot,L2bot,alpha_c,beta_c,gamma_c, &
                 dsigck,dsigck1,nuH_top,nuH_bot,nuV_top,nuV_bot,DxD,DyD
@@ -11053,16 +11756,23 @@
       if(ke_model==1) then
         ! linear model
         if(D(i,j)>=Dmin.and.Mask(i,j)==1) then
-          S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
-          S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          S11 = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
+                (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
+          S22 = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
+                (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           S33 = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1)) 
-          S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &
-              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))      
+          S12 = 0.5*((U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
+                (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &
+              (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+  &
+              (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
           S13 = 0.5*((U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                            
-              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                   
-          S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                            
-              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
-          Prod_s(i,j,k) = 2.0*CmuVt(i,j,k)*(S11**2+S22**2+S33**2+2.0*(S12**2+S13**2+S23**2))
+              (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
+          S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &
+              (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
+              (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
+          Prod_s(i,j,k) = 2.0*CmuVt(i,j,k)*  &
+               (S11**2+S22**2+S33**2+2.0*(S12**2+S13**2+S23**2))
         endif
       elseif(ke_model==2) then
         ! nonlinear model (Lin and Liu, 1998)
@@ -11138,16 +11848,19 @@
               delta_nm = 0.
             endif
 
-            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*(VelGrad(n,m)+VelGrad(m,n))-  &
+            ReynoldStress(n,m) = c_d*Tke_Old(i,j,k)**2/Eps_Old(i,j,k)*  &
+                   (VelGrad(n,m)+VelGrad(m,n))-  &
                    (2./3.)*Tke_Old(i,j,k)*delta_nm
 
             do l = 1,3
               ReynoldStress(n,m) = ReynoldStress(n,m)+  &
-                   c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*(VelGrad(n,l)*VelGrad(l,m)+  &
+                   c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   (VelGrad(n,l)*VelGrad(l,m)+  &
                    VelGrad(m,l)*VelGrad(l,n))
               do g = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(g,l)*delta_nm
+                   (2./3.)*c_1*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(g,l)*delta_nm
               enddo
             enddo
 
@@ -11156,7 +11869,8 @@
                    c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(n,g)*VelGrad(m,g)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm
+                   (1./3.)*c_2*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(l,g)*delta_nm
               enddo
             enddo
 
@@ -11165,7 +11879,8 @@
                    c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(g,n)*VelGrad(g,m)
               do l = 1,3
                 ReynoldStress(n,m) = ReynoldStress(n,m)-  &
-                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*VelGrad(l,g)*VelGrad(l,g)*delta_nm 
+                   (1./3.)*c_3*Tke_Old(i,j,k)**3/Eps_Old(i,j,k)**2*  &
+                   VelGrad(l,g)*VelGrad(l,g)*delta_nm 
               enddo
             enddo
           enddo
@@ -11211,20 +11926,17 @@
           VelGrad(1,1) = (U(i+1,j,k)-U(i-1,j,k))/(2.0*dx)+  &
                   (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(1,2) = (U(i,j+1,k)-U(i,j-1,k))/(2.0*dy)+  &
-                  (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                  
-          VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                 
-                       
+                  (U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(1,3) = 1./D(i,j)*(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))
           VelGrad(2,1) = (V(i+1,j,k)-V(i-1,j,k))/(2.0*dx)+  &
-                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                     
+                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(2,2) = (V(i,j+1,k)-V(i,j-1,k))/(2.0*dy)+  &
-                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                     
-          VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))                                 
-                       
-  
+                  (V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
+          VelGrad(2,3) = 1./D(i,j)*(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))
           VelGrad(3,1) = (W(i+1,j,k)-W(i-1,j,k))/(2.0*dx)+  &
-                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)                     
+                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k)
           VelGrad(3,2) = (W(i,j+1,k)-W(i,j-1,k))/(2.0*dy)+  &
-                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)                     
+                  (W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
           VelGrad(3,3) = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))
 
           ! vorticity field and production
@@ -11366,10 +12078,15 @@
             dsigck1 = (dsig(k-1)+dsig(k))/2.0 
            !viscosity at k+1/2 and k-1/2 using linear interpolation method
            !CmuR is needed here? 
-            nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+(L1top*CmuVt(i,j,k)+L2top*CmuVt(i,j,k+1))/Sche
-            nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+(L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Sche
-            nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+(L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Sche
-            nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+(L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Sche
+            nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+  &
+                (L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+(L1top*CmuVt(i,j,k)+  &
+                L2top*CmuVt(i,j,k+1))/Sche
+            nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuR(i,j,k)+  &
+                L2top*CmuR(i,j,k+1))+(L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Sche
+            nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+  &
+                L2bot*CmuR(i,j,k))+(L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Sche
+            nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+  &
+                L2bot*CmuR(i,j,k))+(L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Sche
 # if defined (VEGETATION)
         R5(i,j,k) = R5(i,j,k)+c1e*D(i,j)*(Prod_s(i,j,k)+c3e*Prod_b(i,j,k)+  &
                 cfe*Prod_v(i,j,k))*Eps_Old(i,j,k)/Tke_Old(i,j,k)            
@@ -11378,16 +12095,18 @@
                 c3e*Prod_b(i,j,k))*Eps_Old(i,j,k)/Tke_Old(i,j,k)                        
 # endif
           if(k==Kbeg) then
-           R5(i,j,k) = R5(i,j,k) + &
-             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*(Eps_old(i,j,k)-Eps_old(i,j,k-1))*D(i,j)/dsigck1 &
+           R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
+             -( & !(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+                  !(Eps_old(i,j,k)-Eps_old(i,j,k-1))*D(i,j)/dsigck1 &
                -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
               *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Eps_old(i,j,k)
           elseif (k==Kend) then
-           R5(i,j,k) = R5(i,j,k) + &
-             +( (nuH_top*(DelxEta(i,j)**2+DelyEta(i,j)**2)+nuV_top)/D(i,j)**2*(Eps_old(i,j,k+1)-Eps_old(i,j,k))*D(i,j)/dsigck &
+           R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
+             +( (nuH_top*(DelxEta(i,j)**2+DelyEta(i,j)**2)+nuV_top)/D(i,j)**2*  &
+              (Eps_old(i,j,k+1)-Eps_old(i,j,k))*D(i,j)/dsigck &
                -(nuH_top*(-DelxEta(i,j)*DxD-DelyEta(i,j)*DyD)*EpszL(i,j,k+1))&
               )/dsig(k) &
              + (dsig(k)-dsigck1)/(dsig(k)**2/2.0*(dsigck1+dsig(k)/2.0))&
@@ -11400,31 +12119,41 @@
            if(k==Kbeg) then
              Acoef(Nlen) = 0.0
            elseif(k==Kend) then
-             Acoef(Nlen) = -dt*(3.0/2.0*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k-1)+DelySl(i,j,k)*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+             Acoef(Nlen) = -dt*(3.0/2.0*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k-1)+  &
+                                 DelySl(i,j,k)*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                  /(dsigck1*(dsigck1+dsig(k)/2.0)) )
            else
              Acoef(Nlen) = -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+  &
+                                  DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                 )*alpha_c/dsig(k) &
-                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+  &
+                                 DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+  &
+                                 DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck1*(dsigck1+dsigck)) &
                                )
            endif
 
            if(k==Kbeg) then
-             Ccoef(Nlen) = -dt*(3.0/2.0*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+            Ccoef(Nlen) = -dt*(3.0/2.0*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
                                  /(dsigck*(dsigck+dsig(k)/2.0)) )
            elseif(k==Kend) then
              Ccoef(Nlen) = 0.0
            else
              Ccoef(Nlen) = -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
+                               ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+  &
+                                   DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
                                 )*gamma_c/dsig(k) &
-                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
+                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+  &
+                                   DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck*(dsigck1+dsigck)) &
                                )
            endif
@@ -11434,14 +12163,10 @@
            S22 = DelyV(i,j,k)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)
            S33 = 1./D(i,j)*(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1)) 
            S12 = 0.5*(DelyU(i,j,k)+(U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k)+  &
-                      DelxV(i,j,k)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                  
- 
+                      DelxV(i,j,k)+(V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
            S13 = 0.5*((U(i,j,k+1)-U(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                   
-         
-                      DelxW(i,j,k)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))                  
- 
-           S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  &                                   
-         
+                      DelxW(i,j,k)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelxSc(i,j,k))
+           S23 = 0.5*((V(i,j,k+1)-V(i,j,k-1))/(sigc(k+1)-sigc(k-1))/D(i,j)+  & 
                       DelyW(i,j,k)+(W(i,j,k+1)-W(i,j,k-1))/(sigc(k+1)-sigc(k-1))*DelySc(i,j,k))
            lambda = Tke_old(i,j,k)/Eps_old(i,j,k)*dsqrt(2.0*(S11**2+S22**2+S33**2+2.0*(S12**2+S13**2+S23**2)))
            c2e = 1.68 + cmiu*lambda**3*(1.0-lambda/4.38)/(1.0+0.012*lambda**3)
@@ -11450,20 +12175,27 @@
 
            if(k==Kbeg) then
              Bcoef(Nlen) = 1.0 +dt*c2e*Eps_Old(i,j,k)/Tke_Old(i,j,k)&
-                           -dt*(-(3.0/2.0-dsigck/dsig(k))*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                          -dt*(-(3.0/2.0-dsigck/dsig(k))*(nuH_top*  &
+                      (DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
                                /(dsig(k)/2.0*dsigck) )
            elseif(k==Kend) then
              Bcoef(Nlen) = 1.0 +dt*c2e*Eps_Old(i,j,k)/Tke_Old(i,j,k)&
-                           -dt*(-(3.0/2.0-dsigck1/dsig(k))*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k)+DelySl(i,j,k)*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                           -dt*(-(3.0/2.0-dsigck1/dsig(k))*  &
+                           (nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k)+DelySl(i,j,k)*  &
+                           DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                /(dsig(k)/2.0*dsigck1) )
            else
              Bcoef(Nlen) = 1.0 +dt*c2e*Eps_Old(i,j,k)/Tke_Old(i,j,k)&
                            -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                                ( (nuH_top*(DelxSl(i,j,k+1)*  &
+                    DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*  &
+                    DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                 )*beta_c/dsig(k) &
-                               -( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                  -( (nuH_top*(DelxSl(i,j,k+1)*  &
+                    DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*  &
+                    DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck*dsigck1) &
                                )
           endif
@@ -11531,27 +12263,38 @@
            !viscosity at k+1/2 and k-1/2 using linear interpolation method
            !CmuR is needed here? 
            !In this routine, kepsilon_3d,we have CmuHt = CmuVt
-            nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+(L1top*CmuVt(i,j,k)+L2top*CmuVt(i,j,k+1))/Schk
-            nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+(L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+(L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Schk
-            nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+(L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Schk
-            nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+(L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+(L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Schk
+            nuV_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+  &
+       (L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+  &
+       (L1top*CmuVt(i,j,k)+L2top*CmuVt(i,j,k+1))/Schk
+            nuH_top = (L1top*Cmu(i,j,k)+L2top*Cmu(i,j,k+1))+  &
+       (L1top*CmuR(i,j,k)+L2top*CmuR(i,j,k+1))+  &
+       (L1top*CmuHt(i,j,k)+L2top*CmuHt(i,j,k+1))/Schk
+            nuV_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+  &
+       (L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+  &
+       (L1bot*CmuVt(i,j,k-1)+L2bot*CmuVt(i,j,k))/Schk
+            nuH_bot = (L1bot*Cmu(i,j,k-1)+L2bot*Cmu(i,j,k))+  &
+       (L1bot*CmuR(i,j,k-1)+L2bot*CmuR(i,j,k))+  &
+       (L1bot*CmuHt(i,j,k-1)+L2bot*CmuHt(i,j,k))/Schk
 # if defined (VEGETATION)
-        R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+Prod_b(i,j,k)+cfk*Prod_v(i,j,k))-DEps(i,j,k)      
+        R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+  &
+              Prod_b(i,j,k)+cfk*Prod_v(i,j,k))-DEps(i,j,k)      
 # else
         R5(i,j,k) = R5(i,j,k)+D(i,j)*(Prod_s(i,j,k)+Prod_b(i,j,k))-DEps(i,j,k)                                   
                 
 # endif
         if(k==Kbeg) then
-           R5(i,j,k) = R5(i,j,k) + &
-             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*(Tke_old(i,j,k)-Tke_old(i,j,k-1))*D(i,j)/dsigck1 &
+           R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
+             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+                 !(Tke_old(i,j,k)-Tke_old(i,j,k-1))*D(i,j)/dsigck1 &
                -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
               *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Tke_old(i,j,k)
           elseif (k==Kend) then
-           R5(i,j,k) = R5(i,j,k) + &
-             +( (nuH_top*(DelxEta(i,j)**2+DelyEta(i,j)**2)+nuV_top)/D(i,j)**2*(Tke_old(i,j,k+1)-Tke_old(i,j,k))*D(i,j)/dsigck &
+           R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
+             +( (nuH_top*(DelxEta(i,j)**2+DelyEta(i,j)**2)+nuV_top)/D(i,j)**2*  &
+                (Tke_old(i,j,k+1)-Tke_old(i,j,k))*D(i,j)/dsigck &
                -(nuH_top*(-DelxEta(i,j)*DxD-DelyEta(i,j)*DyD)*TkezL(i,j,k+1))&
               )/dsig(k) &
              + (dsig(k)-dsigck1)/(dsig(k)**2/2.0*(dsigck1+dsig(k)/2.0))&
@@ -11564,51 +12307,67 @@
            if(k==Kbeg) then
              Acoef(Nlen) = 0.0
            elseif(k==Kend) then
-             Acoef(Nlen) = -dt*(3.0/2.0*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k-1)+DelySl(i,j,k)*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+             Acoef(Nlen) = -dt*(3.0/2.0*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k-1)+  &
+                           DelySl(i,j,k)*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                  /(dsigck1*(dsigck1+dsig(k)/2.0)) )
            else
              Acoef(Nlen) = -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+  &
+                                 DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+  &
+                                  DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                 )*alpha_c/dsig(k) &
-                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
+                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k-1)+  &
+                                 DelySl(i,j,k+1)*DelySc(i,j,k-1))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k-1)+  &
+                                  DelySl(i,j,k  )*DelySc(i,j,k-1))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck1*(dsigck1+dsigck)) &
                                )
            endif
 
            if(k==Kbeg) then
-             Ccoef(Nlen) = -dt*(3.0/2.0*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+             Ccoef(Nlen) = -dt*(3.0/2.0*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
                                  /(dsigck*(dsigck+dsig(k)/2.0)) )
            elseif(k==Kend) then
              Ccoef(Nlen) = 0.0
            else
              Ccoef(Nlen) = -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
+                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                 DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+  &
+                                 DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
                                 )*gamma_c/dsig(k) &
-                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
+                               +( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k+1)+  &
+                                 DelySl(i,j,k+1)*DelySc(i,j,k+1))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k+1)+  &
+                                 DelySl(i,j,k  )*DelySc(i,j,k+1))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck*(dsigck1+dsigck)) &
                                )
            endif
            
            if(k==Kbeg) then
              Bcoef(Nlen) = 1.0 &
-                           -dt*(-(3.0/2.0-dsigck/dsig(k))*(nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                          -dt*(-(3.0/2.0-dsigck/dsig(k))*(nuH_top*(DelxSl(i,j,k+1)*  &
+                            DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
                                /(dsig(k)/2.0*dsigck) )
            elseif(k==Kend) then
              Bcoef(Nlen) = 1.0 &
-                           -dt*(-(3.0/2.0-dsigck1/dsig(k))*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k)+DelySl(i,j,k)*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                           -dt*(-(3.0/2.0-dsigck1/dsig(k))*(nuH_bot*(DelxSl(i,j,k)*DelxSc(i,j,k)+  &
+                              DelySl(i,j,k)*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                /(dsig(k)/2.0*dsigck1) )
            else
              Bcoef(Nlen) = 1.0 &
                            -dt*( &
-                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
-                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                                ( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                                 -(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+  &
+                                   DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                 )*beta_c/dsig(k) &
-                               -( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
-                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
+                               -( (nuH_top*(DelxSl(i,j,k+1)*DelxSc(i,j,k)+  &
+                                  DelySl(i,j,k+1)*DelySc(i,j,k))+nuV_top/D(i,j)**2) &
+                                 +(nuH_bot*(DelxSl(i,j,k  )*DelxSc(i,j,k)+  &
+                                  DelySl(i,j,k  )*DelySc(i,j,k))+nuV_bot/D(i,j)**2) &
                                 )/(dsigck*dsigck1) &
                                )
           endif
@@ -11661,7 +12420,8 @@
        Bbot = dsqrt(1.0+DelxH(i,j)**2)
        !velocities parallel to the bed
        DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*  &
+                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
 
       if(D(i,j)<Dmin.or.Mask(i,j)==0) cycle
@@ -11749,6 +12509,25 @@
 # endif
      do j = Jbeg,Jend
      do k = 1,Kloc
+	   if(Bc_X0==5) then !added by Cheng for wall friction
+         Umag = sqrt(V(Ibeg,j,k)**2+W(Ibeg,j,k)**2)
+         if(Umag<1.e-6) then
+           Tkeb = Tke_min
+           Epsb = Eps_min
+           DTke(Ibeg,j,k) = D(Ibeg,j)*Tkeb
+           DEps(Ibeg,j,k) = D(Ibeg,j)*Epsb
+         else
+           if(Ibot==1) then
+             FricU = sqrt(Cd0)*Umag
+           else
+             FricU = Umag/(1./Kappa*log(30.*dx/2.0/Zob))
+           endif
+           Tkeb = FricU**2/sqrt(cmiu)
+           Epsb = FricU**3/(Kappa*dx/2.0)
+           DTke(Ibeg,j,k) = D(Ibeg,j)*Tkeb
+           DEps(Ibeg,j,k) = D(Ibeg,j)*Epsb
+		 endif
+	   endif
        do i = 1,Nghost
          DTke(Ibeg-i,j,k) = DTke(Ibeg+i-1,j,k)
          DEps(Ibeg-i,j,k) = DEps(Ibeg+i-1,j,k)
@@ -11764,6 +12543,25 @@
 # endif
      do j = Jbeg,Jend
      do k = 1,Kloc
+	   if(Bc_Xn==5) then !added by Cheng for wall friction
+         Umag = sqrt(V(Iend,j,k)**2+W(Iend,j,k)**2)
+         if(Umag<1.e-6) then
+           Tkeb = Tke_min
+           Epsb = Eps_min
+           DTke(Iend,j,k) = D(Iend,j)*Tkeb
+           DEps(Iend,j,k) = D(Iend,j)*Epsb
+         else
+           if(Ibot==1) then
+             FricU = sqrt(Cd0)*Umag
+           else
+             FricU = Umag/(1./Kappa*log(30.*dx/2.0/Zob))
+           endif
+           Tkeb = FricU**2/sqrt(cmiu)
+           Epsb = FricU**3/(Kappa*dx/2.0)
+           DTke(Iend,j,k) = D(Iend,j)*Tkeb
+           DEps(Iend,j,k) = D(Iend,j)*Epsb
+		 endif
+	   endif
        do i = 1,Nghost
          DTke(Iend+i,j,k) = DTke(Iend-i+1,j,k)
          DEps(Iend+i,j,k) = DEps(Iend-i+1,j,k)
@@ -11779,6 +12577,25 @@
 # endif
      do i = 1,Mloc
      do k = 1,Kloc
+	   if(Bc_Y0==5) then !added by Cheng for wall friction
+         Umag = sqrt(U(i,Jbeg,k)**2+W(i,Jbeg,k)**2)
+         if(Umag<1.e-6) then
+           Tkeb = Tke_min
+           Epsb = Eps_min
+           DTke(i,Jbeg,k) = D(i,Jbeg)*Tkeb
+           DEps(i,Jbeg,k) = D(i,Jbeg)*Epsb
+         else
+           if(Ibot==1) then
+             FricU = sqrt(Cd0)*Umag
+           else
+             FricU = Umag/(1./Kappa*log(30.*dy/2.0/Zob))
+           endif
+           Tkeb = FricU**2/sqrt(cmiu)
+           Epsb = FricU**3/(Kappa*dy/2.0)
+           DTke(i,Jbeg,k) = D(i,Jbeg)*Tkeb
+           DEps(i,Jbeg,k) = D(i,Jbeg)*Epsb
+		 endif
+	   endif
        do j = 1,Nghost
          DTke(i,Jbeg-j,k) = DTke(i,Jbeg+j-1,k)
          DEps(i,Jbeg-j,k) = DEps(i,Jbeg+j-1,k)
@@ -11794,6 +12611,25 @@
 # endif
      do i = 1,Mloc
      do k = 1,Kloc
+	   if(Bc_Yn==5) then !added by Cheng for wall friction
+         Umag = sqrt(U(i,Jend,k)**2+W(i,Jend,k)**2)
+         if(Umag<1.e-6) then
+           Tkeb = Tke_min
+           Epsb = Eps_min
+           DTke(i,Jend,k) = D(i,Jend)*Tkeb
+           DEps(i,Jend,k) = D(i,Jend)*Epsb
+         else
+           if(Ibot==1) then
+             FricU = sqrt(Cd0)*Umag
+           else
+             FricU = Umag/(1./Kappa*log(30.*dy/2.0/Zob))
+           endif
+           Tkeb = FricU**2/sqrt(cmiu)
+           Epsb = FricU**3/(Kappa*dy/2.0)
+           DTke(i,Jend,k) = D(i,Jend)*Tkeb
+           DEps(i,Jend,k) = D(i,Jend)*Epsb
+		 endif
+	   endif
        do j = 1,Nghost
          DTke(i,Jend+j,k) = DTke(i,Jend-j+1,k)
          DEps(i,Jend+j,k) = DEps(i,Jend-j+1,k)
@@ -12032,21 +12868,25 @@
       Nlen = 0
       do k = Kbeg,Kend
 # if defined (VEGETATION)
-        R5(i,j,k) = R5(i,j,k)+c1e*D(i,j)*(Prod_s(i,j,k)+c3e*Prod_b(i,j,k)+cfe*Prod_v(i,j,k))*Eps_Old(i,j,k)/Tke_Old(i,j,k)            
+       R5(i,j,k) = R5(i,j,k)+c1e*D(i,j)*(Prod_s(i,j,k)+c3e*Prod_b(i,j,k)+  &
+                    cfe*Prod_v(i,j,k))*Eps_Old(i,j,k)/Tke_Old(i,j,k)            
 # else
-        R5(i,j,k) = R5(i,j,k)+c1e*D(i,j)*(Prod_s(i,j,k)+c3e*Prod_b(i,j,k))*Eps_Old(i,j,k)/Tke_Old(i,j,k)                        
+        R5(i,j,k) = R5(i,j,k)+c1e*D(i,j)*(Prod_s(i,j,k)+c3e*Prod_b(i,j,k))*  &
+                    Eps_Old(i,j,k)/Tke_Old(i,j,k)                        
 # endif
         Nlen = Nlen+1
         if(k==Kbeg) then
           Acoef(Nlen) = 0.0
         else
-          Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Sche)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
+          Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+  &
+               0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Sche)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
         endif
 
         if(k==Kend) then
           Ccoef(Nlen) = 0.0
         else
-          Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Sche)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
+          Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+  &
+                 0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Sche)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
         endif
         
         Bcoef(Nlen) = 1.0-Acoef(Nlen)-Ccoef(Nlen)+dt*c2e*Eps_Old(i,j,k)/Tke_Old(i,j,k)
@@ -12094,13 +12934,15 @@
         if(k==Kbeg) then
           Acoef(Nlen) = 0.0
         else
-          Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schk)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
+          Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+  &
+                0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schk)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
         endif
 
         if(k==Kend) then
           Ccoef(Nlen) = 0.0
         else
-          Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Schk)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
+          Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+  &
+               0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Schk)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
         endif
         
         Bcoef(Nlen) = 1.0-Acoef(Nlen)-Ccoef(Nlen)
@@ -12547,13 +13389,15 @@
           if(k==Kbeg) then
             Acoef(Nlen) = 0.0
           else
-            Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schb)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
+           Acoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k))+  &
+               0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schb)/(0.5*dsig(k)*(dsig(k)+dsig(k-1)))
           endif
 
           if(k==Kend) then
             Ccoef(Nlen) = 0.0
           else
-            Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Schb)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
+            Ccoef(Nlen) = -dt/D(i,j)**2*(0.5*(Cmu(i,j,k)+Cmu(i,j,k+1))+  &
+                0.5*(CmuVt(i,j,k)+CmuVt(i,j,k+1))/Schb)/(0.5*dsig(k)*(dsig(k)+dsig(k+1)))
           endif
         
           Bcoef(Nlen) = 1.0-Acoef(Nlen)-Ccoef(Nlen)
@@ -13435,7 +14279,7 @@
     do j = Jbeg,Jend
     do k = Kbeg,Kend
       do i = 1,Nghost
-        if(Bc_X0==1.or.Bc_X0==2) then
+        if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! added by Cheng for wall friction
           Sali(Ibeg-i,j,k) = Sali(Ibeg+i-1,j,k)
         elseif(Bc_X0==3) then
           Sali(Ibeg-i,j,k) = 2.0*Sin_X0(j,k)-Sali(Ibeg+i-1,j,k)
@@ -13457,7 +14301,7 @@
     do j = Jbeg,Jend
     do k = Kbeg,Kend
       do i = 1,Nghost
-        if(Bc_Xn==1.or.Bc_Xn==2) then
+        if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_Xn==5) then ! added by Cheng for wall friction
           Sali(Iend+i,j,k) = Sali(Iend-i+1,j,k)
         elseif(Bc_Xn==3) then
           Sali(Iend+i,j,k) = 2.0*Sin_Xn(j,k)-Sali(Iend-i+1,j,k)
@@ -13479,7 +14323,7 @@
     do i = Ibeg,Iend
     do k = Kbeg,Kend
       do j = 1,Nghost
-        if(Bc_Y0==1.or.Bc_Y0==2) then
+        if(Bc_Y0==1.or.Bc_Y0==2.or.Bc_Y0==5) then ! added by Cheng for wall friction
           Sali(i,Jbeg-j,k) = Sali(i,Jbeg+j-1,k)
         elseif(Bc_Y0==4) then
           Sali(i,Jbeg-j,k) = Sali(i,Jbeg+j-1,k)
@@ -13497,7 +14341,7 @@
     do i = Ibeg,Iend
     do k = Kbeg,Kend
       do j = 1,Nghost
-        if(Bc_Yn==1.or.Bc_Yn==2) then
+        if(Bc_Yn==1.or.Bc_Yn==2.or.Bc_Yn==5) then ! added by Cheng for wall friction
           Sali(i,Jend+j,k) = Sali(i,Jend-j+1,k)
         elseif(Bc_Yn==4) then
           Sali(i,Jend+j,k) = Sali(i,Jend-j+1,k)
