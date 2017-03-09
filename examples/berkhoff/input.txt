@@ -1,0 +1,311 @@
+! INPUT FILE FOR NHWAVE
+! NOTE: all input parameter are capital sensitive
+
+! --------------------TITLE-------------------------------------
+TITLE = TEST_RUN
+
+! ---------------- RESULT_FOLDER-------------------------------
+RESULT_FOLDER = ./results/
+
+! --------------------DIMENSION---------------------------------
+! cell numbers
+Mglob = 1200
+Nglob = 400
+Kglob = 3
+
+! --------------------PROCESSOR NUMBER-------------------------
+PX = 8
+PY = 1
+
+! -----------------------TIME----------------------------------
+! time: total computational time/ plot time / screen interval 
+! all in seconds
+SIM_STEPS = 1000000000
+TOTAL_TIME = 30.0
+PLOT_START = 20.0
+PLOT_INTV =  0.02
+SCREEN_INTV = 0.02
+
+! ------------------------GRID----------------------------------
+! grid sizes
+DX = 0.025
+DY = 0.05
+
+! ---------------------VERTICAL GRID OPTION--------------------
+! IVGRD = 1: uniform; 2: exponential
+IVGRD = 1
+GRD_R = 1.1
+
+! ----------------------TIME STEP-----------------------------
+DT_INI = 0.10000
+DT_MIN = 0.00001
+DT_MAX = 0.10000
+
+! ----------------------BATHYMETRY---------------------------
+! if analytical bathymetry, set ANA_BATHY = T
+! DEPTH_TYPE = CELL_CENTER if the water depth is defined at
+! cell center, otherwise, DEPTH_TYPE = CELL_GRID 
+DEPTH_TYPE = CELL_CENTER
+ANA_BATHY  = F
+
+! -------------------INITIAL CONDITION---------------------------
+! if INITIAL_SALI = T, need file sali0.txt
+INITIAL_EUVW = F
+INITIAL_SALI = F
+
+! ----------------------NUMERICS----------------------------
+! Scalar convection scheme: "TVD" or "HLPA"
+HIGH_ORDER = SECOND
+TIME_ORDER = SECOND
+CONVECTION = HLPA
+HLLC = F
+
+! ----------------------BOTTOM ROUGHNESS-------------------
+! Ibot = 1: given the drag coefficient Cd0
+! Ibot = 2: given the bottom roughness height Zob
+Ibot = 1
+Cd0 = 0.006
+Zob = 0.0001
+
+! ---------------------WIND STRESS--------------------------
+! Iws = 1: given constant wind speed
+! Iws = 2: given spatially varying wind speed (need wind.txt)
+! WindU,WindV: constant wind speed
+Iws = 1
+WindU = 0.0
+WindV = 0.0
+
+! ---------------------Coriolis----------------------------
+! slat: latitude
+slat = 0.0
+
+! ---------------------BAROTROPIC--------------------------
+! if barotropic run, set BAROTROPIC = T
+BAROTROPIC = T
+
+! ----------------------NON-HYDRO---------------------------
+! if non-hydrostatic simulation
+NON_HYDRO = T
+
+! --------------------COURANT_NUMBER---------------------------------
+CFL = 0.5
+
+! ---------------------RAMP-UP--------------------------------
+! time to ramp up simulation
+TRAMP = 0.0
+
+! --------------------VISCOSITY------------------------------
+VISCOUS_FLOW = F
+IVTURB = 10
+IHTURB = 10
+VISCOSITY = 1.e-6
+Schmidt = 1.0
+Chs = 0.001
+Cvs = 0.001
+
+! --------------------VISCOUS NUMBER----------------------------
+VISCOUS_NUMBER = 0.1666667
+
+! ----------------------WET-DRY-------------------------------
+! minimum depth for wetting-drying
+MinDep = 0.005
+
+! ---------------------POISSON SOLVER-------------------------
+! isolver is an option for different preconditioner.
+! itmax is the maximum number of iterations.
+! tol is the stopping criterion.
+!
+! isolver=1: Modified Incomplete Cholesky CG
+! isolver=2: Incomplete Cholesky GMRES
+! isolver=3: Successive Overrelaxation (SOR) GMRES
+ISOLVER = 2
+ITMAX = 1000
+TOL = 1.e-8
+
+! ------------------PERIODIC BC------------------------------------
+! periodic=.true. : periodic boundary condition in y direction
+! Notice if periodic=.true., Nglob must be power-of-two.
+! No periodic boundaries in serial run.
+PERIODIC_X = F
+PERIODIC_Y = F
+
+! ------------------EXTERNAL FORCING------------------------------
+EXTERNAL_FORCING = F
+
+! -------------------BOUNDARY_TYPE--------------------------------
+! bc_type=1: free-slip
+!         2: no-slip
+!         3: influx
+!         4: outflux (specified eta)
+!         5: bottom friction
+!         6: radiation bc
+BC_X0 = 3
+BC_Xn = 1
+BC_Y0 = 1
+BC_Yn = 1
+BC_Z0 = 1
+BC_Zn = 1
+
+! ---------------------WAVEMAKER------------------------------
+! wavemaker
+! AMP - wave height; PER - wave period; DEP - incident water depth
+! THETA - incident wave angle
+! LEF_SOL - left boundary solitary wave, need AMP,DEP
+! LEF_LIN - left boundary linear wave, need AMP,PER,DEP
+! LEF_CON - left boundary cnoidal wave, need AMP,PER,DEP
+! LEF_STK - left boundary stokes wave, need AMP,PER,DEP
+! LEF_TID - left boundary tide wave, has to specify in subroutine
+! LEF_JON - left boundary for JONSWAP spectrum
+! RIG_LIN - right boundary linear wave, need AMP,PER,DEP,THETA
+! INI_ETA - initial surface elevation specified in subroutine initial
+! INT_LIN - internal wavemaker for linear wave
+! INT_CON - internal wavemaker for cnoidal wave
+! INT_SOL - internal wavemaker for solitary wave
+! INT_JON - internal wavemaker for JONSWAP spectrum
+! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! FLUX_LR - impose flux at both left and right boundaries
+WAVEMAKER = LEF_LIN
+AMP = 0.0464
+PER = 1.0
+DEP = 0.45
+THETA = 0.0
+
+! ----------------------INTERNAL WAVEMAKER--------------------------------
+! parameters for internal wavemaker
+Xsource_West = 0.0
+Xsource_East = 0.0
+Ysource_Suth = 0.0
+Ysource_Nrth = 0.0
+
+! ---------------------PARAMETERS FOR JONSWAP SPECTRUM------------------
+! Hm0 - significant wave height
+! Tp - peak wave period
+! Freq_Min - minimum wave frequency
+! Freq_Max - maximum wave frequency
+! NumFreq - number of frequency discretizations
+Hm0 = 0.035
+Tp = 0.8
+Freq_Min = 0.2
+Freq_Max = 4.00
+NumFreq = 200
+
+! ---------------- SPONGE LAYER ------------------------
+! DHI type sponge layer
+! need to specify widths of four boundaries and parameters
+! set width=0.0 if no sponge
+SPONGE_ON = T
+Sponge_West_Width =  0.0
+Sponge_East_Width =  3.0
+Sponge_South_Width = 0.0
+Sponge_North_Width = 0.0
+
+! ------------------WAVE AVERAGE CONTROL--------------------------
+WAVE_AVERAGE_ON = F
+WAVE_AVERAGE_START = 200.0
+WAVE_AVERAGE_END = 1800.0
+WaveheightID = 2
+
+! ------------------SEDIMENT PARAMETERS---------------------------
+! parameters for sediment module
+! Sed_Type = 'COHESIVE' or 'NONCOHESIVE'
+Sed_Type = 'COHESIVE'
+BED_LOAD = F
+COUPLE_FS = F
+Af = 0.0
+D50 = 1.2e-5
+ntyws = 1
+Sedi_Ws = 0.00007
+Shields_c = 0.05
+Tau_ce = 0.15
+Tau_cd = 0.07
+Erate = 4.0e-8
+Mud_Visc = 1.e-6
+Tim_Sedi = 0.0
+MorDt = 0.0
+BED_CHANGE = T
+
+! -------------------VEGETATION PARAMETERS------------------------
+! parameters for vegetation module
+Veg_Type = RIGID
+Veg_X0 = 4.0
+Veg_Xn = 6.0
+Veg_Y0 = 0.0
+Veg_Yn = 0.1
+VegH = 0.12
+VegDens = 1618.0
+Vegbv = 5.0e-3
+VegDrag = 1.5
+VegVM = 0.0
+EI = 8.0e-7
+
+! -------------------LANDSLIDE PARAMETERS------------------------
+! parameters for landslide module
+! SlideType = 'RIGID' or 'DEFORMABLE'
+! SlideT: thickness; SlideL: length; SlideW: width
+! SlideAngle: slide angle
+! SlopeAngle: bottom slope
+! SlideX0,SlideY0: initial location
+! SlideUt,SlideA0: rigid landslide kinematics
+! SlideDens: deformable landslide density
+SlideType = TWOLAYER
+SlideT = 0.3
+SlideL = 1.05
+SlideW = 1.2
+SlideAngle = 0.0
+SlopeAngle = 27.1
+SlideX0 = 3.28
+SlideY0 = 14.0
+SlideUt = 0.0
+SlideA0 = 0.0
+SlideDens = 2104.0
+SlideVisc = 0.00001
+SlideLambda = 0.5
+SlideIniU = 2.7
+Cf_ul = 0.02
+PhiInt = 41.0
+PhiBed = 23.0
+
+! --------------------RHEOLOGY-----------------------------------
+RHEOLOGY_ON = F
+Yield_Stress = 10.
+Plastic_Visc = 0.0
+
+! --------------------PROBE OUTPUT---------------------------------
+! output variables at stations which are given in file stat.txt
+NSTAT = 0
+PLOT_INTV_STAT = 0.01
+
+! -----------------------OUTPUT-------------------------------
+! output variables, T=.TRUE, F = .FALSE.
+! OUT_H = water depth
+! OUT_E = surface elevation
+! OUT_U = velocity in x direction
+! OUT_V = velocity in y direction
+! OUT_W = velocity in z direction
+! OUT_P = dynamic pressure
+! OUT_K = turbulent kinetic energy
+! OUT_D = turbulent dissipation rate
+! OUT_S = shear production
+! OUT_C = eddy viscosity
+! OUT_B = bubble void fraction
+! OUT_A = Reynolds stress
+! OUT_T = bottom shear stress
+! OUT_F = sediment concentration
+! OUT_G = bed elevation
+! OUT_I = salinity
+OUT_H = T
+OUT_E = T
+OUT_U = F
+OUT_V = F
+OUT_W = F
+OUT_P = F
+OUT_K = F
+OUT_D = F
+OUT_S = F
+OUT_C = F
+OUT_B = F
+OUT_A = F
+OUT_T = F
+OUT_F = F
+OUT_G = F
+OUT_I = F

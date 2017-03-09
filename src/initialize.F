@@ -2501,8 +2501,7 @@
 
      Maska = 1  
    
-     call specify_slide
-	 
+     call specify_slid
 # endif
 
      Tke = Zero
