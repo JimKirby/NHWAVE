@@ -39,3 +39,11 @@ by Cheng Zhang
 
 ¡öChanges
 ¡¤Changed long sentences to short ones to avoid compile problems.
+
+
+UPDATE_00003
+by Cheng Zhang
+23/03/2017
+
+¡öBug Fixes
+¡¤Fixed a bug that can cause parallelization problem.

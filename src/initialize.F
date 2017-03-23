@@ -1381,7 +1381,7 @@
               ExL(Mloc1,Nloc,Kloc),ExR(Mloc1,Nloc,Kloc),FxL(Mloc1,Nloc,Kloc),FxR(Mloc1,Nloc,Kloc), &
               GxL(Mloc1,Nloc,Kloc),GxR(Mloc1,Nloc,Kloc),HxL(Mloc1,Nloc,Kloc),HxR(Mloc1,Nloc,Kloc), &
               EyL(Mloc,Nloc1,Kloc),EyR(Mloc,Nloc1,Kloc),FyL(Mloc,Nloc1,Kloc),FyR(Mloc,Nloc1,Kloc), &
-              GyL(Mloc,Nloc1,Kloc),GyR(Mloc,Nloc1,Kloc),HyL(Mloc,Nloc1,Kloc),HyR(Mloc1,Nloc1,Kloc), &
+              GyL(Mloc,Nloc1,Kloc),GyR(Mloc,Nloc1,Kloc),HyL(Mloc,Nloc1,Kloc),HyR(Mloc,Nloc1,Kloc), &
               Ex(Mloc1,Nloc,Kloc),Ey(Mloc,Nloc1,Kloc),Fx(Mloc1,Nloc,Kloc),Fy(Mloc,Nloc1,Kloc), &
               Gx(Mloc1,Nloc,Kloc),Gy(Mloc,Nloc1,Kloc),Hx(Mloc1,Nloc,Kloc),Hy(Mloc,Nloc1,Kloc), &
               Fz(Mloc,Nloc,Kloc1),Gz(Mloc,Nloc,Kloc1),Hz(Mloc,Nloc,Kloc1),DelxU(Mloc,Nloc,Kloc), &
@@ -2295,15 +2295,31 @@
      SyR = Zero
      SyS = Zero
      Ex = Zero
+	 ExL = Zero
+	 ExR = Zero
      Ey = Zero
+     EyL = Zero
+	 EyR = Zero
      Fx = Zero
+	 FxL = Zero
+	 FxR = Zero
      Fy = Zero
+     FyL = Zero
+	 FyR = Zero
      Fz = Zero
      Gx = Zero
+	 GxL = Zero
+	 GxR = Zero
      Gy = Zero
+	 GyL = Zero
+	 GyR = Zero
      Gz = Zero
      Hx = Zero
+	 HxL = Zero
+	 HxR = Zero
      Hy = Zero
+	 HyL = Zero
+	 HyR = Zero
      Hz = Zero
      EtaxL = Zero
      EtaxR = Zero

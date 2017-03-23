@@ -7564,7 +7564,7 @@
 !		 if (zt>0.0) then
 !		   DeltH(i,j)=-(kb*(zt+e*SlideT/(1-e))*DeltS*tanh(kb*xt))
 !		   Delt2H(i,j)=-(kb*(zt+e*SlideT/(1-e))*(Delt2S*tanh(kb*xt) &
-!		               -kb*DeltS**2/cosh(kb*xt)**2))
+!		               -kb*DeltS**2*(1-2.0*tanh(kb*xt)**2)))
 !		 endif 
        enddo
        enddo
