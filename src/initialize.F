@@ -340,6 +340,9 @@
        CALL GET_STRING_VAL(Sali_HotStart_File,FILE_NAME,'Sali_HotStart_File',line,ierr)
        CALL GET_STRING_VAL(Temp_HotStart_File,FILE_NAME,'Temp_HotStart_File',line,ierr)
 # endif
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+       CALL GET_STRING_VAL(Depth_HotStart_File,FILE_NAME,'Depth_HotStart_File',line,ierr)
+# endif
       IF(VISCOUS_FLOW)THEN
        ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
        CALL GET_STRING_VAL(TKE_HotStart_File,FILE_NAME,'TKE_HotStart_File',line,ierr)

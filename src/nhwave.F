@@ -15572,8 +15572,16 @@ SUBROUTINE hot_start
 
 # endif
 
-! prepare all initials
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+     file=TRIM(Depth_HotStart_File)
+     call read_2d(Hc,file)
+# endif
 
+! prepare all initials
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+! Hc
+     call phi_2D_coll(Hc)
+# endif
 ! eta
      ! collect data into ghost cells
      call phi_2D_coll(Eta)
