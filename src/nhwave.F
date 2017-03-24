@@ -7564,7 +7564,7 @@
 !		 if (zt>0.0) then
 !		   DeltH(i,j)=-(kb*(zt+e*SlideT/(1-e))*DeltS*tanh(kb*xt))
 !		   Delt2H(i,j)=-(kb*(zt+e*SlideT/(1-e))*(Delt2S*tanh(kb*xt) &
-!		               -kb*DeltS**2/cosh(kb*xt)**2))
+!		               -kb*DeltS**2*(1-2.0*tanh(kb*xt)**2)))
 !		 endif 
        enddo
        enddo
@@ -15572,8 +15572,16 @@ SUBROUTINE hot_start
 
 # endif
 
-! prepare all initials
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+     file=TRIM(Depth_HotStart_File)
+     call read_2d(Hc,file)
+# endif
 
+! prepare all initials
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+! Hc
+     call phi_2D_coll(Hc)
+# endif
 ! eta
      ! collect data into ghost cells
      call phi_2D_coll(Eta)
