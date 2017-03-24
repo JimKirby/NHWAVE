@@ -19,12 +19,12 @@
 
       dilo=0; djlo=0; diup=0; djup=0
 
-# if defined (PARALLEL)
-      if(npx==0) dilo=2
-      if(npy==0) djlo=2
-      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-# endif
+!# if defined (PARALLEL)
+!      if(npx==0) dilo=2
+!      if(npy==0) djlo=2
+!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
+!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
+!# endif
 
       ilo=Ibeg+dilo; iup=Iend+diup;
       jlo=Jbeg+djlo; jup=Jend+djup;
@@ -95,14 +95,15 @@ subroutine nlmmntF90()
       !jlo=max(Jbeg-1,1)
       !jup=min(Jend+1,Nglob)
 
-      dilo=-1; djlo=-1; diup=1; djup=1
+!      dilo=-1; djlo=-1; diup=1; djup=1
+      dilo=0; djlo=0; diup=0; djup=0
 
-# if defined (PARALLEL)
-      if(npx==0) dilo=0
-      if(npy==0) djlo=0
-      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=0
-# endif
+!# if defined (PARALLEL)
+!      if(npx==0) dilo=0
+!      if(npy==0) djlo=0
+!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
+!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=0
+!# endif
 
       ilo=Ibeg+dilo; iup=Iend+diup;
       jlo=Jbeg+djlo; jup=Jend+djup;
@@ -132,14 +133,15 @@ subroutine nlmmntF90()
       !jlo=max(Jbeg-1,1) 
       !jup=min(Jend+1,Nglob-1)
 
-      dilo=-1; djlo=-1; diup=1; djup=1
+      ! dilo=-1; djlo=-1; diup=1; djup=1
+	  dilo=0; djlo=0; diup=0; djup=0
 
-# if defined (PARALLEL)
-      if(npx==0) dilo=0
-      if(npy==0) djlo=0
-      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=0
-      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-# endif
+!# if defined (PARALLEL)
+!      if(npx==0) dilo=0
+!      if(npy==0) djlo=0
+!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=0
+!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
+!# endif
 
       ilo=Ibeg+dilo; iup=Iend+diup;
       jlo=Jbeg+djlo; jup=Jend+djup;
@@ -195,12 +197,12 @@ subroutine nlmmntF90()
 
       dilo=0; djlo=0; diup=0; djup=0
 
-# if defined (PARALLEL)
-      if(npx==0) dilo=2
-      if(npy==0) djlo=2
-      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-2
-      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-# endif
+!# if defined (PARALLEL)
+!      if(npx==0) dilo=2
+!      if(npy==0) djlo=2
+!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-2
+!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
+!# endif
 
       ilo=Ibeg+dilo; iup=Iend+diup;
       jlo=Jbeg+djlo; jup=Jend+djup;
@@ -268,12 +270,12 @@ subroutine nlmmntF90()
 
       dilo=0; djlo=0; diup=0; djup=0
 
-# if defined (PARALLEL)
-      if(npx==0) dilo=2
-      if(npy==0) djlo=2
-      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-2
-# endif
+!# if defined (PARALLEL)
+!      if(npx==0) dilo=2
+!      if(npy==0) djlo=2
+!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
+!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-2
+!# endif
 
       ilo=Ibeg+dilo; iup=Iend+diup;
       jlo=Jbeg+djlo; jup=Jend+djup;
