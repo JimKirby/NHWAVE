@@ -1660,6 +1660,7 @@
          do j = 1,Nglob
            read(5,*) (HCG(i,j),i=1,Mglob)
          enddo
+       endif
 
 # if defined (PARALLEL)
          do j = Jbeg,Jend
@@ -1678,7 +1679,6 @@
          enddo
          enddo
 # endif
-       endif
      endif
 
      ! collect data into ghost cells 
