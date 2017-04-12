@@ -43,111 +43,53 @@
 !   The following subroutines are designed for granular flow landslide.
 !   Update: Gangfeng Ma, Oct.15, 2013
 !---------------------------------------------------------------------------------------
-    subroutine source_terms_ll
-    use global
-    implicit none
-    integer :: i,j,k
-    real(SP) :: sinx,siny,sdens,vfluid,CosX,CosY,Dudy,Dvdx,Umag,Ubar,Vbar
-    real(SP), dimension(:,:), allocatable :: Delx2P,Dely2P,Delx2D,Dely2D,Pbot,DelxHc0,DelyHc0
-    real(SP) :: tanbeta,cosbeta
-
-    allocate(Pbot(Mloc,Nloc))
-    allocate(Delx2P(Mloc,Nloc))
-    allocate(Dely2P(Mloc,Nloc))
-    allocate(Delx2D(Mloc,Nloc))
-    allocate(Dely2D(Mloc,Nloc))
-    allocate(DelxHc0(Mloc,Nloc))
-    allocate(DelyHc0(Mloc,Nloc))
-
-    SorceaX = Zero
-    SorceaY = Zero
-
-! source terms for lower layer
-    call delxFun_2D(Hc0,DelxHc0)
-    call delyFun_2D(Hc0,DelyHc0)
-    do j = Jbeg,Jend
-    do i = Ibeg,Iend
-      if(Maska(i,j)==0) cycle
-      SorceaX(i,j) = ((1.0-SlideLambda)*Kap(i,j)+SlideLambda)*Grav_LL(i,j)*Ha(i,j)*DelxHc0(i,j)
-      SorceaY(i,j) = ((1.0-SlideLambda)*Kap(i,j)+SlideLambda)*Grav_LL(i,j)*Ha(i,j)*DelyHc0(i,j)
-    enddo
-    enddo
-
-! shear stress at the landslide surface
-    ForceX_UL = 0.0; ForceY_UL = 0.0
-    do j = Jbeg,Jend
-    do i = Ibeg,Iend
-      if(Maska(i,j)==0.or.Mask(i,j)==0) cycle
-      Umag = sqrt((Ua(i,j)-U(i,j,Kbeg))**2+(Va(i,j)-V(i,j,Kbeg))**2)
-      ForceX_UL(i,j) = 0.5*Cf_ul*Umag*(Ua(i,j)-U(i,j,Kbeg))
-      ForceY_UL(i,j) = 0.5*Cf_ul*Umag*(Va(i,j)-V(i,j,Kbeg))
-      SorceaX(i,j) = SorceaX(i,j)-ForceX_UL(i,j)
-      SorceaY(i,j) = SorceaY(i,j)-ForceY_UL(i,j)
-    enddo
-    enddo
-
-    ! Coulomb friction
-    do j = Jbeg,Jend
-    do i = Ibeg,Iend
-      if(Maska(i,j)==0) cycle
-      Umag = sqrt(Ua(i,j)**2+Va(i,j)**2)
-
-      SorceaX(i,j) = SorceaX(i,j)-(1.0-SlideLambda)*Grav_LL(i,j)*Ha(i,j)*tan(PhiBed)*Ua(i,j)/(Umag+1.e-16)
-      SorceaY(i,j) = SorceaY(i,j)-(1.0-SlideLambda)*Grav_LL(i,j)*Ha(i,j)*tan(PhiBed)*Va(i,j)/(Umag+1.e-16)
-
-!      Sxy = 0.5*(DelyUa(i,j)+DelxVa(i,j))
-!      if(Sxy.ne.0.0) then
-!        SorceaX(i,j) = SorceaX(i,j)-sign(1.0,Sxy)* &
-!            (1.0-SlideLambda)*Grav_LL(i,j)*Ha(i,j)*Kap(i,j)*DelyHa(i,j)*sin(PhiInt)                            
-!        SorceaY(i,j) = SorceaY(i,j)-sign(1.0,Sxy)*  &
-!            (1.0-SlideLambda)*Grav_LL(i,j)*Ha(i,j)*Kap(i,j)*DelxHa(i,j)*sin(PhiInt)                            
-!      endif
-    enddo
-    enddo
-
-    ! dynamic+hydrostatic pressure at the interface
-    do j = 1,Nloc
-    do i = 1,Mloc
-      Pbot(i,j) = P(i,j,Kbeg)
-    enddo
-    enddo
-
-    call delxFun_2D(Pbot,Delx2P)
-    call delyFun_2D(Pbot,Dely2P)
-    call delxFun_2D(D,Delx2D)
-    call delyFun_2D(D,Dely2D)
-    do j = Jbeg,Jend
-    do i = Ibeg,Iend
-      if(Maska(i,j)==0.or.Mask(i,j)==0) cycle
-      SorceaX(i,j) = SorceaX(i,j)-Ha(i,j)/SlideDens*Delx2P(i,j)-  &
-                        Rho0/SlideDens*Grav_LL(i,j)*Ha(i,j)*Delx2D(i,j)
-      SorceaY(i,j) = SorceaY(i,j)-Ha(i,j)/SlideDens*Dely2P(i,j)-  &
-                        Rho0/SlideDens*Grav_LL(i,j)*Ha(i,j)*Dely2D(i,j)
-    enddo
-    enddo
-
-    deallocate(Pbot)
-    deallocate(Delx2P)
-    deallocate(Dely2P)
-    deallocate(Delx2D)
-    deallocate(Dely2D)
-    deallocate(DelxHc0)
-    deallocate(DelyHc0)
-
-    end subroutine source_terms_ll
-!
-!------------------------------------------------------------------------------------
-!
-    subroutine update_hc_ul
-!
+    subroutine specify_slide
     use global
     implicit none
     integer :: i,j
+    real(SP) :: alpha0,zt
 
-!   save old bathymetry
-    Ho = Hc
+    ! triangle shape landslide (Kimnon)
+    alpha0 = SlopeAngle*pi/180.
+    do j = 1,Nloc
+    do i = 1,Mloc
+! Test 1
+      if(xc(i)>=0.042.and.xc(i)<=0.097) then
+        zt = (xc(i)-0.042)/cos(alpha0)*tan(alpha0)
+      elseif(xc(i)>0.097.and.xc(i)<=0.152) then
+        zt = (0.152-xc(i))/sin(alpha0)
+      else
+        zt = 0.0
+      endif
 
-!   update the thickness of the upper layer
+! Test 2
+!      if(xc(i)>=0.015.and.xc(i)<=0.0825) then
+!        zt = (xc(i)-0.015)/cos(alpha0)*tan(alpha0)                                                                               
+!      elseif(xc(i)>0.0825.and.xc(i)<=0.15) then                                                                                  
+!        zt = (0.15-xc(i))/sin(alpha0)                                                                                           
+!      else                                                                                                                       
+!        zt = 0.0                                                                                                                 
+!      endif
+
+      Ha(i,j) = zt
+      if(Ha(i,j)-0.001<=1.e-6) then                                                                                    
+        Maska(i,j) = 0                                                                                                 
+        Ha(i,j) = 0.001                                                                                                
+      endif                                                                                                            
+    enddo                                                                                                              
+    enddo                                                                                                              
+  
+    Ha0 = Ha
+
+    do j = 1,Nloc
+    do i = 1,Mloc
+      if(Maska(i,j)==1) then
+        Ua(i,j) = SlideIniU
+      endif
+    enddo
+    enddo
+
+    ! update the thinckness of upper layer
     do j = 1,Nloc
     do i = 1,Mloc
       if(Maska(i,j)==1) then
@@ -158,8 +100,269 @@
     enddo
     enddo
 
-!   reconstruct depth at x-y faces
-!
+    call phi_2D_coll(Ua)
+    Ua0 = Ua
+    HUa = Ha*Ua
+    HUa0 = HUa
+
+    ! reconstruct depth at x-y faces                                                                                
+    do j = 1,Nloc
+    do i = 2,Mloc
+      Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
+    enddo
+    Hfx(1,j) = Hc(1,j)
+    Hfx(Mloc1,j) = Hc(Mloc,j)
+    enddo
+
+    do i = 1,Mloc
+    do j = 2,Nloc
+      Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
+    enddo
+    Hfy(i,1) = Hc(i,1)
+    Hfy(i,Nloc1) = Hc(i,Nloc)
+    enddo
+
+    ! derivatives of water depth at cell center
+    do j = 1,Nloc
+    do i = 1,Mloc
+      DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
+      DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
+    enddo
+    enddo
+
+    return
+    end subroutine specify_slide
+
+    subroutine adjust_grav
+    use global
+    implicit none
+    integer :: i,j
+    real(SP) :: DepAngx,DepAngy,CosAng,SinAng
+
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+!      DepAngx = (Hc0(i+1,j)-Hc0(i-1,j))/(2.0*dx)
+      if(xc(i)<=0.3) then
+        DepAngx = SlopeAngle*pi/180.
+      else
+        DepAngx = 0.0
+      endif
+      CosAng = cos(DepAngx)
+      SinAng = sin(DepAngx)
+      Grav_Lx(i,j) = Grav*SinAng
+      Grav_Ly(i,j) = 0.0
+      Grav_Lz(i,j) = Grav*CosAng
+    enddo
+    enddo
+    call phi_2D_coll(Grav_Lx)
+    call phi_2D_coll(Grav_Ly)
+    call phi_2D_coll(Grav_Lz)
+
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Mask(i,j)==1) then  ! account for underwater pore pressure
+        Slambda(i,j) = SlideLambda
+      else ! no pore pressure in subaerial setting
+        Slambda(i,j) = 0.0
+      endif
+    enddo
+    enddo
+    call phi_2D_coll(Slambda)
+
+    return
+    end subroutine adjust_grav
+
+
+    subroutine source_terms_ll
+    use global
+    implicit none
+    integer :: i,j,k
+    real(SP) :: sdens,vfluid,CosX,CosY,Dudy,Dvdx,Umag,Ubar,Vbar
+    real(SP), dimension(:,:), allocatable :: Delx2P,Dely2P,Pbot
+    real(SP) :: Sxy,DepAngx,CosAng
+
+    allocate(Pbot(Mloc,Nloc))
+    allocate(Delx2P(Mloc,Nloc))
+    allocate(Dely2P(Mloc,Nloc))
+
+    SorceaX = Zero
+    SorceaY = Zero
+
+    ! source terms for lower layer                    
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Maska(i,j)==0) cycle
+      SorceaX(i,j) = Grav_Lx(i,j)*Ha(i,j)
+      SorceaY(i,j) = Grav_Ly(i,j)*Ha(i,j)
+    enddo
+    enddo
+
+!    ! contributions from fluid stresses (minor effects)
+!    ForceX_UL = 0.0; ForceY_UL = 0.0
+!    do j = Jbeg,Jend
+!    do i = Ibeg,Iend
+!      if(Maska(i,j)==0.or.Mask(i,j)==0) cycle
+!      Umag = sqrt((Ua(i,j)-U(i,j,Kbeg))**2+(Va(i,j)-V(i,j,Kbeg))**2)
+!      ForceX_UL(i,j) = 0.5*Cf_ul*Umag*(Ua(i,j)-U(i,j,Kbeg))
+!      ForceY_UL(i,j) = 0.5*Cf_ul*Umag*(Va(i,j)-V(i,j,Kbeg))
+!      SorceaX(i,j) = SorceaX(i,j)-ForceX_UL(i,j)
+!      SorceaY(i,j) = SorceaY(i,j)-ForceY_UL(i,j)
+!    enddo
+!    enddo
+
+    ! contributions from solid stresses                                                              
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Maska(i,j)==0) cycle
+      
+      Umag = sqrt(Ua(i,j)**2+Va(i,j)**2)
+      SorceaX(i,j) = SorceaX(i,j)-(1.0-Slambda(i,j))*Grav_Lz(i,j)*Ha(i,j)*  &
+                       tan(PhiBed)*Ua(i,j)/(Umag+1.e-16)
+      SorceaY(i,j) = SorceaY(i,j)-(1.0-Slambda(i,j))*Grav_Lz(i,j)*Ha(i,j)*  &
+                       tan(PhiBed)*Va(i,j)/(Umag+1.e-16)
+
+      Sxy = 0.5*(DelyUa(i,j)+DelxVa(i,j))
+      if(Sxy.ne.0.0) then
+        SorceaX(i,j) = SorceaX(i,j)-sign(1.0,Sxy)*  & 
+                       (1.0-Slambda(i,j))*Grav_Lz(i,j)*Ha(i,j)*Kap(i,j)*DelyHa(i,j)*sin(PhiInt)
+        SorceaY(i,j) = SorceaY(i,j)-sign(1.0,Sxy)*  &  
+                       (1.0-Slambda(i,j))*Grav_Lz(i,j)*Ha(i,j)*Kap(i,j)*DelxHa(i,j)*sin(PhiInt)
+      endif
+    enddo
+    enddo
+
+    k = Kbeg
+    do j = 1,Nloc
+    do i = 1,Mloc
+      Pbot(i,j) = P(i,j,k)
+    enddo
+    enddo
+
+    Delx2P = Zero; Dely2P = Zero
+    call DelxFun_2D(Pbot,Delx2P)
+    call DelyFun_2D(Pbot,Dely2P)
+
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Maska(i,j)==0.or.Mask(i,j)==0) cycle
+      SorceaX(i,j) = SorceaX(i,j)-Rho0/SlideDens*Grav*Ha(i,j)*(DelxH(i,j)+DelxEta(i,j))  &
+                          -Ha(i,j)/SlideDens*Delx2P(i,j)
+      SorceaY(i,j) = SorceaY(i,j)-Rho0/SlideDens*Grav*Ha(i,j)*(DelyH(i,j)+DelyEta(i,j))  &
+                          -Ha(i,j)/SlideDens*Dely2P(i,j)                     
+    enddo
+    enddo
+
+    deallocate(Pbot)
+    deallocate(Delx2P)
+    deallocate(Dely2P)
+
+    end subroutine source_terms_ll
+
+    subroutine convert_Ha_to_Hs
+!-------------------------------------------------------
+!   Convert the height of landslide in slope-oriented 
+!   coordinate (Ha) to Cartesian coordinate (Hs)
+!   waiting for improvements
+!-------------------------------------------------------
+    use global
+    implicit none
+    integer :: i,j,i1,ic
+    real(SP) :: SlopeAng,SearchAng
+
+    ! initial values
+    Hs = 0.0
+
+    ! conversion depending on SlopeAng
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Maska(i,j)==0) cycle
+
+      if(Ha(i,j)<0.01) then
+        Hs(i,j) = Ha(i,j)
+      else
+
+      if(xc(i)<=1.724) then
+        SlopeAng = SlopeAngle*pi/180.
+      else
+        SlopeAng = 0.0
+      endif
+      ! no conversion if slope is too small
+      SearchAng = 0.0
+      if(SlopeAng>1.e-6) then  
+        ! find the location of vertical height Hs
+        ic = 1
+        do i1 = 1,20  ! search ten grids
+          if(Maska(i-i1,j)==1) then
+            SearchAng = float(i1)*dx/cos(SlopeAng)/Ha(i-i1,j)
+            if(SearchAng>=SlopeAng) then
+              ic = i1
+              exit
+            endif
+          endif   
+        enddo
+        if(Maska(i-1,j)==0) then
+          Hs(i,j) = Ha(i,j)
+        else
+          Hs(i,j) = 0.5*(Ha(i-ic,j)+Ha(i-ic+1,j))/cos(SlopeAng)
+        endif
+      elseif(SlopeAng<-1.e-6) then
+        ic = 1
+        do i1 = 1,20
+          if(Maska(i+i1,j)==1) then
+            SearchAng = float(i1)*dx/cos(abs(SlopeAng))/Ha(i+i1,j)
+            if(SearchAng>=SlopeAng) then
+              ic = i1
+              exit
+            endif
+          endif       
+        enddo
+        if(Maska(i+1,j)==0) then
+          Hs(i,j) = Ha(i,j)
+        else
+          Hs(i,j) = 0.5*(Ha(i+ic,j)+Ha(i+ic-1,j))/cos(abs(SlopeAng))
+        endif
+      else
+        Hs(i,j) = Ha(i,j)
+      endif
+      endif 
+    enddo
+    enddo   
+
+    end subroutine convert_Ha_to_Hs
+
+
+    subroutine update_hc_ul
+    use global
+    implicit none
+    integer :: i,j
+
+    ! save old bathymetry
+    Ho = Hc
+
+    ! convert Ha
+!    call convert_Ha_to_Hs
+
+    ! update the thickness of the upper layer
+    do j = 1,Nloc
+    do i = 1,Mloc
+      if(Maska(i,j)==1) then
+        Hc(i,j) = Hc0(i,j)-Ha(i,j)
+      else
+        Hc(i,j) = Hc0(i,j)
+      endif
+    enddo
+    enddo
+
+    do j = 1,Nloc
+    do i = 1,Mloc
+      if(Mask(i,j)==0) then
+        Eta(i,j) = MinDep-Hc(i,j)
+        D(i,j) = Eta(i,j)+Hc(i,j)
+      endif
+    enddo
+    enddo
+
+    ! reconstruct depth at x-y faces
     do j = 1,Nloc
     do i = 2,Mloc
       Hfx(i,j) = 0.5*(Hc(i,j)+Hc(i-1,j))
@@ -175,32 +378,32 @@
     Hfy(i,1) = Hfy(i,2)
     Hfy(i,Nloc1) = Hfy(i,Nloc)
     enddo
-!
-!   derivatives of water depth at cell center
-!
+
+    ! derivatives of water depth at cell center
     do j = 1,Nloc
     do i = 1,Mloc
       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
     enddo
     enddo
-!
-!   time derivative of water depth
-!
+
+    ! time derivative of water depth
     DeltHo = DeltH
 
     DeltH = zero
     do j = 1,Nloc
     do i = 1,Mloc
-      DeltH(i,j) = (Hc(i,j)-Ho(i,j))/dt
+      if(Mask(i,j)==1) then
+        DeltH(i,j) = (Hc(i,j)-Ho(i,j))/dt
+      endif
     enddo
     enddo
-!
-!   second-order time derivative
-!
+
+    ! second-order time derivative
     if(RUN_STEP>2) Delt2H = (DeltH-DeltHo)/dt
 
     end subroutine update_hc_ul
+
 !
 !--------------------------------------------------------------------------------------------------------
 !
@@ -332,7 +535,6 @@
 !
 !------------------------------------------------------------------------------------------------------------
 !
-
     subroutine flux_bc_ll
     use global
     implicit none
@@ -344,8 +546,7 @@
 # endif
     do j = Jbeg,Jend
       Eax(Ibeg,j) = Zero
-      Fax(Ibeg,j) = 0.5*GravxR(Ibeg,j)*((1.0-SlideLambda)*KapxR(Ibeg,j)+  &
-                    SlideLambda)*HaxR(Ibeg,j)*HaxR(Ibeg,j)
+      Fax(Ibeg,j) = 0.5*GravxR(Ibeg,j)*((1.0-Slambda(Ibeg,j))*KapxR(Ibeg,j)+Slambda(Ibeg,j))*HaxR(Ibeg,j)*HaxR(Ibeg,j)
       Gax(Ibeg,j) = Zero
     enddo
 # if defined (PARALLEL)
@@ -357,8 +558,7 @@
 # endif
     do j = Jbeg,Jend
       Eax(Iend1,j) = Zero
-      Fax(Iend1,j) = 0.5*GravxL(Iend1,j)*((1.0-SlideLambda)*KapxL(Iend1,j)+  &
-                     SlideLambda)*HaxL(Iend1,j)*HaxL(Iend1,j)
+      Fax(Iend1,j) = 0.5*GravxL(Iend1,j)*((1.0-Slambda(Iend1,j))*KapxL(Iend1,j)+Slambda(Iend1,j))*HaxL(Iend1,j)*HaxL(Iend1,j)
       Gax(Iend1,j) = Zero
     enddo
 # if defined (PARALLEL)
@@ -371,8 +571,7 @@
     do i = Ibeg,Iend
       Eay(i,Jbeg) = Zero
       Fay(i,Jbeg) = Zero
-      Gay(i,Jbeg) = 0.5*GravyR(i,Jbeg)*((1.0-SlideLambda)*KapyR(i,Jbeg)+  &
-                    SlideLambda)*HayR(i,Jbeg)*HayR(i,Jbeg)
+      Gay(i,Jbeg) = 0.5*GravyR(i,Jbeg)*((1.0-Slambda(i,Jbeg))*KapyR(i,Jbeg)+Slambda(i,Jbeg))*HayR(i,Jbeg)*HayR(i,Jbeg)
     enddo
 # if defined (PARALLEL)
     endif
@@ -384,10 +583,8 @@
     do i = Ibeg,Iend
       Eay(i,Jend1) = Zero
       Fay(i,Jend1) = Zero
-      Gay(i,Jend1) = 0.5*GravyL(i,Jend1)*((1.0-SlideLambda)*KapyL(i,Jend1)+  &
-                     SlideLambda)*HayL(i,Jend1)*HayL(i,Jend1)
+      Gay(i,Jend1) = 0.5*GravyL(i,Jend1)*((1.0-Slambda(i,Jend1))*KapyL(i,Jend1)+Slambda(i,Jend1))*HayL(i,Jend1)*HayL(i,Jend1)
     enddo
-
 # if defined (PARALLEL)
     endif
 # endif
@@ -397,30 +594,31 @@
       if(Maska(i,j)==0) then
         if(Maska(i-1,j)==1) then
           Eax(i,j) = Zero
-          Fax(i,j) = 0.5*GravxL(i,j)*((1.0-SlideLambda)*Kap(i-1,j)+  & 
-                     SlideLambda)*HaxL(i,j)*HaxL(i,j)
+          Fax(i,j) = 0.5*Grav_Lz(i-1,j)*((1.0-Slambda(i-1,j))*Kap(i-1,j)+  &
+                     Slambda(i-1,j))*HaxL(i,j)*HaxL(i-1,j)
           Gax(i,j) = Zero
         elseif(Maska(i+1,j)==1) then
           Eax(i+1,j) = Zero
-          Fax(i+1,j) = 0.5*GravxR(i+1,j)*((1.0-SlideLambda)*Kap(i+1,j)+  & 
-                       SlideLambda)*HaxR(i+1,j)*HaxR(i+1,j)
+          Fax(i+1,j) = 0.5*Grav_Lz(i+1,j)*((1.0-Slambda(i+1,j))*Kap(i+1,j)+  &
+                       Slambda(i+1,j))*HaxR(i+1,j)*HaxR(i+1,j)
           Gax(i+1,j) = Zero
         elseif(Maska(i,j-1)==1) then
           Eay(i,j) = Zero
           Fay(i,j) = Zero
-          Gay(i,j) = 0.5*GravyL(i,j)*((1.0-SlideLambda)*Kap(i,j-1)+  & 
-                     SlideLambda)*HayL(i,j)*HayL(i,j)
+          Gay(i,j) = 0.5*Grav_Lz(i,j-1)*((1.0-Slambda(i,j-1))*Kap(i,j-1)+  &
+                     Slambda(i,j-1))*HayL(i,j)*HayL(i,j)
         elseif(Maska(i,j+1)==1) then
           Eay(i,j+1) = Zero
           Fay(i,j+1) = Zero
-          Gay(i,j+1) = 0.5*GravyR(i,j+1)*((1.0-SlideLambda)*Kap(i,j+1)+  & 
-                       SlideLambda)*HayR(i,j+1)*HayR(i,j+1)
+          Gay(i,j+1) = 0.5*Grav_Lz(i,j+1)*((1.0-Slambda(i,j+1))*Kap(i,j+1)+  &
+                       Slambda(i,j+1))*HayR(i,j+1)*HayR(i,j+1)
         endif
       endif
     enddo
     enddo
 
     end subroutine flux_bc_ll
+
 !
 !---------------------------------------------------------------------------------------------------------
 !
@@ -435,7 +633,7 @@
     call delxFun_2D(HUa,DelxHUa)
     call delxFun_2D(HVa,DelxHVa)
     call delxFun_2D(Kap,DelxKap)
-    call delxFun_2D(Grav_LL,DelxGrav)
+    call delxFun_2D(Grav_Lz,DelxGravLz)
 
     call delyFun_2D(Ha,DelyHa)
     call delyFun_2D(Ua,DelyUa)
@@ -443,70 +641,12 @@
     call delyFun_2D(HUa,DelyHUa)
     call delyFun_2D(HVa,DelyHVa)
     call delyFun_2D(Kap,DelyKap)
-    call delyFun_2D(Grav_LL,DelyGrav)
+    call delyFun_2D(Grav_Lz,DelyGravLz)
 
     end subroutine delxyFun_ll
 !
 !---------------------------------------------------------------------------------------------------------
 !---------------------------------------------------------------------------------------------------------
-!
-    subroutine adjust_grav
-!
-!---------------------------------------------------------------------------------------------------------
-!
-!   adjust_grav
-!
-!   Adjust gravity to account for non-hydrostatic effects as in Denlinger and Iverson (2004)
-!
-!----------------------------------------------------------------------------------------------------------
-!
-    use global
-    implicit none
-    integer :: i,j
-    real(SP),dimension(:,:),allocatable :: DelxHc0,DelyHc0,wbar_n
-
-    allocate(DelxHc0(Mloc,Nloc))
-    allocate(DelyHc0(Mloc,Nloc))
-    allocate(wbar_n(Mloc,Nloc))
-
-    call delxFun_2D(Hc0,DelxHc0)
-    call delyFun_2D(Hc0,DelyHc0)
-
-    wbar_n = wbar
-
-    wbar = zero
-    do j = 1,Nloc
-    do i = 1,Mloc
-      if(maska(i,j)==1) then
-        wbar(i,j) = 0.5*(-DeltH(i,j)-Ua(i,j)*DelxH(i,j)-Va(i,j)*DelyH(i,j))+  &
-                  0.5*(-Ua(i,j)*DelxHc0(i,j)-Va(i,j)*DelyHc0(i,j))
-      endif
-    enddo
-    enddo
-
-    do j = 1,Nloc
-    do i = 1,Mloc
-      if(maska(i,j)==1) then
-        write(11,*) (wbar(i,j)-wbar_n(i,j))/dt
-      endif
-    enddo
-    enddo
-
-    do j = 1,Nloc
-    do i = 1,Mloc
-      Grav_LL(i,j) = Grav
-    enddo
-    enddo
-
-    deallocate(DelxHc0)
-    deallocate(DelyHc0)
-    deallocate(wbar_n)
-
-    return
-    end subroutine adjust_grav
-!
-!---------------------------------------------------------------------------------------------------------
-!--------------------------------------------------------------------------------------------------------
 !
     subroutine calc_kap
 !
@@ -553,9 +693,6 @@
 !-------------------------------------------------------------------------------------------------------
 !
     subroutine construction_ll
-!
-!-------------------------------------------------------------------------------------------------------
-!
     use global
     implicit none
     integer :: i,j
@@ -566,16 +703,16 @@
     call construct_2D_x(HUa,DelxHUa,HUaxL,HUaxR)
     call construct_2D_x(HVa,DelxHVa,HVaxL,HVaxR)
     call construct_2D_x(Kap,DelxKap,KapxL,KapxR)
-    call construct_2D_x(Grav_LL,DelxGrav,GravxL,GravxR)
+    call construct_2D_x(Grav_Lz,DelxGravLz,GravxL,GravxR)
 
     do j = Jbeg,Jend
     do i = Ibeg,Iend1
       EaxL(i,j) = HUaxL(i,j)
       EaxR(i,j) = HUaxR(i,j)
-      FaxL(i,j) = HUaxL(i,j)*UaxL(i,j)+0.5*GravxL(i,j)*((1.0-SlideLambda)*KapxL(i,j)+  &
-                  SlideLambda)*HaxL(i,j)*HaxL(i,j)
-      FaxR(i,j) = HUaxR(i,j)*UaxR(i,j)+0.5*GravxR(i,j)*((1.0-SlideLambda)*KapxR(i,j)+  &
-                  SlideLambda)*HaxR(i,j)*HaxR(i,j)
+      FaxL(i,j) = HUaxL(i,j)*UaxL(i,j)+0.5*GravxL(i,j)*((1.0-Slambda(i,j))*KapxL(i,j)+ &
+                  Slambda(i,j))*HaxL(i,j)*HaxL(i,j)
+      FaxR(i,j) = HUaxR(i,j)*UaxR(i,j)+0.5*GravxR(i,j)*((1.0-Slambda(i,j))*KapxR(i,j)+ &
+                  Slambda(i,j))*HaxR(i,j)*HaxR(i,j)
       GaxL(i,j) = HaxL(i,j)*UaxL(i,j)*VaxL(i,j)
       GaxR(i,j) = HaxR(i,j)*UaxR(i,j)*VaxR(i,j)
     enddo
@@ -587,7 +724,7 @@
     call construct_2D_y(HUa,DelyHUa,HUayL,HUayR)
     call construct_2D_y(HVa,DelyHVa,HVayL,HVayR)
     call construct_2D_y(Kap,DelyKap,KapyL,KapyR)
-    call construct_2D_y(Grav_LL,DelyGrav,GravyL,GravyR)
+    call construct_2D_y(Grav_Lz,DelyGravLz,GravyL,GravyR)
 
     do j = Jbeg,Jend1
     do i = Ibeg,Iend
@@ -595,23 +732,19 @@
       EayR(i,j) = HVayR(i,j)
       FayL(i,j) = HayL(i,j)*UayL(i,j)*VayL(i,j)
       FayR(i,j) = HayR(i,j)*UayR(i,j)*VayR(i,j)
-      GayL(i,j) = HVayL(i,j)*VayL(i,j)+0.5*GravyL(i,j)*((1.0-SlideLambda)*KapyL(i,j)+  &
-                  SlideLambda)*HayL(i,j)*HayL(i,j)
-      GayR(i,j) = HVayR(i,j)*VayR(i,j)+0.5*GravyR(i,j)*((1.0-SlideLambda)*KapyR(i,j)+  &
-                  SlideLambda)*HayR(i,j)*HayR(i,j)
+      GayL(i,j) = HVayL(i,j)*VayL(i,j)+0.5*GravyL(i,j)*((1.0-Slambda(i,j))*KapyL(i,j)+ &
+                  Slambda(i,j))*HayL(i,j)*HayL(i,j)
+      GayR(i,j) = HVayR(i,j)*VayR(i,j)+0.5*GravyR(i,j)*((1.0-Slambda(i,j))*KapyR(i,j)+ &
+                  Slambda(i,j))*HayR(i,j)*HayR(i,j)
     enddo
     enddo
 
-    end subroutine construction_ll    
+    end subroutine construction_ll
 !
 !--------------------------------------------------------------------------------------------------------
 !--------------------------------------------------------------------------------------------------------
 !
-
     subroutine wave_speed_ll
-!
-!--------------------------------------------------------------------------------------------------------
-!
     use global
     implicit none
     integer :: i,j
@@ -619,8 +752,10 @@
 
     do j = Jbeg,Jend
     do i = Ibeg,Iend1
-      SQR_PHI_L = sqrt(GravxL(i,j)*((1.0-SlideLambda)*KapxL(i,j)+SlideLambda)*abs(HaxL(i,j)))
-      SQR_PHI_R = sqrt(GravxR(i,j)*((1.0-SlideLambda)*KapxR(i,j)+SlideLambda)*abs(HaxR(i,j)))
+      SQR_PHI_L = sqrt(GravxL(i,j)*((1.0-Slambda(i,j))*KapxL(i,j)+ &
+                  Slambda(i,j))*abs(HaxL(i,j)))
+      SQR_PHI_R = sqrt(GravxR(i,j)*((1.0-Slambda(i,j))*KapxR(i,j)+ &
+                  Slambda(i,j))*abs(HaxR(i,j)))
       SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(UaxL(i,j)-UaxR(i,j))
       U_S = 0.5*(UaxL(i,j)+UaxR(i,j))+SQR_PHI_L-SQR_PHI_R
       SaxL(i,j) = min(UaxL(i,j)-SQR_PHI_L,U_S-SQR_PHI_S)
@@ -631,8 +766,10 @@
 
     do j = Jbeg,Jend1
     do i = Ibeg,Iend
-      SQR_PHI_L = sqrt(GravyL(i,j)*((1.0-SlideLambda)*KapyL(i,j)+SlideLambda)*abs(HayL(i,j)))
-      SQR_PHI_R = sqrt(GravyR(i,j)*((1.0-SlideLambda)*KapyR(i,j)+SlideLambda)*abs(HayR(i,j)))
+      SQR_PHI_L = sqrt(GravyL(i,j)*((1.0-Slambda(i,j))*KapyL(i,j)+ &
+                  Slambda(i,j))*abs(HayL(i,j)))
+      SQR_PHI_R = sqrt(GravyR(i,j)*((1.0-Slambda(i,j))*KapyR(i,j)+ &
+                  Slambda(i,j))*abs(HayR(i,j)))
       SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(VayL(i,j)-VayR(i,j))
       U_S = 0.5*(VayL(i,j)+VayR(i,j))+SQR_PHI_L-SQR_PHI_R
       SayL(i,j) = min(VayL(i,j)-SQR_PHI_L,U_S-SQR_PHI_S)
@@ -642,6 +779,7 @@
     enddo
 
     end subroutine wave_speed_ll
+
 !
 !------------------------------------------------------------------------------------------------------
 !------------------------------------------------------------------------------------------------------

@@ -221,18 +221,46 @@
      CALL GET_Float_VAL(Plot_Start,FILE_NAME,'PLOT_START',line)
      CALL GET_Float_VAL(Plot_Intv,FILE_NAME,'PLOT_INTV',line)
      CALL GET_Float_VAL(Screen_Intv,FILE_NAME,'SCREEN_INTV',line)
+	 CALL GET_LOGICAL_VAL(HOTSTART,FILE_NAME,'HOTSTART',line) ! added by Cheng for hot start
 # if defined (PARALLEL)
      if(myid.eq.0) WRITE(3,'(A11,I12)')'SIM_STEPS= ', SIM_STEPS
      if(myid.eq.0) WRITE(3,'(A12,F8.2)')'TOTAL_TIME= ', TOTAL_TIME
      if(myid.eq.0) WRITE(3,'(A11,F8.2)')'PLOT_START= ', Plot_Start
      if(myid.eq.0) WRITE(3,'(A11,F8.2)')'PLOT_INTV= ', Plot_Intv
      if(myid.eq.0) WRITE(3,'(A13,F8.2)')'SCREEN_INTV= ', Screen_Intv
+	 if(myid.eq.0) WRITE(3,'(A11,L4)')'HOTSTART= ',HOTSTART ! added by Cheng for hot start
 # else
      WRITE(3,'(A11,I12)')'SIM_STEPS= ', SIM_STEPS
      WRITE(3,'(A12,F8.2)')'TOTAL_TIME= ', TOTAL_TIME
      WRITE(3,'(A11,F8.2)')'PLOT_START= ', Plot_Start
      WRITE(3,'(A11,F8.2)')'PLOT_INTV= ', Plot_Intv
      WRITE(3,'(A13,F8.2)')'SCREEN_INTV= ', Screen_Intv
+	 WRITE(3,'(A11,L4)')'HOTSTART= ',HOTSTART ! added by Cheng for hot start
+# endif
+
+! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     CALL GET_STRING_VAL(Slide_File,FILE_NAME,'SLIDE_FILE',line,ierr)
+     CALL GET_Float_VAL(SLIDE_DENSITY ,FILE_NAME,'SLIDE_DENSITY',line)
+     CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
+     CALL GET_Float_VAL(SLIDE_DIFF ,FILE_NAME,'SLIDE_DIFF',line)
+     CALL GET_Float_VAL(SLIDE_ROUGHNESS ,FILE_NAME,'SLIDE_ROUGHNESS',line)
+     CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
+# if defined (PARALLEL)
+       if(myid.eq.0) WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_DIFF= ', SLIDE_DIFF
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_ROUGHNESS= ', SLIDE_ROUGHNESS
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+# else
+       WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
+       WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       WRITE(3,'(A12,F8.2)')'SLIDE_DIFF= ', SLIDE_DIFF
+       WRITE(3,'(A12,F8.2)')'SLIDE_ROUGHNESS= ', SLIDE_ROUGHNESS
+       WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+# endif
 # endif
 
      ! courant number
@@ -250,6 +278,18 @@
 # else
      WRITE(3,'(A16,F8.3)')'VISCOUS_NUMBER= ',VISCOUS_NUMBER
 # endif
+
+! added by Cheng for limiting the maximum Froude number
+# if defined (FROUDE_CAP)
+     CALL GET_Float_VAL(FROUDECAP,FILE_NAME,'FROUDE_CAP',line)
+# if defined (PARALLEL)
+     if(myid.eq.0) WRITE(3,'(A13,F8.3)')'FROUDE_CAP= ',FROUDECAP
+# else
+     WRITE(3,'(A13,F8.3)')'FROUDE_CAP= ',FROUDECAP
+# endif
+
+# endif
+! end froude cap
 
      ! minimum depth
      CALL GET_Float_VAL(MinDep,FILE_NAME,'MinDep',line)
@@ -288,6 +328,28 @@
      WRITE(3,'(A6,F8.3)')'Chs= ',Chs
      WRITE(3,'(A11,L4)')'RNG= ',RNG
 # endif
+
+! added by Cheng for hot start
+     IF(HOTSTART)THEN
+       CALL GET_STRING_VAL(Eta_HotStart_File,FILE_NAME,'Eta_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(U_HotStart_File,FILE_NAME,'U_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(V_HotStart_File,FILE_NAME,'V_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(W_HotStart_File,FILE_NAME,'W_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(P_HotStart_File,FILE_NAME,'P_HotStart_File',line,ierr)
+# if defined (SALINITY)
+       CALL GET_STRING_VAL(Sali_HotStart_File,FILE_NAME,'Sali_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(Temp_HotStart_File,FILE_NAME,'Temp_HotStart_File',line,ierr)
+# endif
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+       CALL GET_STRING_VAL(Depth_HotStart_File,FILE_NAME,'Depth_HotStart_File',line,ierr)
+# endif
+      IF(VISCOUS_FLOW)THEN
+       ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(TKE_HotStart_File,FILE_NAME,'TKE_HotStart_File',line,ierr)
+       CALL GET_STRING_VAL(EPS_HotStart_File,FILE_NAME,'EPS_HotStart_File',line,ierr)
+      ENDIF
+     ENDIF 
+! end hotstart
 
      ! bathymetry     
      CALL GET_STRING_VAL(DEPTH_TYPE,FILE_NAME,'DEPTH_TYPE',line,ierr)
@@ -679,6 +741,51 @@
        enddo
        enddo
      ENDIF
+	 
+     ! Added by Cheng Zhang,irregular wave internal wavemaker
+     IF(WaveMaker(5:7)=='IRR') then
+       open(14,file='irr2d.txt')
+       read(14,*) NumFreq,NumDir
+       if(NumFreq>MaxNumFreq) then
+# if defined (PARALLEL)
+         if(myid.eq.0) then
+           write(3,'(A)') 'Please set a larger MaxNumFreq in mod_glob.F'
+           stop
+         endif
+# else
+         write(3,'(A)') 'Please set a larger MaxNumFreq in mod_glob.F'
+         stop
+# endif
+       endif
+       if(NumDir>MaxNumDir) then
+# if defined (PARALLEL)
+         if(myid.eq.0) then
+           write(3,'(A)') 'Please set a larger MaxNumDir in mod_glob.F'
+           stop
+         endif
+# else
+         write(3,'(A)') 'Please set a larger MaxNumDir in mod_glob.F'
+         stop
+# endif
+       endif
+       do i = 1,NumFreq
+         read(14,*) Freq(i)
+       enddo
+       do i = 1,NumDir
+         read(14,*) Dire(i)
+       enddo
+       do j = 1,NumFreq
+       do i = 1,NumDir
+         read(14,*) Wave_Spc2d(i,j)
+       enddo
+       enddo
+	   do j = 1,NumFreq
+       do i = 1,NumDir
+         read(14,*) Random_Phs(i,j)
+       enddo
+       enddo
+       close(14)
+     ENDIF
 
 ! JONSWAP spectrum
      if((WaveMaker(5:7)=='JON').or.(WaveMaker(5:7)=='TMA')) then
@@ -758,22 +865,16 @@
        CALL GET_Float_VAL(Sponge_East_Width,FILE_NAME,'Sponge_East_Width',line)
        CALL GET_Float_VAL(Sponge_South_Width,FILE_NAME,'Sponge_South_Width',line)
        CALL GET_Float_VAL(Sponge_North_Width,FILE_NAME,'Sponge_North_Width',line)
-       CALL GET_Float_VAL(R_Sponge,FILE_NAME,'R_Sponge',line)
-       CALL GET_Float_VAL(A_Sponge,FILE_NAME,'A_Sponge',line)
 # if defined (PARALLEL)
        if(myid.eq.0) WRITE(3,'(A19,F6.3)')'Sponge_West_Width= ', Sponge_West_Width
        if(myid.eq.0) WRITE(3,'(A19,F6.3)')'Sponge_East_Width= ', Sponge_East_Width
        if(myid.eq.0) WRITE(3,'(A20,F6.3)')'Sponge_South_Width= ', Sponge_South_Width
        if(myid.eq.0) WRITE(3,'(A20,F6.3)')'Sponge_North_Width= ', Sponge_North_Width
-       if(myid.eq.0) WRITE(3,'(A10,F6.3)')'R_Sponge= ', R_Sponge
-       if(myid.eq.0) WRITE(3,'(A10,F6.3)')'A_Sponge= ', A_Sponge
 # else
        WRITE(3,'(A19,F6.3)')'Sponge_West_Width= ', Sponge_West_Width
        WRITE(3,'(A19,F6.3)')'Sponge_East_Width= ', Sponge_East_Width
        WRITE(3,'(A20,F6.3)')'Sponge_South_Width= ', Sponge_South_Width
        WRITE(3,'(A20,F6.3)')'Sponge_North_Width= ', Sponge_North_Width
-       WRITE(3,'(A10,F6.3)')'R_Sponge= ', R_Sponge
-       WRITE(3,'(A10,F6.3)')'A_Sponge= ', A_Sponge
 # endif
      ENDIF
 
@@ -848,7 +949,7 @@
      CALL GET_Float_VAL(SlopeAngle,FILE_NAME,'SlopeAngle',line)
      CALL GET_Float_VAL(SlideX0,FILE_NAME,'SlideX0',line)
      CALL GET_Float_VAL(SlideY0,FILE_NAME,'SlideY0',line)
-     if(trim(SlideType)=='RIGID') then
+     if(SlideType(1:5)=='RIGID') then ! modified by Cheng to identify 2d and 3d landslide
        CALL GET_Float_VAL(SlideUt,FILE_NAME,'SlideUt',line)
        CALL GET_Float_VAL(SlideA0,FILE_NAME,'SlideA0',line)
      endif
@@ -856,6 +957,160 @@
        CALL GET_Float_VAL(SlideDens,FILE_NAME,'SlideDens',line)
      endif
 # endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+       CALL GET_LOGICAL_VAL(SLIDE_SHAPE_BOX,FILE_NAME,'SLIDE_SHAPE_BOX',line)
+
+     IF(SLIDE_SHAPE_BOX)THEN  ! multi-slides for all box shape slides
+
+      CALL GET_STRING_VAL(MultiSlidesFile,FILE_NAME,'MultiSlidesFile',line,ierr)
+
+      OPEN(4,FILE=TRIM(MultiSlidesFile))
+
+       READ(4,*)VoidString
+       READ(4,*)NumSlides
+
+       ALLOCATE(T_slide(NumSlides))
+       ALLOCATE(b_slide(NumSlides))
+       ALLOCATE(subaer_center2water0(NumSlides),subaer_center2water(NumSlides))
+       ALLOCATE(w_slide(NumSlides))
+       ALLOCATE(e_slide(NumSlides))
+       ALLOCATE(alpha_slide(NumSlides))
+       ALLOCATE(Coulomb_phi(NumSlides))
+       ALLOCATE(x0_slide(NumSlides))
+       ALLOCATE(y0_slide(NumSlides))
+       ALLOCATE(slope_slide(NumSlides))
+       ALLOCATE(term_v(NumSlides))
+       ALLOCATE(uslide(NumSlides),ac_slide(NumSlides))
+         uslide = 0.0
+       ALLOCATE(Smax_slide(NumSlides))
+       ALLOCATE(SlideStartTime(NumSlides))
+
+
+       READ(4,*)VoidString
+       READ(4,*)(SlideStartTime(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(T_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(b_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(w_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(e_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(subaer_center2water0(I),I=1,NumSlides)
+         subaer_center2water=subaer_center2water0
+
+       READ(4,*)VoidString
+       READ(4,*)(alpha_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(Coulomb_phi(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(x0_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(y0_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(slope_slide(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(term_v(I),I=1,NumSlides)
+
+       READ(4,*)VoidString
+       READ(4,*)(Smax_slide(I),I=1,NumSlides)
+
+      CLOSE(4)
+
+       CALL GET_LOGICAL_VAL(SMFCut,FILE_NAME,'SMFCut',line) !CO
+       CALL GET_LOGICAL_VAL(SlideStop,FILE_NAME,'SlideStop',line) !CO
+
+     ELSE
+       NumSlides = 1
+       ALLOCATE(T_slide(NumSlides))
+       ALLOCATE(b_slide(NumSlides))
+       ALLOCATE(subaer_center2water0(NumSlides),subaer_center2water(NumSlides))
+       ALLOCATE(w_slide(NumSlides))
+       ALLOCATE(e_slide(NumSlides))
+       ALLOCATE(alpha_slide(NumSlides))
+       ALLOCATE(Coulomb_phi(NumSlides))
+       ALLOCATE(x0_slide(NumSlides))
+       ALLOCATE(y0_slide(NumSlides))
+       ALLOCATE(slope_slide(NumSlides))
+       ALLOCATE(term_v(NumSlides))
+       ALLOCATE(uslide(NumSlides))
+       ALLOCATE(Smax_slide(NumSlides))
+
+       CALL GET_Float_VAL(T_slide(1),FILE_NAME,'H_slide',line)
+       CALL GET_Float_VAL(b_slide(1),FILE_NAME,'L_slide',line)
+
+       CALL GET_Float_VAL(subaer_center2water0(1),FILE_NAME,'subaer_center2water',line)
+       subaer_center2water(1)=subaer_center2water0(1)
+
+       CALL GET_Float_VAL(w_slide(1),FILE_NAME,'W_slide',line)
+       CALL GET_Float_VAL(e_slide(1),FILE_NAME,'e_slide',line)
+       CALL GET_Float_VAL(alpha_slide(1),FILE_NAME,'Angle_slide',line)
+       CALL GET_Float_VAL(Coulomb_phi(1),FILE_NAME,'Coulomb_phi',line)
+       CALL GET_Float_VAL(x0_slide(1),FILE_NAME,'X0_slide',line)  !is saved over later CO
+       CALL GET_Float_VAL(y0_slide(1),FILE_NAME,'Y0_slide',line)  !is saved over later CO
+       CALL GET_Float_VAL(XX0_Slide,FILE_NAME,'X0_slide',line) !CO
+       CALL GET_Float_VAL(YY0_Slide,FILE_NAME,'Y0_slide',line) !CO
+       CALL GET_Float_VAL(slope_slide(1),FILE_NAME,'Slope_slide',line)
+       CALL GET_Float_VAL(term_v(1),FILE_NAME,'TermV_slide',line)
+       CALL GET_Float_VAL(sf_slide,FILE_NAME,'sf_slide',line) !CO
+       CALL GET_Float_VAL(tf_slide,FILE_NAME,'tf_slide',line) !CO
+       CALL GET_LOGICAL_VAL(SMFCut,FILE_NAME,'SMFCut',line) !CO
+       CALL GET_LOGICAL_VAL(Slide,FILE_NAME,'Slide',line) !CO
+       CALL GET_LOGICAL_VAL(SlideStop,FILE_NAME,'SlideStop',line) !CO
+       CALL GET_Float_VAL(Smax_slide(1),FILE_NAME,'Smax_slide',line) !CO
+       CALL GET_Float_VAL(ac_slide(1),FILE_NAME,'ac_slide',line) !CO it will be calculate 
+
+
+       IF(ANA_BATHY)THEN
+       CALL GET_Float_VAL(acceleration_lab,FILE_NAME,'ACC_lab',line)
+       ENDIF
+# if defined (PARALLEL)
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide height= ', T_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide length= ', b_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide width = ', w_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide e para= ', e_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide angle = ', alpha_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide init x= ', x0_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide init y= ', y0_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide slope = ', slope_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide term V= ', term_v
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide sf= ', sf_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Slide tf= ', tf_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'ac_slide= ', ac_slide
+       if(myid.eq.0) WRITE(3,'(A15,F12.3)')'Smax_slide= ', Smax_slide
+# else
+       WRITE(3,'(A15,F12.3)')'Slide height= ', T_slide
+       WRITE(3,'(A15,F12.3)')'Slide length= ', b_slide
+       WRITE(3,'(A15,F12.3)')'Slide width = ', w_slide
+       WRITE(3,'(A15,F12.3)')'Slide e para= ', e_slide
+       WRITE(3,'(A15,F12.3)')'Slide angle = ', alpha_slide
+       WRITE(3,'(A15,F12.3)')'Slide init x= ', x0_slide
+       WRITE(3,'(A15,F12.3)')'Slide init y= ', y0_slide
+       WRITE(3,'(A15,F12.3)')'Slide slope = ', slope_slide
+       WRITE(3,'(A15,F12.3)')'Slide term V= ', term_v
+       WRITE(3,'(A15,F12.3)')'Slide sf= ', sf_slide
+       WRITE(3,'(A15,F12.3)')'Slide tf= ', tf_slide
+       WRITE(3,'(A15,F12.3)')'ac_slide= ', ac_slide
+       WRITE(3,'(A15,F12.3)')'Smax_slide= ', Smax_slide
+
+# endif
+
+     ENDIF ! end boxslide
+
+# endif
+! end landslide comprehensive
 
 # if defined (TWOLAYERSLIDE)
      ! landslide parameters           
@@ -930,6 +1185,8 @@
      CALL GET_LOGICAL_VAL(OUT_T,FILE_NAME,'OUT_T',line)
      CALL GET_LOGICAL_VAL(OUT_G,FILE_NAME,'OUT_G',line)
      CALL GET_LOGICAL_VAL(OUT_I,FILE_NAME,'OUT_I',line)
+	 CALL GET_LOGICAL_VAL(OUT_Z,FILE_NAME,'OUT_Z',line) !added by Cheng for varying depth
+	 CALL GET_LOGICAL_VAL(OUT_M,FILE_NAME,'OUT_M',line) !added by Cheng for recording Hmax
 # if defined (PARALLEL)
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_H= ',OUT_H
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_E= ',OUT_E
@@ -947,6 +1204,8 @@
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_T= ',OUT_T
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_G= ',OUT_G
      if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_I= ',OUT_I
+	 if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_Z= ',OUT_Z !added by Cheng for varying depth
+	 if(myid.eq.0) WRITE(3,'(A7,L4)') 'OUT_M= ',OUT_M !added by Cheng for recording Hmax
 # else
      WRITE(3,'(A7,L4)') 'OUT_H= ',OUT_H
      WRITE(3,'(A7,L4)') 'OUT_E= ',OUT_E
@@ -964,6 +1223,18 @@
      WRITE(3,'(A7,L4)') 'OUT_T= ',OUT_T
      WRITE(3,'(A7,L4)') 'OUT_G= ',OUT_G
      WRITE(3,'(A7,L4)') 'OUT_I= ',OUT_I
+	 WRITE(3,'(A7,L4)') 'OUT_Z= ',OUT_Z !added by Cheng for varying depth
+	 WRITE(3,'(A7,L4)') 'OUT_M= ',OUT_M !added by Cheng for recording Hmax
+# endif
+
+! added by Cheng for nesting
+# if defined (COUPLING)
+      CALL GET_STRING_VAL(COUPLING_FILE,FILE_NAME,'COUPLING_FILE',line,ierr)
+# if defined (PARALLEL)
+      if (myid.eq.0) WRITE(3,'(A15,A50)')'COUPLING_FILE:', COUPLING_FILE
+# else
+      WRITE(3,'(A15,A50)')'COUPLING_FILE:', COUPLING_FILE
+# endif
 # endif
 
 # if defined (PARALLEL)
@@ -1072,9 +1343,16 @@
               EtaxL(Mloc1,Nloc),EtaxR(Mloc1,Nloc),EtayL(Mloc,Nloc1),EtayR(Mloc,Nloc1), &
               DelxEta(Mloc,Nloc),DelyEta(Mloc,Nloc),DelxD(Mloc,Nloc),DelyD(Mloc,Nloc),Sponge(Mloc,Nloc), &
               Setup(Mloc,Nloc),WaveHeight(Mloc,Nloc),Umean(Mloc,Nloc),Vmean(Mloc,Nloc),Num_Zero_Up(Mloc,Nloc), &
-              Emax(Mloc,Nloc),Emin(Mloc,Nloc),WdU(Mloc,Nloc),WdV(Mloc,Nloc),Wsx(Mloc,Nloc),Wsy(Mloc,Nloc))
+              Emax(Mloc,Nloc),Emin(Mloc,Nloc),WdU(Mloc,Nloc),WdV(Mloc,Nloc),Wsx(Mloc,Nloc),Wsy(Mloc,Nloc), &
+			  HeightMax(Mloc,Nloc))
 
      ! three-dimensional vars
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+! fyshi add base bathymetry for landslide
+     ALLOCATE(Dep0(Mloc1,Nloc1),DepC0(Mloc,Nloc))
+# endif
+
      ALLOCATE(U(Mloc,Nloc,Kloc),V(Mloc,Nloc,Kloc),W(Mloc,Nloc,Kloc),Omega(Mloc,Nloc,Kloc1), &
               P(Mloc,Nloc,Kloc1),DU(Mloc,Nloc,Kloc),DV(Mloc,Nloc,Kloc),DW(Mloc,Nloc,Kloc),  &
               U0(Mloc,Nloc,Kloc),V0(Mloc,Nloc,Kloc),W0(Mloc,Nloc,Kloc),  &
@@ -1106,7 +1384,7 @@
               ExL(Mloc1,Nloc,Kloc),ExR(Mloc1,Nloc,Kloc),FxL(Mloc1,Nloc,Kloc),FxR(Mloc1,Nloc,Kloc), &
               GxL(Mloc1,Nloc,Kloc),GxR(Mloc1,Nloc,Kloc),HxL(Mloc1,Nloc,Kloc),HxR(Mloc1,Nloc,Kloc), &
               EyL(Mloc,Nloc1,Kloc),EyR(Mloc,Nloc1,Kloc),FyL(Mloc,Nloc1,Kloc),FyR(Mloc,Nloc1,Kloc), &
-              GyL(Mloc,Nloc1,Kloc),GyR(Mloc,Nloc1,Kloc),HyL(Mloc,Nloc1,Kloc),HyR(Mloc1,Nloc1,Kloc), &
+              GyL(Mloc,Nloc1,Kloc),GyR(Mloc,Nloc1,Kloc),HyL(Mloc,Nloc1,Kloc),HyR(Mloc,Nloc1,Kloc), &
               Ex(Mloc1,Nloc,Kloc),Ey(Mloc,Nloc1,Kloc),Fx(Mloc1,Nloc,Kloc),Fy(Mloc,Nloc1,Kloc), &
               Gx(Mloc1,Nloc,Kloc),Gy(Mloc,Nloc1,Kloc),Hx(Mloc1,Nloc,Kloc),Hy(Mloc,Nloc1,Kloc), &
               Fz(Mloc,Nloc,Kloc1),Gz(Mloc,Nloc,Kloc1),Hz(Mloc,Nloc,Kloc1),DelxU(Mloc,Nloc,Kloc), &
@@ -1161,11 +1439,12 @@
 
 # if defined (TWOLAYERSLIDE)
      ALLOCATE(Ha(Mloc,Nloc),Hs(Mloc,Nloc),Ha0(Mloc,Nloc),Ua(Mloc,Nloc),Ua0(Mloc,Nloc),Va(Mloc,Nloc),Va0(Mloc,Nloc), &
-              HUa0(Mloc,Nloc),HVa0(Mloc,Nloc),HUa(Mloc,Nloc),HVa(Mloc,Nloc),Maska(Mloc,Nloc),  &
+              HUa0(Mloc,Nloc),HVa0(Mloc,Nloc),HUa(Mloc,Nloc),HVa(Mloc,Nloc),Maska(Mloc,Nloc),Slambda(Mloc,Nloc),  &
               SorceaX(Mloc,Nloc),SorceaY(Mloc,Nloc),DelxHa(Mloc,Nloc),DelxUa(Mloc,Nloc),DelxVa(Mloc,Nloc), &
               DelxHUa(Mloc,Nloc),DelxHVa(Mloc,Nloc),DelyHa(Mloc,Nloc),DelyUa(Mloc,Nloc),DelyVa(Mloc,Nloc), &
-              DelyHUa(Mloc,Nloc),DelyHVa(Mloc,Nloc),DepAng(Mloc,Nloc),CosAng(Mloc,Nloc),ForceX_UL(Mloc,NLoc), &
-              ForceY_UL(Mloc,Nloc),Grav_LL(Mloc,Nloc),DelxGrav(Mloc,Nloc),DelyGrav(Mloc,Nloc),wbar(Mloc,Nloc))
+              DelyHUa(Mloc,Nloc),DelyHVa(Mloc,Nloc),Grav_Lx(Mloc,Nloc),Grav_Ly(Mloc,Nloc),Grav_Lz(Mloc,Nloc), &
+              ForceX_UL(Mloc,NLoc),ForceY_UL(Mloc,Nloc),Grav_LL(Mloc,Nloc),DelxGravLz(Mloc,Nloc),DelyGravLz(Mloc,Nloc),  &
+              wbar(Mloc,Nloc))
 
      ALLOCATE(HaxL(Mloc1,Nloc),HaxR(Mloc1,Nloc),UaxL(Mloc1,Nloc),UaxR(Mloc1,Nloc),VaxL(Mloc1,Nloc),VaxR(Mloc1,Nloc), &
               HayL(Mloc,Nloc1),HayR(Mloc,Nloc1),UayL(Mloc,Nloc1),UayR(Mloc,Nloc1),VayL(Mloc,Nloc1),VayR(Mloc,Nloc1), &
@@ -1177,6 +1456,14 @@
               KapyL(Mloc,Nloc1),KapyR(Mloc,Nloc1),DelxKap(Mloc,Nloc),DelyKap(Mloc,Nloc),SaxL(Mloc1,Nloc), &
               SaxR(Mloc1,Nloc),SaxS(Mloc1,Nloc),SayL(Mloc,Nloc1),SayR(Mloc,Nloc1),SayS(Mloc,Nloc1),GravxL(Mloc1,Nloc), &  
               GravxR(Mloc1,Nloc),GravyL(Mloc,Nloc1),GravyR(Mloc,Nloc1))
+# endif
+
+! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     ALLOCATE(SldM0(Mloc,Nloc), SldN0(Mloc,Nloc), SldZ0(Mloc,Nloc), SldDZ0(Mloc,Nloc), &
+              SldM1(Mloc,Nloc), SldN1(Mloc,Nloc), SldZ1(Mloc,Nloc), SldDZ1(Mloc,Nloc), & 
+              SldMs(Mloc,Nloc), SldNs(Mloc,Nloc), SldZs(Mloc,Nloc), SldDZs(Mloc,Nloc), & 
+              SldWZ(Mloc,Nloc), SldUs(Mloc,Nloc), SldVs(Mloc,Nloc))
 # endif
 
 ! poisson solver (for NSPCG use)
@@ -1295,10 +1582,16 @@
      integer :: i,j,m,n,iter,iglob,jglob
      integer :: Maskp(Mglob+1,Nglob+1)
      real(SP), dimension(Mglob+1,Nglob+1) :: HG
-
-# if defined (LANDSLIDE)
-     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt
+! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     real(SP), dimension(Mglob,Nglob) :: SldDZtmp
 # endif
+# if defined (LANDSLIDE)
+     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1
+     ! added by Cheng for 3D triangle landslide
+!     real(SP) :: slope0,xgb,xgn,xg,yg,ztm
+# endif
+     Hc = Zero ! added by Cheng for initialization
 !
 !    read bathymetry at grid points
 !
@@ -1367,6 +1660,7 @@
          do j = 1,Nglob
            read(5,*) (HCG(i,j),i=1,Mglob)
          enddo
+       endif
 
 # if defined (PARALLEL)
          do j = Jbeg,Jend
@@ -1385,7 +1679,6 @@
          enddo
          enddo
 # endif
-       endif
      endif
 
      ! collect data into ghost cells 
@@ -1394,26 +1687,36 @@
      ! save the initial water depth
      Hc0 = Hc
 
-# if defined (TWOLAYERSLIDE)
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       DepAng(i,j) = (Hc0(i+1,j)-Hc0(i-1,j))/(2.0*dx)
-       DepAng(i,j) = atan(DepAng(i,j))
-       CosAng(i,j) = cos(DepAng(i,j))
-     enddo
-     enddo
-     call phi_2D_coll(DepAng)
-     call phi_2D_coll(CosAng)
-# endif
-
 # if defined (LANDSLIDE)
-     if(trim(SlideType)=='RIGID') then
-       ! for landslide problem, put slide over the bathymetry
+     ! for landslide problem, put slide over the bathymetry
+     if(SlideType(1:8)=='RIGID_2D') then
+	   ! 2D landslide (added by Cheng for 2d landslide)
+       e = 0.75
+       kb = 2.0*acosh(1.0/sqrt(e))/SlideL
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         xt = xc(i)-SlideX0
+         zt = SlideT/(1-e)*((1.0/cosh(kb*xt))**2-e)
+         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+       enddo
+       enddo
+       ! cosine shape (added by Cheng to smooth the angle out)
+!       do j = Jbeg,Jend
+!       do i = Ibeg,Iend
+!         xt = xc(i)-SlideX0
+!		 zt = zero
+!		 if (xt<=SlideL/2.0 .and. xt>=-SlideL/2.0) then
+!           zt = SlideT/2.0*(1.0-cos(2.0*pi*(xt-SlideL/2.0)/SlideL))
+!		 endif
+!         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+!       enddo
+!       enddo
+     elseif(SlideType(1:8)=='RIGID_3D') then
+	   ! 3D landslide
        e = 0.717
        alpha0 = SlideAngle*pi/180.
        kb = 2.0*acosh(1.0/e)/SlideL
        kw = 2.0*acosh(1.0/e)/SlideW
-
        do j = Jbeg,Jend
        do i = Ibeg,Iend
          xt = (xc(i)-SlideX0)*cos(alpha0)+(yc(j)-SlideY0)*sin(alpha0)
@@ -1422,7 +1725,105 @@
          Hc(i,j) = Hc0(i,j)-max(0.0,zt)
        enddo
        enddo
+!	   ! 3D triangle landslide
+!       slope0 = SlopeAngle*pi/180. 
+!!      xgb = SlideL*cos(slope0)
+!!	   xgn = SlideL/cos(slope0)
+!       xgb = SlideL-0.2
+!	   xgn = SlideL+0.2
+!	   xg = xgn-xgb
+!	   ztm = xgb*tan(slope0)
+!       do j = Jbeg,Jend
+!       do i = Ibeg,Iend
+!         if(xc(i)>=SlideX0.and.xc(i)<=SlideX0+xgb) then
+!           zt = (xc(i)-SlideX0)*tan(slope0)
+!!		   alpha1 = slope0/2.0*(1.0+cos(pi*(xc(i)-SlideX0-xgb)/xgb)) !cosine curve
+!!		   yg = zt/2.0*tan(alpha1)
+!           yg = 0.1
+!		   if (yc(j)<=SlideW/2.0-yg) then
+!		     zt = zt
+!		   elseif (yc(j)>SlideW/2.0-yg.and.yc(j)<=SlideW/2.0+yg) then
+!!		     zt= zt-(yc(j)-(SlideW/2.0-yg))/tan(alpha1)  ! line
+!			 zt= zt/2.0*(1.0+cos(pi*(yc(j)-(SlideW/2.0-yg))/(2.0*yg)))  !cosine curve
+!		   else
+!             zt = 0.0
+!		   endif
+!         elseif(xc(i)>SlideX0+xgb .and.xc(i)<=SlideX0+xgn) then
+!!		   zt = (xg-(xc(i)-SlideX0-xgb))/tan(slope0)
+!		   zt = ztm/2.0*(1.0+cos(pi*(xc(i)-SlideX0-xgb)/xg))
+!!		   alpha1 = slope0/2.0*(1.0+cos(pi*(xc(i)-SlideX0-xgb)/xg))
+!!		   yg = zt/2.0*tan(alpha1)
+!           yg = 0.1
+!		   if (yc(j)<=SlideW/2.0-yg) then
+!		     zt = zt
+!		   elseif (yc(j)>SlideW/2.0-yg.and.yc(j)<=SlideW/2.0+yg) then
+!!		     zt= zt-(yc(j)-(SlideW/2.0-yg))/tan(alpha1)
+!			 zt= zt/2.0*(1.0+cos(pi*(yc(j)-(SlideW/2.0-yg))/(2.0*yg)))
+!		   else
+!             zt = 0.0
+!		   endif
+!         else
+!           zt = 0.0
+!         endif
+!         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+!       enddo
+!       enddo
      endif
+# endif
+
+     ! added by Cheng for visvous slide
+# if defined (FLUIDSLIDE)
+     open(5001,file=TRIM(Slide_File),status='old')
+     do j = 1,Nglob
+       read(5001,*) (SldDZtmp(i,j),i=1,Mglob) !slide shape
+     enddo
+     close(5001)
+
+     do i = Ibeg,Iend
+     do j = Jbeg,Jend
+# if defined (PARALLEL)
+       iglob = npx*(Mloc-2*Nghost)+i-Nghost
+       jglob = npy*(Nloc-2*Nghost)+j-Nghost
+# else
+       iglob = i-Nghost
+       jglob = j-Nghost
+# endif
+
+       SldDZ0(i,j)= SldDZtmp(iglob,jglob) !slide shape
+
+       if(SldDZ0(i,j)<SLIDE_MINTHICK) SldDZ0(i,j)=0.0
+
+       SldZ0(i,j)=SldDZ0(i,j)-Hc(i,j) !-chi
+
+       SldDZs(i,j)=SldDZ0(i,j)
+       SldZs(i,j)=SldZ0(i,j)
+       SldDZ1(i,j)=SldDZ0(i,j)
+       SldZ1(i,j)=SldZ0(i,j)
+     enddo
+     enddo
+
+     SldN0=Zero
+     SldNs=Zero
+     SldN1=Zero
+     SldM0=Zero
+     SldMs=Zero
+     SldM1=Zero
+
+! interpolate into grid center
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+       Hc(i,j) = Hc0(i,j)-SldDZ0(i,j) 
+     enddo
+     enddo
+
+     ! collect data into ghost cells
+     call phi_2D_coll(Hc)
+     call phi_2D_coll(SldDZ0) 
+     call phi_2D_coll(SldDZs) 
+     call phi_2D_coll(SldDZ1) 
+     call phi_2D_coll(SldZ0)   
+     call phi_2D_coll(SldZs)   
+     call phi_2D_coll(SldZ1)  
 # endif
 
      ! find pernament dry cells
@@ -1461,6 +1862,329 @@
      enddo
 
      end subroutine read_bathymetry
+
+
+     subroutine read_bathymetry_comprehensive
+!------------------------------------------------------ 
+!    This subroutine is used to read bathymetry                                                
+!    Called by  
+!       main    
+!    update: 21/12/2010, Gangfeng Ma    
+!    update: 04/13/2012, Fengyan Shi
+!    fyshi make a standard slide application    
+!-----------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j,m,n,iter,iglob,jglob,Kslide
+     integer :: Maskp(Mglob+1,Nglob+1)
+     real(SP), dimension(Mglob+1,Nglob+1) :: HG
+!     real(SP), dimension(Mglob,Nglob) :: HCG
+# if defined (LANDSLIDE_COMPREHENSIVE)
+     real(SP) :: Hd,alpha0,L0,T,bl,wl,e,kb,kw,x0,x1,x2,xr,Hb(Mloc,Nloc),&
+              xt,xt1,zt,zt1,ht,yt,Hslide(Mloc1,Nloc1)
+     real(SP) :: edge_width
+# endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+   IF(ANA_BATHY)THEN
+!      if use analytical slide, 1)need iteration 2) ac is time-dependent
+     Hd=1.5  
+     T = T_slide(1)
+     bl = b_slide(1)
+     wl = w_slide(1)
+     e = e_slide(1)
+     alpha0 = slope_slide(1)*3.1415926/180.0
+     kb = 2.0*acosh(1.0/e)/bl
+     kw = 2.0*acosh(1.0/e)/wl
+     x0=x0_slide(1)
+     L0 = x0/cos(alpha0)-T*tan(alpha0)
+     xr = 0.0
+     x1 = (L0-bl/2.)*cos(alpha0)+xr
+     x2 = (L0+bl/2.)*cos(alpha0)+xr
+
+   ELSE
+
+    DO Kslide=1,NumSlides
+
+     alpha_slide(Kslide) = alpha_slide(Kslide)*3.1415926/180.0
+     kb_slide = 2.0*acosh(1.0/e_slide(Kslide))/b_slide(Kslide)
+     kw_slide = 2.0*acosh(1.0/e_slide(Kslide))/w_slide(Kslide)
+
+     ac_slide(Kslide) = 9.81*sin(slope_slide(Kslide)/180.0*3.1415926)
+
+   ENDDO ! end Kslide
+
+   ENDIF
+
+     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
+# if defined (PARALLEL)
+       if(myid.eq.0) write(*,*) 'DEPTH_TYPE has to be cell_center'
+# else
+       write(*,*) 'DEPTH_TYPE has to be cell_center'
+# endif  
+     endif
+
+# endif
+
+     ! read bathymetry at grid points
+     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
+       if(ANA_BATHY) then
+         do j = 1,Nglob+1
+         do i = 1,Mglob+1
+           HG(i,j) = 0.35
+         enddo
+         enddo
+       else
+         open(5,file=TRIM(Depth_File),status='old')
+         do j = 1,Nglob+1
+           read(5,*) (HG(i,j),i=1,Mglob+1)
+         enddo
+       endif
+
+       ! find pernament dry points
+       Maskp = 1
+       do j = 1,Nglob+1
+       do i = 1,Mglob+1
+         if(HG(i,j)<-10.0) Maskp(i,j) = 0
+       enddo
+       enddo
+ 
+       ! interpolate depth into cell center
+       do j = 1,Nglob
+       do i = 1,Mglob
+         HCG(i,j) = (HG(i,j)*Maskp(i,j)+HG(i+1,j)*Maskp(i+1,j)+  &
+             HG(i,j+1)*Maskp(i,j+1)+HG(i+1,j+1)*Maskp(i+1,j+1))/  &
+             (Maskp(i,j)+Maskp(i+1,j)+Maskp(i,j+1)+Maskp(i+1,j+1)+1.e-16)
+       enddo
+       enddo
+
+# if defined (PARALLEL)
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         iglob = npx*(Mloc-2*Nghost)+i-Nghost
+         jglob = npy*(Nloc-2*Nghost)+j-Nghost
+         Hc(i,j) = HCG(iglob,jglob)
+       enddo
+       enddo
+# else
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         iglob = i-Nghost
+         jglob = j-Nghost
+         Hc(i,j) = HCG(iglob,jglob)
+       enddo
+       enddo
+# endif
+
+     elseif(trim(adjustl(DEPTH_TYPE))=='CELL_CENTER') then
+       ! read bathymetry at cell center
+
+       if(ANA_BATHY) then
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+         ! base bathymetry                                                                     
+         do j = Jbeg,Jend
+         do i = Ibeg,Iend
+           if(xc(i)<=xr) then
+             Hb(i,j) = -(xr-xc(i))*tan(alpha0)
+           elseif(xc(i)<=Hd/tan(alpha0)+xr) then
+             Hb(i,j) = (xc(i)-xr)*tan(alpha0)
+           else
+             Hb(i,j) = Hd
+           endif
+           ! temporarily no runup                                                              
+        !   Hb(i,j) = max(0.01,Hb(i,j))
+         enddo
+         enddo
+
+
+         do j = Jbeg,Jend
+         do i = Ibeg,Iend
+           if(xc(i)<=x1.or.xc(i)>=x2.or.yc(j)>=wl/2.) then
+             Hc(i,j) = Hb(i,j)
+           else
+             iter = 1
+             xt = (xc(i)-xr)/cos(alpha0)-L0
+             zt = T/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yc(j))-e)
+ 60          xt1 = ((xc(i)-xr)/cos(alpha0)-zt*tan(alpha0))-L0
+             zt1 = T/(1-e)*(1.0/cosh(kb*xt1)/cosh(kw*yc(j))-e)
+             if(abs(zt1-zt)/abs(zt)>1.e-8) then
+               iter = iter+1
+               if(iter>20) write(*,*) 'too many iterations!'
+               zt = zt1
+               goto 60
+             endif
+             Hc(i,j) = Hb(i,j)-max(0.0,zt1)/cos(alpha0)
+           endif
+         enddo
+         enddo
+# endif
+ 
+       else ! not analytical bathymetry, read from depth file
+
+         open(5,file=TRIM(Depth_File),status='old')
+         do j = 1,Nglob
+           read(5,*) (HCG(i,j),i=1,Mglob)
+         enddo
+
+
+# if defined (PARALLEL)
+         do j = Jbeg,Jend
+         do i = Ibeg,Iend
+           iglob = npx*(Mloc-2*Nghost)+i-Nghost
+           jglob = npy*(Nloc-2*Nghost)+j-Nghost
+           Hc(i,j) = HCG(iglob,jglob)
+         enddo
+         enddo
+# else
+         do j = Jbeg,Jend
+         do i = Ibeg,Iend
+           iglob = i-Nghost
+           jglob = j-Nghost
+           Hc(i,j) = HCG(iglob,jglob)
+         enddo
+         enddo
+# endif
+
+# if defined (LANDSLIDE_COMPREHENSIVE)
+         ! add the landslide
+
+      DepC0 = Hc   ! save base bathymetry 
+
+
+
+    IF(SLIDE_SHAPE_BOX) THEN  ! box shape
+       Hb=Hc
+
+       ! add landslide
+! to keep consistent with slide bathy at grid, assuming slide bathy at grid point
+
+     DO Kslide =1,NumSlides
+       edge_width=T_slide(Kslide)
+       Hslide=0.0_SP
+
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend1
+         xt = (x(i)-x0_slide(Kslide))*cos(alpha_slide(Kslide))+(y(j)-y0_slide(Kslide))*sin(alpha_slide(Kslide))
+         yt = -(x(i)-x0_slide(Kslide))*sin(alpha_slide(Kslide))+(y(j)-y0_slide(Kslide))*cos(alpha_slide(Kslide))
+
+
+         IF(abs(xt)<=0.5*b_slide(Kslide)-0.5*edge_width.AND.abs(yt)<=0.5*w_slide(Kslide) &
+                         +SlideErrorRange)THEN
+            ht=T_slide(Kslide)
+
+         ELSEIF(abs(xt)>0.5*b_slide(Kslide)-0.5*edge_width  &
+            .AND.abs(xt)<0.5*b_slide(Kslide)+0.5*edge_width.AND.abs(yt)<=0.5*w_slide(Kslide) &
+                         +SlideErrorRange)THEN
+            ht=T_slide(Kslide)-T_slide(Kslide)*(abs(xt)-0.5*b_slide(Kslide)+0.5*edge_width)/edge_width
+         ELSE
+            ht=0.0_SP
+         ENDIF
+         Hslide(I,J) = max(0.0,ht)
+       enddo
+       enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+       if (SMFCut) then
+         Hb(i,j) = Hb(i,j)+ht
+       else
+         Hc(i,j) = Hc(i,j)-ht
+       endif
+       enddo
+       enddo
+
+     ENDDO ! end Kslide
+
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+       DepC0(i,j)=Hb(i,j)
+       enddo
+       enddo
+
+
+    ELSE ! for ellipse shape
+
+! to keep consistent with slide at grid, assuming slide bathy at grid, not ceter
+         do j = Jbeg,Jend1
+         do i = Ibeg,Iend1
+           xt = (x(i)-x0_slide(1))*cos(alpha_slide(1))+(y(j)-y0_slide(1))*sin(alpha_slide(1))
+           yt = -(x(i)-x0_slide(1))*sin(alpha_slide(1))+(y(j)-y0_slide(1))*cos(alpha_slide(1))
+           ht = T_slide(1)/(1-e_slide(1))*(1./cosh(kb_slide*xt)/cosh(kw_slide*yt)-e_slide(1))
+           Hslide(I,J) = max(0.0,ht)
+         enddo
+         enddo
+
+! interpolate into grid center
+       do j=Jbeg,Jend
+       do i=Ibeg,Iend
+         ht=0.25*(Hslide(I,J)+Hslide(I+1,J)+Hslide(I,J+1) &
+                            +Hslide(I+1,J+1))
+        if (SMFCut) then
+           DepC0(i,j) = DepC0(i,j)+ht
+        else
+           Hc(i,j) = Hc(i,j)-ht
+        endif
+       enddo
+       enddo
+
+     ENDIF ! end box shape
+
+# endif
+
+     endif  ! end analytical 
+
+     endif  ! end cell center
+
+     ! find pernament dry cells
+     Mask_Struct = 1
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Hc(i,j)<-10.0) then
+         Mask_Struct(i,j) = 0
+       endif
+     enddo
+     enddo
+
+     ! collect data into ghost cells
+     call phi_2D_coll(Hc)
+
+     ! reconstruct depth at x-y faces
+
+! gfma fixed the bug 12/20/2011
+    do j = 1,Nloc
+    do i = 2,Mloc
+      Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
+    enddo
+    Hfx(1,j) = Hc(1,j)
+    Hfx(Mloc1,j) = Hc(Mloc,j)
+    enddo
+
+    do i = 1,Mloc
+    do j = 2,Nloc
+      Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
+    enddo
+    Hfy(i,1) = Hc(i,1)
+    Hfy(i,Nloc1) = Hc(i,Nloc)
+    enddo
+
+
+     ! derivatives of water depth at cell center
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
+       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
+     enddo
+     enddo
+
+
+     end subroutine read_bathymetry_comprehensive
+	 
+	 
+	 
 !
 !------------------------------------------------------------------------------------------
 !
@@ -1574,15 +2298,31 @@
      SyR = Zero
      SyS = Zero
      Ex = Zero
+	 ExL = Zero
+	 ExR = Zero
      Ey = Zero
+     EyL = Zero
+	 EyR = Zero
      Fx = Zero
+	 FxL = Zero
+	 FxR = Zero
      Fy = Zero
+     FyL = Zero
+	 FyR = Zero
      Fz = Zero
      Gx = Zero
+	 GxL = Zero
+	 GxR = Zero
      Gy = Zero
+	 GyL = Zero
+	 GyR = Zero
      Gz = Zero
      Hx = Zero
+	 HxL = Zero
+	 HxR = Zero
      Hy = Zero
+	 HyL = Zero
+	 HyR = Zero
      Hz = Zero
      EtaxL = Zero
      EtaxR = Zero
@@ -1608,6 +2348,8 @@
      DelyDU = Zero
      DelxDV = Zero
      DelyDV = Zero
+     DelxDW = Zero
+     DelyDW = Zero
      DelzO = Zero
      Sponge = One
      Cmu = Visc
@@ -1637,6 +2379,8 @@
      Ein_Xn = Zero
      Din_Xn = Zero   
 
+     HeightMax = Zero ! added by cheng for recording Hmax
+	 
      Setup = Zero
      WaveHeight = Zero
      Umean = Zero
@@ -1774,82 +2518,9 @@
 
      Grav_LL = Grav
 
-     Maska = 1     
-
-!    specify the landslide
-!     eslide = 0.717
-     alpha0 = SlopeAngle*pi/180.
-!     kb = 2.0*acosh(1.0/eslide)/SlideL
-!     kw = 2.0*acosh(1.0/eslide)/SlideW
-!     SlideX1 = SlideX0-0.5*SlideL*cos(alpha0)
-!     SlideX2 = SlideX0+0.5*SlideL*cos(alpha0)
-
-     do j = 1,Nloc
-     do i = 1,Mloc
-!       if(xc(i)>=0.696.and. xc(i)<=0.8) then
-       if(xc(i)>=0.680.and.xc(i)<=0.8) then
-         zt = (xc(i)-0.680)*tan(35.0*pi/180.)
-       else
-         zt = 0.0
-       endif
-
-       Ha(i,j) = max(0.0,zt)
-       if(Ha(i,j)-0.001<=1.e-6) then
-         Maska(i,j) = 0
-         Ha(i,j) = 0.001
-       endif
-     enddo
-     enddo
-     Ha0 = Ha
-
-     do j = 1,Nloc
-     do i = 1,Mloc
-       if(Maska(i,j)==1) then
-         Ua(i,j) = SlideIniU
-       endif
-     enddo
-     enddo
-
-     ! update the thinckness of upper layer
-     do j = 1,Nloc
-     do i = 1,Mloc
-       if(Maska(i,j)==1) then
-         Hc(i,j) = Hc0(i,j)-Ha(i,j)
-       else
-         Hc(i,j) = Hc0(i,j)
-       endif
-     enddo
-     enddo
-
-     call phi_2D_coll(Ua)
-     Ua0 = Ua
-     HUa = Ha*Ua
-     HUa0 = HUa
-
-     ! reconstruct depth at x-y faces                                                                                          
-     do j = 1,Nloc
-     do i = 2,Mloc
-       Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
-     enddo
-     Hfx(1,j) = Hc(1,j)
-     Hfx(Mloc1,j) = Hc(Mloc,j)
-     enddo
-
-     do i = 1,Mloc
-     do j = 2,Nloc
-       Hfy(i,j) = 0.5*(Hc(i,j-1)+Hc(i,j))
-     enddo
-     Hfy(i,1) = Hc(i,1)
-     Hfy(i,Nloc1) = Hc(i,Nloc)
-     enddo
-
-     ! derivatives of water depth at cell center
-     do j = 1,Nloc
-     do i = 1,Mloc
-       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
-       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
-     enddo
-     enddo
+     Maska = 1  
+   
+     call specify_slid
 # endif
 
      Tke = Zero
@@ -1858,6 +2529,11 @@
      DEps = Zero
      DTke0 = Zero
      DEps0 = Zero
+
+     !added by m.derakhti            
+     Wsx = Zero
+     Wsy = Zero
+	 
 # if defined (VEGETATION)
      Tke_w = Zero
      Eps_w = Zero
@@ -2274,6 +2950,11 @@
 # endif
      endif
 # endif
+
+    ! added by Cheng for hot start
+     if(HOTSTART)then
+       call hot_start
+     endif
 
 !
 !    SSP Runge-Kutta method parameters
