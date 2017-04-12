@@ -50,3 +50,4 @@ by Cheng Zhang
 
 ¡öBug Fixes
 ¡¤Fixed a bug that can cause parallelization problem.
+
