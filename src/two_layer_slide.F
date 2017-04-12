@@ -43,17 +43,29 @@
 !   The following subroutines are designed for granular flow landslide.
 !   Update: Gangfeng Ma, Oct.15, 2013
 !---------------------------------------------------------------------------------------
+!
     subroutine specify_slide
+!
+!   Specify initial shape of slide mass
+!
+!   This looks like it just does a triangular shape slide at this point.  Where is the
+!   Fritz-like slide done?
+!
+!----------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
     real(SP) :: alpha0,zt
-
-    ! triangle shape landslide (Kimnon)
+!
+!   triangle shape landslide (Kimmoun)
+!
     alpha0 = SlopeAngle*pi/180.
     do j = 1,Nloc
     do i = 1,Mloc
-! Test 1
+!
+!   Test 1
+!
       if(xc(i)>=0.042.and.xc(i)<=0.097) then
         zt = (xc(i)-0.042)/cos(alpha0)*tan(alpha0)
       elseif(xc(i)>0.097.and.xc(i)<=0.152) then
@@ -88,8 +100,9 @@
       endif
     enddo
     enddo
-
-    ! update the thinckness of upper layer
+!
+!   update the thickness of upper layer
+!
     do j = 1,Nloc
     do i = 1,Mloc
       if(Maska(i,j)==1) then
@@ -104,8 +117,9 @@
     Ua0 = Ua
     HUa = Ha*Ua
     HUa0 = HUa
-
-    ! reconstruct depth at x-y faces                                                                                
+!
+!   reconstruct depth at x-y faces
+!
     do j = 1,Nloc
     do i = 2,Mloc
       Hfx(i,j) = 0.5*(Hc(i-1,j)+Hc(i,j))
@@ -121,8 +135,9 @@
     Hfy(i,1) = Hc(i,1)
     Hfy(i,Nloc1) = Hc(i,Nloc)
     enddo
-
-    ! derivatives of water depth at cell center
+!
+!   derivatives of water depth at cell center
+!
     do j = 1,Nloc
     do i = 1,Mloc
       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
@@ -131,9 +146,15 @@
     enddo
 
     return
-    end subroutine specify_slide
 
+    end subroutine specify_slide
+!
+!---------------------------------------------------------------------------------
+!
     subroutine adjust_grav
+!
+!---------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
@@ -141,7 +162,9 @@
 
     do j = Jbeg,Jend
     do i = Ibeg,Iend
+!
 !      DepAngx = (Hc0(i+1,j)-Hc0(i-1,j))/(2.0*dx)
+!
       if(xc(i)<=0.3) then
         DepAngx = SlopeAngle*pi/180.
       else
@@ -171,9 +194,13 @@
 
     return
     end subroutine adjust_grav
-
-
+!
+!---------------------------------------------------------------------------------
+!
     subroutine source_terms_ll
+!
+!---------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j,k
@@ -187,8 +214,9 @@
 
     SorceaX = Zero
     SorceaY = Zero
-
-    ! source terms for lower layer                    
+!
+!   source terms for lower layer
+!
     do j = Jbeg,Jend
     do i = Ibeg,Iend
       if(Maska(i,j)==0) cycle
@@ -257,13 +285,18 @@
     deallocate(Dely2P)
 
     end subroutine source_terms_ll
-
+!
+!--------------------------------------------------------------------------------------------
+!
     subroutine convert_Ha_to_Hs
-!-------------------------------------------------------
-!   Convert the height of landslide in slope-oriented 
-!   coordinate (Ha) to Cartesian coordinate (Hs)
+!
+!   Convert the height of landslide in slope-oriented coordinate (Ha) to Cartesian
+!   coordinate (Hs)
+!
 !   waiting for improvements
-!-------------------------------------------------------
+!
+!---------------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j,i1,ic
@@ -329,9 +362,13 @@
     enddo   
 
     end subroutine convert_Ha_to_Hs
-
-
+!
+!-----------------------------------------------------------------------------------
+!
     subroutine update_hc_ul
+!
+!-----------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
@@ -342,7 +379,8 @@
     ! convert Ha
 !    call convert_Ha_to_Hs
 
-    ! update the thickness of the upper layer
+!   update the thickness of the upper layer
+!
     do j = 1,Nloc
     do i = 1,Mloc
       if(Maska(i,j)==1) then
@@ -362,7 +400,7 @@
     enddo
     enddo
 
-    ! reconstruct depth at x-y faces
+!   reconstruct depth at x-y faces
     do j = 1,Nloc
     do i = 2,Mloc
       Hfx(i,j) = 0.5*(Hc(i,j)+Hc(i-1,j))
@@ -378,16 +416,18 @@
     Hfy(i,1) = Hfy(i,2)
     Hfy(i,Nloc1) = Hfy(i,Nloc)
     enddo
-
-    ! derivatives of water depth at cell center
+!
+!   derivatives of water depth at cell center
+!
     do j = 1,Nloc
     do i = 1,Mloc
       DelxH(i,j) = (Hfx(i+1,j)-Hfx(i,j))/dx
       DelyH(i,j) = (Hfy(i,j+1)-Hfy(i,j))/dy
     enddo
     enddo
-
-    ! time derivative of water depth
+!
+!   time derivative of water depth
+!
     DeltHo = DeltH
 
     DeltH = zero
@@ -408,6 +448,9 @@
 !--------------------------------------------------------------------------------------------------------
 !
     subroutine update_maska
+!
+!---------------------------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
@@ -438,34 +481,42 @@
 !
 !-------------------------------------------------------------------------------------------------------
 !
-    
     subroutine fluxes_ll
+!
+!-------------------------------------------------------------------------------------------------------
 !
     use global
     implicit none
-
-    ! calculate granular flow parameters
+!
+!   calculate granular flow parameters
+!
     call calc_kap
-
-    ! second order construction
+!
+!   second order construction
+!
     call delxyFun_ll
     call construction_ll
-
-    ! calculate wave speed
+!
+!   calculate wave speed
+!
     call wave_speed_ll
-
-    ! calculate fluxes at faces
+!
+!   calculate fluxes at faces
+!
     call fluxes_at_faces_HLL_ll
-
-    ! flux bc
+!
+!   flux bc
+!
     call flux_bc_ll
 
     end subroutine fluxes_ll
 !
 !--------------------------------------------------------------------------------------------------------
 !
-
     subroutine eval_huv_ll(ISTEP)
+!
+!--------------------------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer, intent(in) :: ISTEP
@@ -536,6 +587,9 @@
 !------------------------------------------------------------------------------------------------------------
 !
     subroutine flux_bc_ll
+!
+!------------------------------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
@@ -646,7 +700,6 @@
     end subroutine delxyFun_ll
 !
 !---------------------------------------------------------------------------------------------------------
-!---------------------------------------------------------------------------------------------------------
 !
     subroutine calc_kap
 !
@@ -690,9 +743,11 @@
     end subroutine calc_kap
 !
 !-------------------------------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------------------------------
 !
     subroutine construction_ll
+!
+!-------------------------------------------------------------------------------------------------------
+!
     use global
     implicit none
     integer :: i,j
