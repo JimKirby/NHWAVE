@@ -305,17 +305,22 @@
 	 ! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
      CHARACTER(LEN=80) :: Slide_File	
-     real(SP), dimension(:,:), allocatable :: SldM0, SldN0, SldZ0, SldDZ0
-     real(SP), dimension(:,:), allocatable :: SldM1, SldN1, SldZ1, SldDZ1
-     real(SP), dimension(:,:), allocatable :: SldMs, SldNs, SldZs, SldDZs
-     real(SP), dimension(:,:), allocatable :: SldWZ
-     real(SP), dimension(:,:), allocatable :: SldUs, SldVs
-     real(SP) :: SLIDE_DENSITY
-     real(SP) :: SLIDE_VISCOSITY
-     real(SP) :: SLIDE_ROUGHNESS
-     real(SP) :: SLIDE_MINTHICK 
-     real(SP) :: SLIDE_DIFF 
-     real(SP) :: SLIDE_RKC1, SLIDE_RKC2, SLIDE_RKDT    	 
+     real(SP), dimension(:,:), allocatable :: Uvs ,Vvs ,DUvs ,DVvs ,Dvs ,DelxH0,Hvs, &
+	                                          Uvs0,Vvs0,DUvs0,DVvs0,Dvs0,DelyH0, &
+                                              DelxUvs,DelxVvs,DelxDUvs,DelxDVvs, &
+	                                          DelyUvs,DelyVvs,DelyDUvs,DelyDVvs, &
+											  DelxHvs,SrcpvsX,SrchvsX, SrcdvsX,  &
+											  DelyHvs,SrcpvsY,SrchvsY, SrcdvsY
+     real(SP), dimension(:,:), allocatable :: DvsxL,DvsxR,UvsxL,UvsxR,VvsxL,VvsxR, &
+											  H0fx,DUvsxL,DUvsxR,DVvsxL,DVvsxR, &
+											  HvsxL,HvsxR,SvsxL,SvsxR,Evsx,Fvsx,Gvsx, &
+											  EvsxL,EvsxR,FvsxL,FvsxR,GvsxL,GvsxR
+     real(SP), dimension(:,:), allocatable :: DvsyL,DvsyR,UvsyL,UvsyR,VvsyL,VvsyR, &
+	                                          H0fy,DUvsyL,DUvsyR,DVvsyL,DVvsyR, &
+											  HvsyL,HvsyR,SvsyL,SvsyR,Evsy,Fvsy,Gvsy, &
+											  EvsyL,EvsyR,FvsyL,FvsyR,GvsyL,GvsyR
+     integer,  dimension(:,:), allocatable :: Maskvs
+     real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK
 # endif
 
      End Module GLOBAL
