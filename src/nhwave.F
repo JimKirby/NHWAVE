@@ -1222,7 +1222,7 @@
             Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
             Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))
 # endif
-! end landslide comprehense
+! end landslide comprehensive
 
 # if defined (TWOLAYERSLIDE)
        if(D(i,j)>0.05) then

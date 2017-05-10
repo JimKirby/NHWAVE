@@ -48,8 +48,10 @@ by Cheng Zhang
 ■Additions to Functions
 ·Added a function to hot start simulation with moving boundary.
 
+=======
 ■Bug Fixes
 ·Fixed a bug that can cause parallelization problem.
+
 
 UPDATE_00004
 by Cheng Zhang
