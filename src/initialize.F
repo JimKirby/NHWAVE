@@ -2554,7 +2554,6 @@
      Maska = 1  
    
      call specify_slide
-	 
 # endif
 
 ! add by Cheng for fluid slide
