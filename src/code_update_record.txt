@@ -48,11 +48,10 @@ by Cheng Zhang
 鈻燗dditions to Functions
 路Added a function to hot start simulation with moving boundary.
 
-<<<<<<< HEAD
 =======
 鈻燘ug Fixes
 路Fixed a bug that can cause parallelization problem.
->>>>>>> refs/remotes/origin/master
+
 
 UPDATE_00004
 by Cheng Zhang
@@ -63,12 +62,6 @@ by Cheng Zhang
  artificial diffusion from mass conservation and double counted bottom friction 
  from momentum equations.
 
-<<<<<<< HEAD
-■Bug Fixes
-·Fixed a bug that can cause parallelization problem.
-·Fixed two bugs in the granular slide model.
-=======
 鈻燘ug Fixes
 路Fixed a bug that can cause parallelization problem.
 路Fixed two bugs in the granular slide model.
->>>>>>> refs/remotes/origin/master
