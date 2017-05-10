@@ -595,7 +595,7 @@
         if(Maska(i-1,j)==1) then
           Eax(i,j) = Zero
           Fax(i,j) = 0.5*Grav_Lz(i-1,j)*((1.0-Slambda(i-1,j))*Kap(i-1,j)+  &
-                     Slambda(i-1,j))*HaxL(i,j)*HaxL(i-1,j)
+                     Slambda(i-1,j))*HaxL(i,j)*HaxL(i,j)
           Gax(i,j) = Zero
         elseif(Maska(i+1,j)==1) then
           Eax(i+1,j) = Zero

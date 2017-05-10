@@ -238,27 +238,21 @@
 	 WRITE(3,'(A11,L4)')'HOTSTART= ',HOTSTART ! added by Cheng for hot start
 # endif
 
-! added by Cheng for visvous slide
+! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
      CALL GET_STRING_VAL(Slide_File,FILE_NAME,'SLIDE_FILE',line,ierr)
      CALL GET_Float_VAL(SLIDE_DENSITY ,FILE_NAME,'SLIDE_DENSITY',line)
      CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
-     CALL GET_Float_VAL(SLIDE_DIFF ,FILE_NAME,'SLIDE_DIFF',line)
-     CALL GET_Float_VAL(SLIDE_ROUGHNESS ,FILE_NAME,'SLIDE_ROUGHNESS',line)
      CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
 # if defined (PARALLEL)
        if(myid.eq.0) WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
-       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_DIFF= ', SLIDE_DIFF
-       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_ROUGHNESS= ', SLIDE_ROUGHNESS
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
 # else
        WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
        WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
-       WRITE(3,'(A12,F8.2)')'SLIDE_DIFF= ', SLIDE_DIFF
-       WRITE(3,'(A12,F8.2)')'SLIDE_ROUGHNESS= ', SLIDE_ROUGHNESS
        WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
 # endif
 # endif
@@ -1458,12 +1452,22 @@
               GravxR(Mloc1,Nloc),GravyL(Mloc,Nloc1),GravyR(Mloc,Nloc1))
 # endif
 
-! added by Cheng for visvous slide
+! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
-     ALLOCATE(SldM0(Mloc,Nloc), SldN0(Mloc,Nloc), SldZ0(Mloc,Nloc), SldDZ0(Mloc,Nloc), &
-              SldM1(Mloc,Nloc), SldN1(Mloc,Nloc), SldZ1(Mloc,Nloc), SldDZ1(Mloc,Nloc), & 
-              SldMs(Mloc,Nloc), SldNs(Mloc,Nloc), SldZs(Mloc,Nloc), SldDZs(Mloc,Nloc), & 
-              SldWZ(Mloc,Nloc), SldUs(Mloc,Nloc), SldVs(Mloc,Nloc))
+     ALLOCATE(Uvs(Mloc,Nloc),Vvs(Mloc,Nloc),DUvs(Mloc,Nloc),DVvs(Mloc,Nloc),Dvs(Mloc,Nloc),DelxH0(Mloc,Nloc),Hvs(Mloc,Nloc), &
+              Uvs0(Mloc,Nloc),Vvs0(Mloc,Nloc),DUvs0(Mloc,Nloc),DVvs0(Mloc,Nloc),Dvs0(Mloc,Nloc),DelyH0(Mloc,Nloc), &
+			  DelxUvs(Mloc,Nloc),DelxVvs(Mloc,Nloc),DelxDUvs(Mloc,Nloc),DelxDVvs(Mloc,Nloc), &
+			  DelyUvs(Mloc,Nloc),DelyVvs(Mloc,Nloc),DelyDUvs(Mloc,Nloc),DelyDVvs(Mloc,Nloc), &
+			  DelxHvs(Mloc,Nloc),SrcpvsX(Mloc,Nloc),SrchvsX(Mloc,Nloc) ,SrcdvsX(Mloc,Nloc),  &
+			  DelyHvs(Mloc,Nloc),SrcpvsY(Mloc,Nloc),SrchvsY(Mloc,Nloc) ,SrcdvsY(Mloc,Nloc),Maskvs(Mloc,Nloc))
+     ALLOCATE(DvsxL(Mloc1,Nloc),DvsxR(Mloc1,Nloc),UvsxL(Mloc1,Nloc),UvsxR(Mloc1,Nloc),VvsxL(Mloc1,Nloc),VvsxR(Mloc1,Nloc), &
+              H0fx(Mloc1,Nloc),DUvsxL(Mloc1,Nloc),DUvsxR(Mloc1,Nloc),DVvsxL(Mloc1,Nloc),DVvsxR(Mloc1,Nloc), &
+			  HvsxL(Mloc1,Nloc),HvsxR(Mloc1,Nloc),SvsxL(Mloc1,Nloc),SvsxR(Mloc1,Nloc),Evsx(Mloc1,Nloc),Fvsx(Mloc1,Nloc),Gvsx(Mloc1,Nloc), &
+			  EvsxL(Mloc1,Nloc),EvsxR(Mloc1,Nloc),FvsxL(Mloc1,Nloc),FvsxR(Mloc1,Nloc),GvsxL(Mloc1,Nloc),GvsxR(Mloc1,Nloc))
+     ALLOCATE(DvsyL(Mloc,Nloc1),DvsyR(Mloc,Nloc1),UvsyL(Mloc,Nloc1),UvsyR(Mloc,Nloc1),VvsyL(Mloc,Nloc1),VvsyR(Mloc,Nloc1), &
+              H0fy(Mloc,Nloc1),DUvsyL(Mloc,Nloc1),DUvsyR(Mloc,Nloc1),DVvsyL(Mloc,Nloc1),DVvsyR(Mloc,Nloc1), &
+			  HvsyL(Mloc,Nloc1),HvsyR(Mloc,Nloc1),SvsyL(Mloc,Nloc1),SvsyR(Mloc,Nloc1),Evsy(Mloc,Nloc1),Fvsy(Mloc,Nloc1),Gvsy(Mloc,Nloc1), &
+			  EvsyL(Mloc,Nloc1),EvsyR(Mloc,Nloc1),FvsyL(Mloc,Nloc1),FvsyR(Mloc,Nloc1),GvsyL(Mloc,Nloc1),GvsyR(Mloc,Nloc1))
 # endif
 
 ! poisson solver (for NSPCG use)
@@ -1582,9 +1586,9 @@
      integer :: i,j,m,n,iter,iglob,jglob
      integer :: Maskp(Mglob+1,Nglob+1)
      real(SP), dimension(Mglob+1,Nglob+1) :: HG
-! added by Cheng for visvous slide
+! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
-     real(SP), dimension(Mglob,Nglob) :: SldDZtmp
+     real(SP), dimension(Mglob,Nglob) :: Dvstmp
 # endif
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1
@@ -1661,7 +1665,7 @@
            read(5,*) (HCG(i,j),i=1,Mglob)
          enddo
        endif
-
+	   
 # if defined (PARALLEL)
          do j = Jbeg,Jend
          do i = Ibeg,Iend
@@ -1771,11 +1775,13 @@
      endif
 # endif
 
-     ! added by Cheng for visvous slide
+     ! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
+     Dvs = zero
+     Hvs  = zero
      open(5001,file=TRIM(Slide_File),status='old')
      do j = 1,Nglob
-       read(5001,*) (SldDZtmp(i,j),i=1,Mglob) !slide shape
+       read(5001,*) (Dvstmp(i,j),i=1,Mglob) !slide shape
      enddo
      close(5001)
 
@@ -1789,41 +1795,68 @@
        jglob = j-Nghost
 # endif
 
-       SldDZ0(i,j)= SldDZtmp(iglob,jglob) !slide shape
-
-       if(SldDZ0(i,j)<SLIDE_MINTHICK) SldDZ0(i,j)=0.0
-
-       SldZ0(i,j)=SldDZ0(i,j)-Hc(i,j) !-chi
-
-       SldDZs(i,j)=SldDZ0(i,j)
-       SldZs(i,j)=SldZ0(i,j)
-       SldDZ1(i,j)=SldDZ0(i,j)
-       SldZ1(i,j)=SldZ0(i,j)
+       Dvs(i,j) = Dvstmp(iglob,jglob) !slide shape
+       if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Dvs(i,j) = SLIDE_MINTHICK
+	   endif
+       Hvs(i,j) = Hc0(i,j)-Dvs(i,j) !chi
      enddo
      enddo
-
-     SldN0=Zero
-     SldNs=Zero
-     SldN1=Zero
-     SldM0=Zero
-     SldMs=Zero
-     SldM1=Zero
+	 
+     ! wetting-drying mask for fluid slide
+     Maskvs = 1
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Maskvs(i,j) = 0
+       endif
+     enddo
+     enddo
 
 ! interpolate into grid center
      do j=Jbeg,Jend
      do i=Ibeg,Iend
-       Hc(i,j) = Hc0(i,j)-SldDZ0(i,j) 
+	   if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Hc(i,j) = Hc0(i,j) 
+	   else
+	     Hc(i,j) = Hc0(i,j)-Dvs(i,j) 
+	   endif
      enddo
      enddo
 
      ! collect data into ghost cells
+# if defined (PARALLEL)
+     call phi_int_exch(Maskvs)
+# endif
      call phi_2D_coll(Hc)
-     call phi_2D_coll(SldDZ0) 
-     call phi_2D_coll(SldDZs) 
-     call phi_2D_coll(SldDZ1) 
-     call phi_2D_coll(SldZ0)   
-     call phi_2D_coll(SldZs)   
-     call phi_2D_coll(SldZ1)  
+     call phi_2D_coll(Dvs) 
+     call phi_2D_coll(Hvs)  
+	 
+     ! reconstruct base depth below the fluid slide at x-y faces
+     do j = 1,Nloc
+     do i = 2,Mloc
+       H0fx(i,j) = 0.5*(Hc0(i-1,j)+Hc0(i,j))
+     enddo
+     H0fx(1,j) = Hc0(1,j)
+     H0fx(Mloc1,j) = Hc0(Mloc,j)
+     enddo
+
+     do i = 1,Mloc
+     do j = 2,Nloc
+       H0fy(i,j) = 0.5*(Hc0(i,j-1)+Hc0(i,j))
+     enddo
+     H0fy(i,1) = Hc0(i,1)
+     H0fy(i,Nloc1) = Hc0(i,Nloc)
+     enddo
+
+     ! derivatives of base depth below the fluid slide at cell center
+     do j = 1,Nloc
+     do i = 1,Mloc
+       DelxH0(i,j) = (H0fx(i+1,j)-H0fx(i,j))/dx
+       DelyH0(i,j) = (H0fy(i,j+1)-H0fy(i,j))/dy
+     enddo
+     enddo
+
 # endif
 
      ! find pernament dry cells
@@ -2522,6 +2555,24 @@
    
      call specify_slide
 	 
+# endif
+
+! add by Cheng for fluid slide
+# if defined (FLUIDSLIDE)
+     Uvs = Zero; Vvs = Zero; DUvs = Zero; DVvs = Zero
+     Uvs0 = Zero;Vvs0 = Zero;DUvs0 = Zero;DVvs0 = Zero
+     DelxUvs = Zero;DelxVvs = Zero;DelxDUvs = Zero;DelxDVvs = Zero
+	 DelyUvs = Zero;DelyVvs = Zero;DelyDUvs = Zero;DelyDVvs = Zero
+	 DelxHvs = Zero;SrcpvsX = Zero;SrchvsX = Zero; SrcdvsX = Zero
+	 DelyHvs = Zero;SrcpvsY = Zero;SrchvsY = Zero; SrcdvsY = Zero
+     DvsxL = Zero;DvsxR = Zero;UvsxL = Zero;UvsxR = Zero;VvsxL = Zero;VvsxR = Zero
+	 DUvsxL = Zero;DUvsxR = Zero;DVvsxL = Zero;DVvsxR = Zero
+	 HvsxL = Zero;HvsxR = Zero;SvsxL = Zero;SvsxR = Zero;Evsx = Zero;Fvsx = Zero;Gvsx = Zero
+	 EvsxL = Zero;EvsxR = Zero;FvsxL = Zero;FvsxR = Zero;GvsxL = Zero;GvsxR = Zero
+     DvsyL = Zero;DvsyR = Zero;UvsyL = Zero;UvsyR = Zero;VvsyL = Zero;VvsyR = Zero
+	 DUvsyL = Zero;DUvsyR = Zero;DVvsyL = Zero;DVvsyR = Zero
+	 HvsyL = Zero;HvsyR = Zero;SvsyL = Zero;SvsyR = Zero;Evsy = Zero;Fvsy = Zero;Gvsy = Zero
+	 EvsyL = Zero;EvsyR = Zero;FvsyL = Zero;FvsyR = Zero;GvsyL = Zero;GvsyR = Zero
 # endif
 
      Tke = Zero

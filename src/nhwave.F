@@ -112,7 +112,7 @@
        endif
 # endif
 
-!added by Cheng for viscous slide
+!added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
        call update_bathymetry
 # endif
@@ -1210,7 +1210,7 @@
        endif
 # endif
 
-!added by Cheng for viscous slide
+!added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
        Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
             Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
@@ -3506,7 +3506,7 @@
        do i = Ibeg,Iend
          if(xc(i)>=Xsource_West.and.xc(i)<=Xsource_East.and. &
             yc(j)>=Ysource_Suth.and.yc(j)<=Ysource_Nrth) then
-           Phs_lag = (j-Jbeg)*dy*WnumY
+           Phs_lag = yc(j)*WnumY
            SourceC(i,j) = Celerity*Amp_Wave/Source_Area*cos(pi/2-Segma*time+Phs_lag)
          endif
        enddo
@@ -3622,7 +3622,7 @@
          
              Amp_Wave = 2.0*sqrt(2.0*Wave_Spc2d(ndir,nfreq)*ddir*dfreq)
 
-             Phs_lag = (dy/2.0+(j-Jbeg)*dy)*WnumY
+             Phs_lag = (dy/2.0+yc(j))*WnumY
              SourceC(i,j) = SourceC(i,j)+Celerity*Amp_Wave/Source_Area*  &
                   cos(pi/2-Segma*time+Phs_lag+Random_Phs(ndir,nfreq)) 
            enddo
@@ -3725,7 +3725,7 @@
              ! wave height for each component
          
              Amp_Wave = 2.0*Wave_Spc2d(ndir,nfreq)
-             Phs_lag = (dy/2.0+(j-Jbeg)*dy)*WnumY
+             Phs_lag = (dy/2.0+yc(j))*WnumY
 			 
 			 if(nfreq==1) then
 			   SourceC(i,j) = SourceC(i,j)+2*Celerity/Source_Area*  &
@@ -4705,12 +4705,14 @@
 # if defined (TWOLAYERSLIDE)
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       tmp1 = abs(Ua(i,j))+sqrt(Grav_Lz(i,j)*Ha(i,j))
+       tmp1 = abs(Ua(i,j))+sqrt(Grav_Lz(i,j)*((1.0-Slambda(i,j))*Kap(i,j)+ &
+                  Slambda(i,j))*abs(Ha(i,j)))
        tmp1 = max(tmp1,Small)
        dxonu = dx/tmp1
        if(dxonu<tmp2) tmp2=dxonu
 
-       tmp1 = abs(Va(i,j))+sqrt(Grav_Lz(i,j)*Ha(i,j))
+       tmp1 = abs(Va(i,j))+sqrt(Grav_Lz(i,j)*((1.0-Slambda(i,j))*Kap(i,j)+ &
+                  Slambda(i,j))*abs(Ha(i,j)))
        tmp1 = max(tmp1,Small)
        dyonv = dy/tmp1
        if(dyonv<tmp2) tmp2=dyonv
@@ -4730,12 +4732,12 @@
      tmp2 = Large
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       tmp1 = abs(SldUs(i,j))+sqrt(Grav*SldDZs(i,j))
+       tmp1 = abs(6.0/5.0*Uvs(i,j))+sqrt(6.0/25.0*Uvs(i,j)**2+Grav*abs(Dvs(i,j)))
        tmp1 = max(tmp1,Small)
        dxonu = dx/tmp1
        if(dxonu<tmp2) tmp2=dxonu
 
-       tmp1 = abs(SldVs(i,j))+sqrt(Grav*SldDZs(i,j))
+       tmp1 = abs(6.0/5.0*Vvs(i,j))+sqrt(6.0/25.0*Vvs(i,j)**2+Grav*abs(Dvs(i,j)))
        tmp1 = max(tmp1,Small)
        dyonv = dy/tmp1
        if(dyonv<tmp2) tmp2=dyonv
@@ -4745,7 +4747,7 @@
      call MPI_ALLREDUCE(tmp2,myvar,1,MPI_SP,MPI_MIN,MPI_COMM_WORLD,ier)
      tmp2 = myvar
 # endif
-     dt_landslide = 0.1d0*CFL*tmp2
+     dt_landslide = CFL*tmp2
 # endif
 
      ! time step limit due to explicit viscous stress terms
@@ -4770,8 +4772,12 @@
        dt_viscous = VISCOUS_NUMBER*tmp2
      endif 
 
+# if defined (FLUIDSLIDE)
      ! get dt    
+     dt = min(dt_growth,dt_courant,dt_viscous,dt_max,dt_landslide)
+# else
      dt = min(dt_growth,dt_courant,dt_viscous,dt_max)
+# endif
      if(dt<dt_min) then
 # if defined (PARALLEL)
        if(myid.eq.0) then
@@ -7021,7 +7027,7 @@
 !    Last update: 04/11/2011, Gangfeng Ma  
 !-----------------------------------------------------  
      use global, only: SP,pi,Zero,small,Ibeg,Grav,TIME,Nloc,Kloc,NumFreq,NumDir,Freq,Dire,Wave_Spc2d, & 
-                       Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy, &
+                       Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy,yc, &
                        MaxNumFreq,MaxNumDir,Nglob,Dep_Wave,Random_Phs
 # if defined (PARALLEL)
      use global, only: myid
@@ -7135,7 +7141,7 @@
        do nfreq = 1,NumFreq
        do ndir = 1,NumDir
          Segma = 2.0*pi*Freq(nfreq)
-         Phs_Lag = ((j-Jbeg)*dy)*sin(Wtheta(ndir,nfreq))*Wnum(ndir,nfreq)+Random_Phs(ndir,nfreq)
+         Phs_Lag = yc(j)*sin(Wtheta(ndir,nfreq))*Wnum(ndir,nfreq)+Random_Phs(ndir,nfreq)
          Ein_X0(j) = Ein_X0(j)+0.5*Wh(ndir,nfreq)*cos(pi/2-Segma*TIME+Phs_Lag)
        enddo
        enddo
@@ -7153,7 +7159,7 @@
        do nfreq = 1,NumFreq
        do ndir = 1,NumDir
          Segma = 2.0*pi*Freq(nfreq)
-         Phs_Lag = ((j-Jbeg)*dy)*sin(Wtheta(ndir,nfreq))*Wnum(ndir,nfreq)+Random_Phs(ndir,nfreq)
+         Phs_Lag = yc(j)*sin(Wtheta(ndir,nfreq))*Wnum(ndir,nfreq)+Random_Phs(ndir,nfreq)
          Uin_X0(j,k) = Uin_X0(j,k)+(0.5*Wh(ndir,nfreq)*Segma*cosh(Wnum(ndir,nfreq)*Zlev)/  &
              sinh(Wnum(ndir,nfreq)*Dep_Wave)*cos(pi/2-Segma*TIME+Phs_Lag)-Stokes_Drift(ndir,nfreq)*Fact)*  &
              cos(Wtheta(ndir,nfreq)) 
@@ -7283,7 +7289,7 @@
      Fact = 1.0     
 
      do j = 1,Nloc
-       Phs_Lag(j) = ((j-Jbeg)*dy)*sin(Theta_Wave*pi/180.)*Wave_Number
+       Phs_Lag(j) = yc(j)*sin(Theta_Wave*pi/180.)*Wave_Number
        Ein_X0(j) = 0.5*Amp_Wave*cos(pi/2-Segma*TIME+Phs_Lag(j))
        Din_X0(j) = Ein_X0(j)+Hfx(Ibeg,j)     
      enddo
@@ -7319,7 +7325,7 @@
 !    Last update: 05/02/2011, Gangfeng Ma
 !-----------------------------------------------------
      use global, only: SP,pi,Zero,Iend1,Grav,TIME,Nloc,Kloc,Amp_Wave,Per_Wave,Dep_Wave,Theta_Wave, &
-                       Ein_Xn,Din_Xn,Uin_Xn,Vin_Xn,Win_Xn,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy
+                       Ein_Xn,Din_Xn,Uin_Xn,Vin_Xn,Win_Xn,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy,yc
      implicit none
      integer  :: j,k,Iter
      real(SP) :: Segma,Celerity,Wave_Length,Wave_Number,Fk,Fkdif,Zlev,Stokes_Drift,Fact,Phs_Lag(Nloc)
@@ -7345,7 +7351,7 @@
      Fact = 1.0     
 
      do j = 1,Nloc
-       Phs_Lag(j) = ((j-Jbeg)*dy)*sin(Theta_Wave*pi/180.)*Wave_Number
+       Phs_Lag(j) = yc(j)*sin(Theta_Wave*pi/180.)*Wave_Number
        Ein_Xn(j) = 0.5*Amp_Wave*cos(pi/2-Segma*TIME+Phs_Lag(j))
        Din_Xn(j) = Ein_Xn(j)+Hfx(Iend1,j)     
      enddo
@@ -7398,7 +7404,7 @@
      Fact = 1.0     
 
      do j = 1,Nloc
-       Phs_Lag(j) = ((j-Jbeg)*dy)*sin(Theta_Wave*pi/180.)*Wave_Number
+       Phs_Lag(j) = yc(j)*sin(Theta_Wave*pi/180.)*Wave_Number
        Ein_X0(j) = 0.5*Amp_Wave*cos(pi/2-Segma*TIME+Phs_Lag(j))
        Din_X0(j) = Ein_X0(j)+Hfx(Ibeg,j)     
      enddo
@@ -7487,9 +7493,9 @@
      ! added by Cheng for 3D triangle landslide
 !     real(SP) :: coef_a,coef_b,coef_c,xgb,xgn,xg,yg,ztm,alpha1
 # endif
-! added by Cheng for visvous slide
+! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
-     integer :: RKIT
+     integer :: Istagevs
 # endif
      
      ! save old bathymetry
@@ -7625,41 +7631,39 @@
      endif
 # endif
 
-! added by Cheng for visvous slide
+! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
-     SldWZ = Eta !D-Hc
+
+     ! update mask for fluid slide
+     call update_maskvs
 	 
-     SldZs=SldZ0;   SldDZs=SldDZ0
-     SldNs=SldN0;   SldMs=SldM0
-     DO RKIT=1,3
-       IF (RKIT.EQ.1) THEN
-	 SLIDE_RKC1=1.0d0; SLIDE_RKC2=0.0d0; SLIDE_RKDT=dt
-       ELSEIF (RKIT.EQ.2) THEN
-	 SLIDE_RKC1=3.0d0/4.0d0; SLIDE_RKC2=1.0d0/4.0d0; SLIDE_RKDT=1.0d0/4.0d0*dt
-       ELSEIF (RKIT.EQ.3) THEN
-	 SLIDE_RKC1=1.0d0/3.0d0; SLIDE_RKC2=2.0d0/3.0d0; SLIDE_RKDT=2.0d0/3.0d0*dt
-       ENDIF
+     ! update vars
+     call update_vars_vs
+	 
+     ! SSP Runge-Kutta time stepping for fluid slide
+     do Istagevs = 1,It_Order
+	 
+	   ! fluxes at cell faces
+       call fluxes_vs
 
-       call nlmassF90();      call nlmmntF90()
+       ! well-balanced source terms
+       call source_terms_vs
 
-       SldZs=SldZ1;   SldDZs=SldDZ1
-       SldNs=SldN1;   SldMs=SldM1
-     ENDDO
-     
-     SldZ0=SldZ1;   SldDZ0=SldDZ1
-     SldN0=SldN1;   SldM0=SldM1
+       ! update all variables
+       call eval_duv_vs(Istagevs)
 
-     if(trim(adjustl(DEPTH_TYPE))=='CELL_GRID') then
-       write(*,*) 'DEPTH_TYPE has to be cell_center'
-     elseif(trim(adjustl(DEPTH_TYPE))=='CELL_CENTER') then
-
-       ! interpolate into grid center
-       do j=Jbeg,Jend
-       do i=Ibeg,Iend
-         Hc(i,j) = Hc0(i,j)-SldDZ1(i,j)
-       enddo
-       enddo
-     endif ! end cell center
+     enddo
+	 
+	 ! interpolate into grid center
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Hc(i,j) = Hc0(i,j) 
+	   else
+	     Hc(i,j) = Hc0(i,j)-Dvs(i,j) 
+	   endif
+     enddo
+     enddo
 # endif
 
      ! ghost cells

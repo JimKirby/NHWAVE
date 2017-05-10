@@ -50,3 +50,17 @@ by Cheng Zhang
 
 ¡öBug Fixes
 ¡¤Fixed a bug that can cause parallelization problem.
+
+
+UPDATE_00004
+by Cheng Zhang
+09/05/2017
+
+¡öChanges
+¡¤Changed the old viscous slide model with a new one with TVD scheme, removing
+ artificial diffusion from mass conservation and double counted bottom friction 
+ from momentum equations.
+
+¡öBug Fixes
+¡¤Fixed a bug that can cause parallelization problem.
+¡¤Fixed two bugs in the granular slide model.
