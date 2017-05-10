@@ -1,345 +1,816 @@
 ! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
-      subroutine nlmassF90()
-      use global
-      implicit none
-      real(SP) :: Rx, Ry, GXX, XM, XN
-      integer ilo,i,iup, jlo,j,jup
-      integer dilo,diup,djlo,djup
-	  
-      GXX=SLIDE_MINTHICK
-      Rx=SLIDE_RKDT/dx
-      Ry=SLIDE_RKDT/dy
-
-
-      !ilo=max(Ibeg,3)
-      !iup=min(Iend,Mglob-1)
-      !jlo=max(Jbeg,3)
-      !jup=min(Jend,Nglob-1)
-
-      dilo=0; djlo=0; diup=0; djup=0
-
-!# if defined (PARALLEL)
-!      if(npx==0) dilo=2
-!      if(npy==0) djlo=2
-!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-!# endif
-
-      ilo=Ibeg+dilo; iup=Iend+diup;
-      jlo=Jbeg+djlo; jup=Jend+djup;
-
-      do j=jlo,jup
-      do i=ilo,iup
-
-
-
-        SldDZ1(I,J)=SLIDE_RKC1*SldDZ0(I,J)+SLIDE_RKC2*SldDZs(I,J) &
-	    -Rx*(SldMs(i,j)-SldMs(i-1,j))-Ry*(SldNs(i,j)-SldNs(i,j-1)) &
-              + (SldDZs(I-1,J)-2.0d0*SldDZs(I,J)+SldDZs(I+1,J))*Rx/dx*SLIDE_DIFF &
-              + (SldDZs(I,J-1)-2.0d0*SldDZs(I,J)+SldDZs(I,J+1))*Ry/dy*SLIDE_DIFF
-
-        SldZ1(i,j)=SldDZ1(i,j)-Hc0(i,j)
-
-        if(SldDZ1(i,j).lt.GXX) then
-          SldDZ1(i,j)=0.0d0
-          SldZ1(i,j)=-Hc0(i,j)
+    subroutine update_maskvs
+!------------------------------------------------------  
+!    This subroutine is used to update maskvs for wetting-drying
+!    Called by                                                
+!       update_bathymetry
+!    Last update: 26/03/2017, Cheng Zhang
+!-----------------------------------------------------
+    use global
+    implicit none
+    integer :: i,j
+	integer,dimension(:,:),allocatable :: Masktmp
+	 
+    allocate(Masktmp(Mloc,Nloc))
+    Masktmp = Maskvs
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      if(Maskvs(i,j)==0) then
+        if(Maskvs(i-1,j)==1.and.Hvs(i-1,j)<Hvs(i,j)) Masktmp(i,j)=1
+        if(Maskvs(i+1,j)==1.and.Hvs(i+1,j)<Hvs(i,j)) Masktmp(i,j)=1
+        if(Maskvs(i,j-1)==1.and.Hvs(i,j-1)<Hvs(i,j)) Masktmp(i,j)=1
+        if(Maskvs(i,j+1)==1.and.Hvs(i,j+1)<Hvs(i,j)) Masktmp(i,j)=1
+      else
+        ! drying (wet->dry)               
+        if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+          Masktmp(i,j) = 0
+          Dvs(i,j) = SLIDE_MINTHICK
         endif
-      enddo
-      enddo
+      endif
+	  Hvs(i,j) = Hc0(i,j)-Dvs(i,j)
+    enddo
+    enddo
+	Maskvs = Masktmp
 
-      ! ghost cells
-      call phi_2D_coll(SldDZ1)
-      call phi_2D_coll(SldZ1)
+# if defined (PARALLEL)
+     ! collect mask into ghost cells  
+     call phi_int_exch(Maskvs)
+# endif
+	 
+	 deallocate(Masktmp)
 
-      end subroutine nlmassF90
+    end subroutine update_maskvs
+	
+	
+     subroutine update_vars_vs
+!------------------------------------------------------ 
+!    This subroutine is used to save fluid slide variables at 
+!    last time step
+!    Called by   
+!       update_bathymetry
+!    Last update: 27/03/2017, Cheng Zhang 
+!----------------------------------------------------- 
+     use global        
+     implicit none
 
+     Dvs0 = Dvs
+     Uvs0 = Uvs
+     Vvs0 = Vvs
+     DUvs0 = DUvs
+     DVvs0 = DVvs
 
-subroutine nlmmntF90()
-      use global
-      implicit none
-      real(SP) :: R, GXX,CFL_Cap,sCFL
-      integer ilo,i,iup, jlo,j,jup
-      integer dilo,diup,djlo,djup
-	  
-      real(SP) SldDM1(Mloc,Nloc), SldDN1(Mloc,Nloc)
+     end subroutine update_vars_vs
+	 
+	
+     subroutine fluxes_vs
+!------------------------------------------------
+!    This subroutine is used to calculate fluxes 
+!    at cell faces for fluid slide
+!    Called by
+!       update_bathymetry
+!    Last update: 26/03/2017, Cheng Zhang
+!------------------------------------------------
+     use global
+     implicit none
 
-      logical LBANK(Mloc,Nloc)
-      logical RBANK(Mloc,Nloc)
-      logical TBANK(Mloc,Nloc)
-      logical BBANK(Mloc,Nloc)
+     ! second order construction
+     call delxyzFun_vs
+     call construction_vs
 
+     ! calculate wave speed
+     call wave_speed_vs
 
-      real(SP) Rx, Ry, RHO1, RHO2
-      real(SP) FN, FM, MU, FF, XM, XN, XNE, XNW, XNN, XVE, XVW, XVN, XVV
-      real(SP) XMM, XMS, XMN, XME, XUM, XUS, XUN, XUU
-      real(SP) MaxVel, tmpVel, tmpN, tmpM
+     ! calculate fluxes at faces
+     call fluxes_at_faces_HLL_vs
 
-      real(SP) SLDalpha, SLDbeta, SW_REO, CC
-	  
-      SW_REO=6.0d0/5.0d0
-      CFL_Cap = 0.5d0
+     ! impose boundary conditions
+     call flux_bc_vs
 
-      Rx=SLIDE_RKDT/dx
-      Ry=SLIDE_RKDT/dy
-      FM=SLIDE_ROUGHNESS
-      Mu=SLIDE_VISCOSITY
-      GXX=SLIDE_MINTHICK 
-      RHO1=Rho0 !WATER_DENSITY
-      RHO2=SLIDE_DENSITY
+     end subroutine fluxes_vs
 
+     subroutine delxyzFun_vs
+!-------------------------------------------
+!    Calculate variable derivatives 
+!    Called by 
+!       fluxes_vs 
+!    Last update: 27/03/2017, Cheng Zhang
+!------------------------------------------
+     use global
+     implicit none
+     
+	 call delxFun_vs_2D(Hvs,DelxHvs)
+     call delxFun_vs_2D(Uvs,DelxUvs)
+     call delxFun_vs_2D(Vvs,DelxVvs)
+     call delxFun_vs_2D(DUvs,DelxDUvs)
+     call delxFun_vs_2D(DVvs,DelxDVvs)
 
-      MAXVEL=0.0d0
-      !ilo=max(Ibeg-1,1)
-      !iup=min(Iend+1,Mglob-1)
-      !jlo=max(Jbeg-1,1)
-      !jup=min(Jend+1,Nglob)
+	 call delyFun_vs_2D(Hvs,DelyHvs)
+     call delyFun_vs_2D(Uvs,DelyUvs)
+     call delyFun_vs_2D(Vvs,DelyVvs)
+     call delyFun_vs_2D(DUvs,DelyDUvs)
+     call delyFun_vs_2D(DVvs,DelyDVvs)
 
-!      dilo=-1; djlo=-1; diup=1; djup=1
-      dilo=0; djlo=0; diup=0; djup=0
+     end subroutine delxyzFun_vs
+	 
+     subroutine delxFun_vs_2D(Din,Dout)
+!-------------------------------------------
+!    Second-order derivative in x
+!    Called by
+!       delxyzFun_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!------------------------------------------
+     use global, only: SP,Small,Zero,dx,Mloc,Nloc,Maskvs
+     implicit none
+     real(SP),intent(in),dimension(Mloc,Nloc)  :: Din
+     real(SP),intent(out),dimension(Mloc,Nloc) :: Dout
+     real(SP) :: TMP1,TMP2,LIMITER
+     integer :: i,j
+    
+     do i = 2,Mloc-1
+     do j = 1,Nloc
+       if(Maskvs(i,j)==0) then
+         Dout(i,j) = Zero
+       else
+         TMP1 = (Din(i+1,j)-Din(i,j))/dx
+         TMP2 = (Din(i,j)-Din(i-1,j))/dx
 
-!# if defined (PARALLEL)
-!      if(npx==0) dilo=0
-!      if(npy==0) djlo=0
-!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=0
-!# endif
+         if((abs(TMP1)+abs(TMP2))<Small) then
+           Dout(i,j) = Zero
+         else
+           Dout(i,j) = LIMITER(TMP1,TMP2)
+         endif
+       endif
+     enddo
+     enddo
 
-      ilo=Ibeg+dilo; iup=Iend+diup;
-      jlo=Jbeg+djlo; jup=Jend+djup;
+     do j = 1,Nloc
+       Dout(1,j) = (Din(2,j)-Din(1,j))/dx
+       Dout(Mloc,j) = (Din(Mloc,j)-Din(Mloc-1,j))/dx
+     enddo  
 
-      DO 10 J=jlo,jup
-         DO 10 I=ilo,iup
-            SldDM1(I,J)=0.5*(SldDZ1(I,J)+SldDZ1(I+1,J))
-           
-            RBANK(I,J)=(Hc0(I,J).LE.Hc0(I+1,J)+1.0D-5)
-            LBANK(I,J)=(Hc0(I+1,J).LE.Hc0(I,J)+1.0D-5)
+     return
+     end subroutine delxFun_vs_2D
+	 
+     subroutine delyFun_vs_2D(Din,Dout)
+!-----------------------------------------
+!    Second-order derivative in y
+!    Called by 
+!       delxyzFun_vs
+!    Last update: 27/03/2017, Cheng Zhang 
+!------------------------------------------ 
+     use global, only: SP,Small,Zero,dy,Mloc,Nloc,Maskvs
+     implicit none
+     real(SP),intent(in),dimension(Mloc,Nloc)  :: Din
+     real(SP),intent(out),dimension(Mloc,Nloc) :: Dout
+     real(SP) :: TMP1,TMP2,LIMITER
+     integer :: i,j
 
-            IF(SldDM1(I,J).GT.GXX) THEN
-               SldUs(I,J)=SldMs(I,J)/SldDM1(I,J)
-! FroudCap in x
-               sCFL=DT*ABS(SldUs(I,J))/DX
-               IF(sCFL>CFL_Cap)THEN
-                 SldUs(I,J)=SIGN(CFL_Cap*DX/DT,SldUs(I,J))
-               ENDIF
-            ELSE
-               SldUs(I,J)=0.0d0
-            ENDIF
-            MAXVEL=MAX1(ABS(SldUs(i,j)),MAXVEL)
-      10 CONTINUE
+     do i = 1,Mloc
+     do j = 2,Nloc-1
+       if(Maskvs(i,j)==0) then 
+         Dout(i,j) = Zero
+       else
+         TMP1 = (Din(i,j+1)-Din(i,j))/dy
+         TMP2 = (Din(i,j)-Din(i,j-1))/dy
 
-      !ilo=max(Ibeg-1,1)
-      !iup=min(Iend+1,Mglob)
-      !jlo=max(Jbeg-1,1) 
-      !jup=min(Jend+1,Nglob-1)
+         if((abs(TMP1)+abs(TMP2))<Small) then
+           Dout(i,j) = Zero
+         else
+           Dout(i,j) = LIMITER(TMP1,TMP2)
+         endif
+       endif
+     enddo
+     enddo
 
-      ! dilo=-1; djlo=-1; diup=1; djup=1
-	  dilo=0; djlo=0; diup=0; djup=0
+     do i = 1,Mloc
+       Dout(i,1) = (Din(i,2)-Din(i,1))/dy
+       Dout(i,Nloc) = (Din(i,Nloc)-Din(i,Nloc-1))/dy
+     enddo
 
-!# if defined (PARALLEL)
-!      if(npx==0) dilo=0
-!      if(npy==0) djlo=0
-!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=0
-!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-!# endif
+     return
+     end subroutine delyFun_vs_2D
+	 
+	 subroutine construction_vs
+!------------------------------------------
+!    Second-order construction
+!    Called by 
+!       fluxes_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!-----------------------------------------
+     use global
+     implicit none
+     integer :: i,j
 
-      ilo=Ibeg+dilo; iup=Iend+diup;
-      jlo=Jbeg+djlo; jup=Jend+djup;
+	 call construct_2D_x(Hvs,DelxHvs,HvsxL,HvsxR)
+     call construct_2D_x(Uvs,DelxUvs,UvsxL,UvsxR)
+     call construct_2D_x(Vvs,DelxVvs,VvsxL,VvsxR)
+     call construct_2D_x(DUvs,DelxDUvs,DUvsxL,DUvsxR)
+     call construct_2D_x(DVvs,DelxDVvs,DVvsxL,DVvsxR)
 
-      DO 20 J=jlo,jup
-         DO 20 I=ilo,iup
-            SldDN1(I,J)=0.5D0*(SldDZ1(I,J)+SldDZ1(I,J+1))
-           
-            TBANK(I,J)=(Hc0(I,J).LE.Hc0(I,J+1)+1.0D-5)
-            BBANK(I,J)=(Hc0(I,J+1).LE.Hc0(I,J)+1.0D-5)
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend1
+       DvsxL(i,j) = H0fx(i,j)-HvsxL(i,j)
+       DvsxR(i,j) = H0fx(i,j)-HvsxR(i,j)
+       EvsxL(i,j) = DUvsxL(i,j)
+       EvsxR(i,j) = DUvsxR(i,j)
+       FvsxL(i,j) = 6.0/5.0*DUvsxL(i,j)*UvsxL(i,j)+0.5*Grav*(HvsxL(i,j)*HvsxL(i,j)-2.0*HvsxL(i,j)*H0fx(i,j))
+       FvsxR(i,j) = 6.0/5.0*DUvsxR(i,j)*UvsxR(i,j)+0.5*Grav*(HvsxR(i,j)*HvsxR(i,j)-2.0*HvsxR(i,j)*H0fx(i,j))
+       GvsxL(i,j) = 6.0/5.0*DUvsxL(i,j)*VvsxL(i,j)
+       GvsxR(i,j) = 6.0/5.0*DUvsxR(i,j)*VvsxR(i,j)
+     enddo
+     enddo
 
-            IF(SldDN1(I,J).GT.GXX) THEN
-               SldVs(I,J)=SldNs(I,J)/SldDN1(I,J)
-! FroudCap in y
-               sCFL=DT*ABS(SldVs(I,J))/DY
-               IF(sCFL>CFL_Cap)THEN
-                 SldVs(I,J)=SIGN(CFL_Cap*DY/DT,SldVs(I,J))
-               ENDIF
-            ELSE
-               SldVs(I,J)=0.0d0
-            ENDIF
-            MAXVEL=MAX1(ABS(SldVs(i,j)),MAXVEL)
-      20 CONTINUE
+	 call construct_2D_y(Hvs,DelyHvs,HvsyL,HvsyR)
+     call construct_2D_y(Uvs,DelyUvs,UvsyL,UvsyR)
+     call construct_2D_y(Vvs,DelyVvs,VvsyL,VvsyR)
+     call construct_2D_y(DUvs,DelyDUvs,DUvsyL,DUvsyR)
+     call construct_2D_y(DVvs,DelyDVvs,DVvsyL,DVvsyR)
 
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
+       DvsyL(i,j) = H0fy(i,j)-HvsyL(i,j)
+       DvsyR(i,j) = H0fy(i,j)-HvsyR(i,j)
+       EvsyL(i,j) = DVvsyL(i,j)
+       EvsyR(i,j) = DVvsyR(i,j)
+       FvsyL(i,j) = 6.0/5.0*DVvsyL(i,j)*UvsyL(i,j)
+       FvsyR(i,j) = 6.0/5.0*DVvsyR(i,j)*UvsyR(i,j)
+       GvsyL(i,j) = 6.0/5.0*DVvsyL(i,j)*VvsyL(i,j)+0.5*Grav*(HvsyL(i,j)*HvsyL(i,j)-2.0*HvsyL(i,j)*H0fy(i,j))
+       GvsyR(i,j) = 6.0/5.0*DVvsyR(i,j)*VvsyR(i,j)+0.5*Grav*(HvsyR(i,j)*HvsyR(i,j)-2.0*HvsyR(i,j)*H0fy(i,j))
+     enddo
+     enddo
 
-      IF(DT>dx/MAXVEL) THEN
-          PRINT *,DT, '>', dx/MAXVEL
+     end subroutine construction_vs
+	 
+     subroutine wave_speed_vs
+!----------------------------------------------
+!    This subroutine is used to calculate wave speeds
+!    of fluid slide
+!    Called by
+!       fluxes_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!-----------------------------------------------
+     use global
+     implicit none
+     integer  :: i,j
+     real(SP) :: SQR_PHI_L,SQR_PHI_R,SQR_PHI_S,U_S,UL,UR,VL,VR
+     
+     ! x-faces
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend1
+       if(Maskvs(i-1,j)==1.and.Maskvs(i,j)==1) then
+         SQR_PHI_L = sqrt(6.0/25.0*UvsxL(i,j)**2+Grav*abs(DvsxL(i,j)))
+         SQR_PHI_R = sqrt(6.0/25.0*UvsxR(i,j)**2+Grav*abs(DvsxR(i,j)))
+		 UL = 6.0/5.0*UvsxL(i,j)
+		 UR = 6.0/5.0*UvsxR(i,j)
+         SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(UL-UR)
+         U_S = 0.5*(UL+UR)+SQR_PHI_L-SQR_PHI_R
+         SvsxL(i,j) = min(UL-SQR_PHI_L,U_S-SQR_PHI_S)
+         SvsxR(i,j) = max(UR+SQR_PHI_R,U_S+SQR_PHI_S)
+       elseif(Maskvs(i-1,j)==0.and.Maskvs(i,j)==1) then
+         ! left-side dry case
+         SQR_PHI_R = sqrt(6.0/25.0*UvsxR(i,j)**2+Grav*abs(DvsxR(i,j)))
+		 UR = 6.0/5.0*UvsxR(i,j)
+         SvsxL(i,j) = UR-2.0*SQR_PHI_R
+         SvsxR(i,j) = UR+SQR_PHI_R
+       elseif(Maskvs(i-1,j)==1.and.Maskvs(i,j)==0) then
+         ! right-side dry case
+         SQR_PHI_L = sqrt(6.0/25.0*UvsxL(i,j)**2+Grav*abs(DvsxL(i,j)))
+		 UL = 6.0/5.0*UvsxL(i,j)
+         SvsxL(i,j) = UL-SQR_PHI_L
+         SvsxR(i,j) = UL+2.0*SQR_PHI_L
+       endif
+     enddo
+     enddo
+
+     ! y-faces
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
+       if(Maskvs(i,j-1)==1.and.Maskvs(i,j)==1) then
+         SQR_PHI_L = sqrt(6.0/25.0*VvsyL(i,j)**2+Grav*abs(DvsyL(i,j)))
+         SQR_PHI_R = sqrt(6.0/25.0*VvsyR(i,j)**2+Grav*abs(DvsyR(i,j)))
+		 VL = 6.0/5.0*VvsyL(i,j)
+		 VR = 6.0/5.0*VvsyR(i,j)
+         SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(VL-VR)
+         U_S = 0.5*(VL+VR)+SQR_PHI_L-SQR_PHI_R
+         SvsyL(i,j) = min(VL-SQR_PHI_L,U_S-SQR_PHI_S)
+         SvsyR(i,j) = max(VR+SQR_PHI_R,U_S+SQR_PHI_S)
+       elseif(Maskvs(i,j-1)==0.and.Maskvs(i,j)==1) then
+         ! left-side dry case
+         SQR_PHI_R = sqrt(6.0/25.0*VvsyR(i,j)**2+Grav*abs(DvsyR(i,j)))
+		 VR = 6.0/5.0*VvsyR(i,j)
+         SvsyL(i,j) = VR-2.0*SQR_PHI_R
+         SvsyR(i,j) = VR+SQR_PHI_R
+       elseif(Maskvs(i,j-1)==1.and.Maskvs(i,j)==0) then
+         ! right-side dry case
+         SQR_PHI_L = sqrt(6.0/25.0*VvsyL(i,j)**2+Grav*abs(DvsyL(i,j)))
+		 VL = 6.0/5.0*VvsyL(i,j)
+         SvsyL(i,j) = VL-SQR_PHI_L
+         SvsyR(i,j) = VL+2.0*SQR_PHI_L
+       endif
+     enddo
+     enddo
+
+     end subroutine wave_speed_vs
+	 
+     subroutine fluxes_at_faces_HLL_vs
+!---------------------------------------------
+!    Fluxes at cell faces estimated by HLL approximation
+!    Called by 
+!       fluxes_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!---------------------------------------------
+     use global
+     implicit none
+
+     ! horizontal fluxes
+     call HLL_2D(Mloc1,Nloc,SvsxL,SvsxR,EvsxL,EvsxR,DvsxL, DvsxR, Evsx)
+     call HLL_2D(Mloc,Nloc1,SvsyL,SvsyR,EvsyL,EvsyR,DvsyL, DvsyR, Evsy)
+     call HLL_2D(Mloc1,Nloc,SvsxL,SvsxR,FvsxL,FvsxR,DUvsxL,DUvsxR,Fvsx)
+     call HLL_2D(Mloc,Nloc1,SvsyL,SvsyR,FvsyL,FvsyR,DUvsyL,DUvsyR,Fvsy)
+     call HLL_2D(Mloc1,Nloc,SvsxL,SvsxR,GvsxL,GvsxR,DVvsxL,DVvsxR,Gvsx)
+     call HLL_2D(Mloc,Nloc1,SvsyL,SvsyR,GvsyL,GvsyR,DVvsyL,DVvsyR,Gvsy)   
+
+     return
+     end subroutine fluxes_at_faces_HLL_vs
+
+     subroutine HLL_2D(M,N,SL,SR,FL,FR,UL,UR,FOUT)
+!----------------------------------------------
+!    HLL reconstruction for 2D model
+!    Called by
+!       fluxes_at_faces_HLL_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!---------------------------------------------
+     use global, only: SP,ZERO,SMALL
+     implicit none
+     INTEGER,INTENT(IN)::M,N
+     REAL(SP),INTENT(IN),DIMENSION(M,N)::SL,SR,FL,FR,UL,UR
+     REAL(SP),INTENT(OUT),DIMENSION(M,N)::FOUT
+	 INTEGER :: I,J
+
+      DO J=1,N
+      DO I=1,M     
+      IF(SL(I,J)>=ZERO) THEN
+        FOUT(I,J)=FL(I,J)
+      ELSEIF(SR(I,J)<=ZERO) THEN
+        FOUT(I,J)=FR(I,J)
+      ELSE
+        FOUT(I,J)=SR(I,J)*FL(I,J)-SL(I,J)*FR(I,J)+SL(I,J)*SR(I,J)*(UR(I,J)-UL(I,J))
+        IF((ABS(SR(I,J)-SL(I,J)))<SMALL)THEN
+         FOUT(I,J)=FOUT(I,J)/SMALL
+        ELSE
+         FOUT(I,J)=FOUT(I,J)/(SR(I,J)-SL(I,J))
+        ENDIF
       ENDIF
+      ENDDO
+      ENDDO
 
+     end subroutine HLL_2D
 
-      call phi_2D_coll(SldVs)
-      call phi_2D_coll(SldUs)
+     subroutine flux_bc_vs
+!--------------------------------------------
+!    This is subroutine to provide boundary conditions
+!    for fluid slide
+!    Called by
+!       fluxes_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!--------------------------------------------
+     use global
+     implicit none
+     integer :: i,j
 
-      ilo=Ibeg; iup=Iend;
-      jlo=Jbeg; jup=Jend;
+     ! left and right side
+# if defined (PARALLEL)
+     if(n_west.eq.MPI_PROC_NULL) then
+# endif
+	 do j = Jbeg,Jend
+       Evsx(Ibeg,j) = Zero
+	   Fvsx(Ibeg,j) = 0.5*Grav*(HvsxR(Ibeg,j)*HvsxR(Ibeg,j)-  &
+	            2.0*HvsxR(Ibeg,j)*H0fx(Ibeg,j))
+       Gvsx(Ibeg,j) = Zero
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-      DO 21 J=jlo,jup
-         DO 21 I=ilo,iup
-               SldUs(I,J)=SUM(SldUs(I-1:I+1,J-1:J+1))/9.0d0
-               SldVs(I,J)=SUM(SldVs(I-1:I+1,J-1:J+1))/9.0d0
-      21 CONTINUE
-      call phi_2D_coll(SldVs)
-      call phi_2D_coll(SldUs)
+# if defined (PARALLEL)
+     if(n_east.eq.MPI_PROC_NULL) then
+# endif
+     do j = Jbeg,Jend
+       Evsx(Iend1,j) = Zero
+       Fvsx(Iend1,j) = 0.5*Grav*(HvsxL(Iend1,j)*HvsxL(Iend1,j)-  &
+	            2.0*HvsxL(Iend1,j)*H0fx(Iend1,j))	
+       Gvsx(Iend1,j) = Zero
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
+     ! front and back side
+# if defined (PARALLEL)
+     if(n_suth.eq.MPI_PROC_NULL) then
+# endif
+     do i = Ibeg,Iend
+       Evsy(i,Jbeg) = Zero
+       Fvsy(i,Jbeg) = Zero
+       Gvsy(i,Jbeg) = 0.5*Grav*(HvsyR(i,Jbeg)*HvsyR(i,Jbeg)-  &
+	          2.0*HvsyR(i,Jbeg)*H0fy(i,Jbeg)) 
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-      FN=Grav*FM**2.0
+# if defined (PARALLEL)
+     if(n_nrth.eq.MPI_PROC_NULL) then
+# endif
+     do i = Ibeg,Iend
+       Evsy(i,Jend1) = Zero
+       Fvsy(i,Jend1) = Zero
+	   Gvsy(i,Jend1) = 0.5*Grav*(HvsyL(i,Jend1)*HvsyL(i,Jend1)-  &
+	           2.0*HvsyL(i,Jend1)*H0fy(i,Jend1))
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-      !   ------- CAL. OF LINEAR TERMS (Y-DIRECTION) -------      
-!      ilo=max(Ibeg,3       )
-!      iup=min(Iend,Mglob-2 )
-!      jlo=max(Ibeg,3       )
-!      jup=min(Jend,Nglob-1 )
+    do j = Jbeg-1,Jend+1
+    do i = Ibeg-1,Iend+1
+      if(Maskvs(i,j)==0) then
+        if(Maskvs(i-1,j)==1) then !right boundary
+          Evsx(i,j) = Zero
+          Fvsx(i,j) = 0.5*Grav*(HvsxL(i,j)*HvsxL(i,j)-  &
+	            2.0*HvsxL(i,j)*H0fx(i,j))
+          Gvsx(i,j) = Zero
+        elseif(Maskvs(i+1,j)==1) then !left boundary
+          Evsx(i+1,j) = Zero
+          Fvsx(i+1,j) = 0.5*Grav*(HvsxR(i+1,j)*HvsxR(i+1,j)-  &
+	            2.0*HvsxR(i+1,j)*H0fx(i+1,j))
+          Gvsx(i+1,j) = Zero
+        elseif(Maskvs(i,j-1)==1) then !back boundary
+          Evsy(i,j) = Zero
+          Fvsy(i,j) = Zero
+          Gvsy(i,j) = 0.5*Grav*(HvsyL(i,j)*HvsyL(i,j)-  &
+	           2.0*HvsyL(i,j)*H0fy(i,j))
+        elseif(Maskvs(i,j+1)==1) then !front boundary
+          Evsy(i,j+1) = Zero
+          Fvsy(i,j+1) = Zero
+          Gvsy(i,j+1) = 0.5*Grav*(HvsyR(i,j+1)*HvsyR(i,j+1)-  &
+	          2.0*HvsyR(i,j+1)*H0fy(i,j+1)) 
+        endif
+      endif
+    enddo
+    enddo
 
-      dilo=0; djlo=0; diup=0; djup=0
+     end subroutine flux_bc_vs
+	 
+	 
+     subroutine source_terms_vs
+!------------------------------------------------
+!    This subroutine is used to evaluate source terms
+!    in momentum eqs of fluid slide
+!    Called by
+!       update_bathymetry
+!    Last update: 27/03/2017, Cheng Zhang
+!------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j
+	 real(SP), dimension(:,:),allocatable :: DelxPD,DelyPD,DelxPH,DelyPH,  &
+	                                         DiffvsX,DiffvsY,Dwvs,PB
+	 
+	! source terms for water pressure
+     allocate(DelxPD(Mloc,Nloc))
+     allocate(DelyPD(Mloc,Nloc))
+     allocate(DelxPH(Mloc,Nloc))
+     allocate(DelyPH(Mloc,Nloc))
+	 allocate(Dwvs(Mloc,Nloc))
+	 allocate(PB(Mloc,Nloc))
+	 DelxPD = zero;DelyPD = zero;DelxPH = zero;DelyPH = zero;Dwvs = zero;PB = zero
+     do j = 1,Nloc
+     do i = 1,Mloc
+       PB(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
+	   Dwvs(i,j) = Rho0*grav*(Eta(i,j)+Hvs(i,j))! hydrostatic pressure over the slide
+     enddo
+     enddo
+	 call delxFun_2D(PB,DelxPD) 
+	 call delyFun_2D(PB,DelyPD)
+	 call delxFun_2D(Dwvs,DelxPH)
+	 call delyFun_2D(Dwvs,DelyPH)
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       SrcpvsX(i,j) = -Dvs(i,j)/SLIDE_DENSITY*(DelxPD(i,j)+DelxPH(i,j))*Mask(i,j)
+       SrcpvsY(i,j) = -Dvs(i,j)/SLIDE_DENSITY*(DelyPD(i,j)+DelyPH(i,j))*Mask(i,j)
+     enddo
+     enddo
+	 
+     ! source terms for hydrostatic pressure of slide
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       SrchvsX(i,j) = -Grav*Hvs(i,j)*DelxH0(i,j)*Maskvs(i,j)
+       SrchvsY(i,j) = -Grav*Hvs(i,j)*DelyH0(i,j)*Maskvs(i,j)
+     enddo
+     enddo
+	 
+     ! source terms for diffusion
+	 allocate(DiffvsX(Mloc,Nloc))
+     allocate(DiffvsY(Mloc,Nloc))
+	 DiffvsX = zero;DiffvsY = zero
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+	   DiffvsX(i,j) = (Uvs(i+1,j)-2.*Uvs(i,j)+Uvs(i-1,j))/dx**2+  &
+	                  (Uvs(i,j+1)-2.*Uvs(i,j)+Uvs(i,j-1))/dy**2
+	   DiffvsY(i,j) = (Vvs(i+1,j)-2.*Vvs(i,j)+Vvs(i-1,j))/dx**2+  &
+	                  (Vvs(i,j+1)-2.*Vvs(i,j)+Vvs(i,j-1))/dy**2
+       SrcdvsX(i,j) = SLIDE_VISCOSITY*(Dvs(i,j)*DiffvsX(i,j))*Maskvs(i,j)
+       SrcdvsY(i,j) = SLIDE_VISCOSITY*(Dvs(i,j)*DiffvsY(i,j))*Maskvs(i,j)
+     enddo
+     enddo
+	 
+	 deallocate(DelxPD)
+     deallocate(DelyPD)
+     deallocate(DelxPH)
+     deallocate(DelyPH)
+	 deallocate(Dwvs)
+	 deallocate(PB)
+     deallocate(DiffvsX)
+	 deallocate(DiffvsY)
 
-!# if defined (PARALLEL)
-!      if(npx==0) dilo=2
-!      if(npy==0) djlo=2
-!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-2
-!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-1
-!# endif
+     end subroutine source_terms_vs
+	 
 
-      ilo=Ibeg+dilo; iup=Iend+diup;
-      jlo=Jbeg+djlo; jup=Jend+djup;
+	 subroutine eval_duv_vs(ISTEP)
+!-----------------------------------------------
+!    Update all variables Dvs,Uvs,Vvs for fluid slide
+!    Called by
+!       update_bathymetry
+!    Last update: 27/03/2017, Cheng Zhang
+!----------------------------------------------
+     use global
+     implicit none
+     integer,intent(in) :: ISTEP
+     real(SP),dimension(:,:),allocatable :: R1,R2,R3
+     integer :: i,j
+     REAL(SP) :: FROUDECAP_VS,FroudeU,DUU,Dangle
 
-      DO 200 J=jlo,jup
-         DO 200 I=ilo,iup
+     allocate(R1(Mloc,Nloc))
+     allocate(R2(Mloc,Nloc))
+     allocate(R3(Mloc,Nloc))
+	 
+     ! solve total slide depth Dvs
+     R1 = Zero
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Maskvs(i,j)==0) cycle
+       R1(i,j) = -1.0/dx*(Evsx(i+1,j)-Evsx(i,j))-1.0/dy*(Evsy(i,j+1)-Evsy(i,j)) 
+       Dvs(i,j) = ALPHA(ISTEP)*Dvs0(i,j)+BETA(ISTEP)*(Dvs(i,j)+dt*R1(i,j)) 
+     enddo
+     enddo
+     ! update Dvs and Hvs          
+     Dvs = max(Dvs,SLIDE_MINTHICK)
+     call wl_bc_vs
+     Hvs = Hc0-Dvs
+	 
+	 ! solve DUvs
+     R2 = Zero
+     do i = Ibeg,Iend
+     do j = Jbeg,Jend
+       if(Maskvs(i,j)==0) cycle  
+       R2(i,j) = -1.0/dx*(Fvsx(i+1,j)-Fvsx(i,j))-1.0/dy*(Fvsy(i,j+1)-Fvsy(i,j)) &
+                 +SrcpvsX(i,j)+SrchvsX(i,j)+SrcdvsX(i,j)
+	   DUvs(i,j) = DUvs(i,j)+dt*R2(i,j)
+     enddo
+     enddo
+	 
+	 ! solve DVvs
+     R3 = Zero
+     do i = Ibeg,Iend
+     do j = Jbeg,Jend
+       if(Maskvs(i,j)==0) cycle  
+       R3(i,j) = -1.0/dx*(Gvsx(i+1,j)-Gvsx(i,j))-1.0/dy*(Gvsy(i,j+1)-Gvsy(i,j)) &
+                 +SrcpvsY(i,j)+SrchvsY(i,j)+SrcdvsY(i,j)
+	   DVvs(i,j) = DVvs(i,j)+dt*R3(i,j)
+     enddo
+     enddo
+	 
+     ! SSP Runge-Kutta time stepping
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+	 ! implicit vertical stress
+	   DUvs(i,j) = DUvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2)
+	   DVvs(i,j) = DVvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2)
+	 ! take account of manning friction
+!       DUvs(i,j) = DUvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2 & 
+!	               +Grav*0.005**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
+!       DVvs(i,j) = DVvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2 &
+!	               +Grav*0.005**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
+       DUvs(i,j) = ALPHA(ISTEP)*DUvs0(i,j)+BETA(ISTEP)*DUvs(i,j)
+       DVvs(i,j) = ALPHA(ISTEP)*DVvs0(i,j)+BETA(ISTEP)*DVvs(i,j)
+     enddo
+     enddo
+	 
+     ! limit the maximum Froude number
+     FROUDECAP_VS=0.5
+     DO J=Jbeg,Jend
+     DO I=Ibeg,Iend
+       IF(Maskvs(I,J)>0)THEN
+         FroudeU=SQRT(grav*Dvs(I,J))*FROUDECAP_VS*Dvs(I,J)
+         DUU=SQRT(DUvs(I,J)**2+DVvs(I,J)**2)
+         IF(DUU>FroudeU)THEN
+          Dangle=atan2(DVvs(I,J),DUvs(I,J))
+          DUvs(I,J)=FroudeU*COS(Dangle)
+          DVvs(I,J)=FroudeU*SIN(Dangle)
+         ENDIF
+       ENDIF
+     ENDDO
+     ENDDO
 
-            XNN=0.25D0*(SldNs(I,J)+SldNs(I+1,J)+SldNs(I,J-1)+SldNs(I+1,J-1))
-            FF=DT*(FN*SQRT(SldMs(I,J)**2+XNN**2)/MAX(SldDM1(I,J),GXX)**(7.0/3.0) + &
-                                           3.0d0*MU/MAX(SldDM1(I,J),GXX)**2.0d0 )
+     ! update mask for fluid slide
+	 call update_maskvs
 
-            IF(((Hc0(I,J)+SldZ1(I+1,J).GE.0.0D0).AND.RBANK(I,J)).OR.   &
-               ((SldDZ1(I,J).GT.0.0D0).AND.RBANK(I,J)).OR.            &
-               ((Hc0(I+1,J)+SldZ1(I,J).GE.0.0D0).AND.LBANK(I,J)).OR.   &
-               ((SldDZ1(I+1,J).GT.0.0D0).AND.LBANK(I,J))) THEN
+     ! boundary conditions and final velocity
+     call get_UV_vs
 
-               IF(MASK(I+1,J)*MASK(I,J).GT.0) THEN
-                   SLDalpha=(RHO2-RHO1)/RHO2
-                   SLDbeta=RHO1/RHO2
-               ELSE
-                   SLDalpha=1.0d0
-                   SLDbeta=0.0d0
-               ENDIF
+	 deallocate(R1)
+     deallocate(R2)
+     deallocate(R3)
+	 
+	 end subroutine eval_duv_vs
+	 
+     subroutine wl_bc_vs
+!-----------------------------------------------------------
+!    Boundary condition for surface elevation or water depth
+!    Called by
+!       eval_duv_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!-----------------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j
 
-               XM=(1.0D0-FF)*( SLIDE_RKC1*SldM0(I,J)+SLIDE_RKC2*SldMs(I,J) )- &
-                  Grav*Rx*SldDM1(I,J)*( SLDalpha*(SldZ1(I+1,J)-SldZ1(I,J))  + &
-                                        SLDbeta*(SldWZ(I+1,J)-SldWZ(I,J)) ) + &
-                       SldDM1(I,J)*( SldUs(I-1,J)-2.0d0*SldUs(I,J)+SldUs(I+1,J))*Rx/dx*MU + &
-                       SldDM1(I,J)*( SldUs(I,J-1)-2.0d0*SldUs(I,J)+SldUs(I,J+1))*Ry/dy*MU
+     ! left and right boundary
+# if defined (PARALLEL)
+     if(n_west.eq.MPI_PROC_NULL) then
+# endif
+     do j = Jbeg,Jend
+     do i = 1,Nghost
+       Dvs(Ibeg-i,j) = Dvs(Ibeg+i-1,j)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-               IF(SldMs(I,J).LT.0.0D0) THEN
-                  XM=XM-Rx*(    -SldMs(I+2,J)*SldUs(I+2,J) &
-                            +4.0*SldMs(I+1,J)*SldUs(I+1,J) &
-                            -3.0*SldMs(I,J)*SldUs(I,J))/2.0*SW_REO
-                  !XM=XM-Rx*(SldMs(I+1,J)*SldUs(I+1,J)-SldMs(I,J)*SldUs(I,J))*SW_REO
-               ELSEIF(SldMs(I,J).GT.0.0D0) THEN
-		  XM=XM-Rx*( 3.0*SldMs(I,J)*SldUs(I,J)     &
-                            -4.0*SldMs(I-1,J)*SldUs(I-1,J) &
-                                +SldMs(I-2,J)*SldUs(I-2,J))/2.0*SW_REO
-                  !XM=XM-Rx*(SldMs(I,J)*SldUs(I,J)-SldMs(I-1,J)*SldUs(I-1,J))*SW_REO
-               ELSE
-                  tmpM=SldMs(I-1,J)+SldMs(I+1,J)
-                  IF(tmpM.LT.0.0D0) THEN
-                     XM=XM-Rx*(SldMs(I+1,J)*SldUs(I+1,J)-0.0D0)*SW_REO
-                  ELSE
-                     XM=XM-Rx*(0.0D0-SldMs(I-1,J)*SldUs(I-1,J))*SW_REO
-                  ENDIF
-               ENDIF
+# if defined (PARALLEL)
+     if(n_east.eq.MPI_PROC_NULL) then
+# endif
+     do j = Jbeg,Jend
+     do i = 1,Nghost
+       Dvs(Iend+i,j) = Dvs(Iend-i+1,j)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-               XNE=0.25D0*(SldVs(I,J+1)+SldVs(I+1,J+1)+SldVs(I,J)+SldVs(I+1,J))
-               XNN=0.25D0*(SldVs(I,J-1)+SldVs(I+1,J-1)+SldVs(I,J-2)+SldVs(I+1,J-2))
-               XM=XM-Ry*(SldMs(I,J+1)*XNE-SldMs(I,J-1)*XNN)*SW_REO/2.0
+! y-direction and corners                                                                                                     
+# if defined (PARALLEL)
+     if(n_suth.eq.MPI_PROC_NULL) then
+# endif    
+       do i = 1,Mloc
+       do j = 1,Nghost
+         Dvs(i,j) = Dvs(i,Jbeg+Nghost-j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-               SldM1(I,J)=XM/(1.0D0+FF)
-            ELSE
-               SldM1(I,J)=0.0D0
-            ENDIF
-200      CONTINUE
+# if defined (PARALLEL)
+     if(n_nrth.eq.MPI_PROC_NULL) then
+# endif
+       do i = 1,Mloc
+       do j = 1,Nghost
+         Dvs(i,Jend+j) = Dvs(i,Jend-j+1)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-      !   ------- CAL. OF LINEAR TERMS (Y-DIRECTION) -------
-!      ilo=max(Ibeg,3      )
-!      iup=min(Iend,Mglob-1)
-!      jlo=max(Jbeg,3      )
-!      jup=min(Jend,Nglob-2)
+# if defined (PARALLEL)
+     call phi_2D_exch(Dvs)
+# endif
+     
+     return
+     end subroutine wl_bc_vs
+	 
+     subroutine get_UV_vs
+!------------------------------------------------
+!    Obtain Uvs,Vvs for fluid slide
+!    Called by
+!       eval_duv_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!-----------------------------------------------
+     use global
+     implicit none
+     integer :: i,j
+	 
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+	   if(Maskvs(i,j)==1) then
+         Uvs(i,j) = DUvs(i,j)/Dvs(i,j)
+         Vvs(i,j) = DVvs(i,j)/Dvs(i,j)
+	   else
+         Uvs(i,j) = Zero
+         Vvs(i,j) = Zero
+         DUvs(i,j) = Zero
+         DVvs(i,j) = Zero
+	   endif
+     enddo
+     enddo
 
-      dilo=0; djlo=0; diup=0; djup=0
+     ! collect data into ghost cells
+     call vel_bc_vs
+# if defined (PARALLEL)
+     call phi_2D_exch(Uvs)
+     call phi_2D_exch(Vvs)
+     call phi_2D_exch(DUvs)
+     call phi_2D_exch(DVvs)
+# endif
 
-!# if defined (PARALLEL)
-!      if(npx==0) dilo=2
-!      if(npy==0) djlo=2
-!      if((npx+1)*(Mloc-2*Nghost)==Mglob) diup=-1
-!      if((npy+1)*(Nloc-2*Nghost)==Nglob) djup=-2
-!# endif
+     end subroutine get_UV_vs
 
-      ilo=Ibeg+dilo; iup=Iend+diup;
-      jlo=Jbeg+djlo; jup=Jend+djup;
+     subroutine vel_bc_vs
+!----------------------------------------------------
+!    Boundary conditions for slide velocity
+!    Called by 
+!       get_UV_vs
+!    Last update: 27/03/2017, Cheng Zhang
+!---------------------------------------------------
+     use global
+     implicit none
+     integer :: i,j,imask
 
+     ! left and right boundary
+# if defined (PARALLEL)
+     if(n_west.eq.MPI_PROC_NULL) then
+# endif
+     do j = Jbeg,Jend
+     do i = 1,Nghost
+       Uvs(Ibeg-i,j) = -Uvs(Ibeg+i-1,j)
+       Vvs(Ibeg-i,j) = Vvs(Ibeg+i-1,j)
+       DUvs(Ibeg-i,j) = -DUvs(Ibeg+i-1,j)
+       DVvs(Ibeg-i,j) = DVvs(Ibeg+i-1,j)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-      DO 220 J=jlo,jup
-         DO 220 I=ilo,iup
+# if defined (PARALLEL)
+     if(n_east.eq.MPI_PROC_NULL) then
+# endif
+     do j = Jbeg,Jend
+     do i = 1,Nghost
+       Uvs(Iend+i,j) = -Uvs(Iend-i+1,j)
+       Vvs(Iend+i,j) = Vvs(Iend-i+1,j)
+       DUvs(Iend+i,j) = -DUvs(Iend-i+1,j)
+       DVvs(Iend+i,j) = DVvs(Iend-i+1,j)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-            XMM=0.25D0*(SldMs(I,J)+SldMs(I,J+1)+SldMs(I-1,J)+SldMs(I-1,J+1))
-            FF=DT*(FN*DSQRT(SldNs(I,J)**2+XMM**2)/MAX(SldDN1(I,J),GXX)**(7.0/3.0) + & 
-                                                3.0d0*MU/MAX(SldDN1(I,J),GXX)**2.0d0 )
+# if defined (PARALLEL)
+     if(n_suth.eq.MPI_PROC_NULL) then
+# endif
+     do i = Ibeg,Iend
+     do j = 1,Nghost
+       Uvs(i,Jbeg-j) = Uvs(i,Jbeg+j-1)
+       Vvs(i,Jbeg-j) = -Vvs(i,Jbeg+j-1)
+       DUvs(i,Jbeg-j) = DUvs(i,Jbeg+j-1)
+       DVvs(i,Jbeg-j) = -DVvs(i,Jbeg+j-1)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-            IF( ((Hc0(I,J)+SldZ1(I,J+1).GE.0.0D0).AND.TBANK(I,J)).OR. 	&
-                ((SldDZ1(I,J).GT.0.0D0).AND.TBANK(I,J)).OR.             & 
-                ((Hc0(I,J+1)+SldZ1(I,J).GE.0.0D0).AND.BBANK(I,J)).OR.    &
-                ((SldDZ1(I,J+1).GT.0.0D0).AND.BBANK(I,J))) THEN	
+# if defined (PARALLEL)
+     if(n_nrth.eq.MPI_PROC_NULL) then
+# endif
+     do i = Ibeg,Iend
+     do j = 1,Nghost
+       Uvs(i,Jend+j) = Uvs(i,Jend-j+1)
+       Vvs(i,Jend+j) = -Vvs(i,Jend-j+1)
+       DUvs(i,Jend+j) = DUvs(i,Jend-j+1)
+       DVvs(i,Jend+j) = -DVvs(i,Jend-j+1)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
-               IF(MASK(I,J)*MASK(I,J+1).GT.0) THEN
-                   SLDalpha=(RHO2-RHO1)/RHO2
-                   SLDbeta=RHO1/RHO2
-               ELSE
-                   SLDalpha=1.0d0
-                   SLDbeta=0.0d0
-               ENDIF
-
-               XN=(1.0D0-FF)*( SLIDE_RKC1*SldN0(I,J)+SLIDE_RKC2*SldNs(I,J) ) - &
-                         Grav*Ry*SldDN1(I,J)*( SLDalpha*(SldZ1(I,J+1)-SldZ1(I,J))   + &
-                                               SLDbeta*(SldWZ(I,J+1)-SldWZ(I,J)) ) + &
-                              SldDN1(I,J)*( SldVs(I-1,J)-2.0d0*SldVs(I,J)+SldVs(I+1,J))*Rx/dx*MU + &
-                              SldDN1(I,J)*( SldVs(I,J-1)-2.0d0*SldVs(I,J)+SldVs(I,J+1))*Ry/dy*MU
-
-               IF(SldNs(I,J).LT.0.0D0) THEN
-                  XN=XN-Ry*(    -SldNs(I,J+2)*SldVs(I,J+2) &
-                            +4.0*SldNs(I,J+1)*SldVs(I,J+1) &
-                            -3.0*SldNs(I,J)*SldVs(I,J))/2.0*SW_REO
-                  !XN=XN-Ry*(SldNs(I,J+1)*SldVs(I,J+1)-SldNs(I,J)*SldVs(I,J))*SW_REO
-               ELSEIF(SldNs(I,J).GT.0.0D0) THEN
-                  XN=XN-Ry*( 3.0*SldNs(I,J)*SldVs(I,J)     &
-                            -4.0*SldNs(I,J-1)*SldVs(I,J-1) &
-                                +SldNs(I,J-2)*SldVs(I,J-2))/2.0*SW_REO
-                  !XN=XN-Ry*(SldNs(I,J)*SldVs(I,J)-SldNs(I,J-1)*SldVs(I,J-1))*SW_REO
-               ELSE
-                  tmpN=SldNs(I,J-1)+SldNs(I,J+1)
-                  IF(tmpN.LT.0.0D0) THEN
-                     XN=XN-Ry*(SldNs(I,J+1)*SldVs(I,J+1)-0.0D0)*SW_REO
-                  ELSE
-                     XN=XN-Ry*(0.0D0-SldNs(I,J-1)*SldVs(I,J-1))*SW_REO
-                  ENDIF
-               ENDIF
-
-               XME=0.25D0*(SldUs(I+1,J)+SldUs(I+1,J+1)+SldUs(I,J)+SldUs(I,J+1))
-               XMM=0.25D0*(SldUs(I-1,J)+SldUs(I-1,J+1)+SldUs(I-2,J)+SldUs(I-2,J+1))
-               XN=XN-Rx*(SldNs(I+1,J)*XME-SldNs(I-1,J)*XMM)*SW_REO/2.0
-
-               SldN1(I,J)=XN/(1.0D0+FF)
-            ELSE
-               SldN1(I,J)=0.0D0
-            ENDIF
-220      CONTINUE
-
-      ! ghost cells
-      call phi_2D_coll(SldN1)
-      call phi_2D_coll(SldM1)
-
-
-      end subroutine nlmmntF90
+     end subroutine vel_bc_vs
 # endif
