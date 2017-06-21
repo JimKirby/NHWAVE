@@ -2,7 +2,7 @@
 ! NOTE: all input parameter are capital sensitive
 
 ! --------------------TITLE-------------------------------------
-TITLE = Steady flow over a submerged obstacle: gd0.015_cfl0.5_ks1.5e-5_dep-0.0084
+TITLE = Steady_flow_over_submerged_obstacle
 
 ! ---------------- RESULT_FOLDER-------------------------------
 RESULT_FOLDER = ./results/
@@ -14,14 +14,14 @@ Nglob = 100
 Kglob = 15
 
 ! --------------------PROCESSOR NUMBER-------------------------
-PX = 16
-PY = 4
+PX = 41
+PY = 5
 
 ! -----------------------TIME----------------------------------
 ! time: total computational time/ plot time / screen interval 
 ! all in seconds
 SIM_STEPS = 100000000
-TOTAL_TIME = 300.0
+TOTAL_TIME = 500.0
 PLOT_START = 0.0
 PLOT_INTV = 1.0
 SCREEN_INTV = 1.0
@@ -82,7 +82,7 @@ HLLC = F
 ! Ibot = 1: given the drag coefficient Cd0
 ! Ibot = 2: given the bottom roughness height Zob
 Ibot = 2
-Cd0 = 0.012
+Cd0 = 0.0025
 Zob = 1.5e-5
 Dfric_Min = 0.0
 
@@ -104,13 +104,13 @@ BAROTROPIC = F
 
 ! ----------------------NON-HYDRO---------------------------
 ! if non-hydrostatic simulation
-NON_HYDRO = F
+NON_HYDRO = T
 
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
-! --------------------FOURDE CAP----------------------------------
-FROUDE_CAP = 0.5
+! --------------------FOURDE CAP ----------------------------------
+FROUDE_CAP = 10.0
 
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
@@ -165,9 +165,9 @@ Pgrad0 = 9.81e-4
 !         5: bottom friction
 !         6: radiation bc
 BC_X0 = 3
-BC_Xn = 6
-BC_Y0 = 1
-BC_Yn = 1
+BC_Xn = 3
+BC_Y0 = 5
+BC_Yn = 5
 BC_Z0 = 5
 BC_Zn = 1
 
@@ -292,16 +292,16 @@ EI = 8.0e-7
 ! SlideX0,SlideY0: initial location
 ! SlideUt,SlideA0: rigid landslide kinematics
 ! SlideDens: deformable landslide density
-SlideType = RIGID
-SlideT = 0.082
-SlideL = 0.395
-SlideW = 0.680
+SlideType = RIGID_2D
+SlideT = 0.052
+SlideL = 1.6762
+SlideW = 0.200
 SlideAngle = 0.0
 SlopeAngle = 15.0
-SlideX0 = 0.651
+SlideX0 = 1.268
 SlideY0 = 0.0
-SlideUt = 1.70
-SlideA0 = 1.12
+SlideUt = 1.258
+SlideA0 = 0.750
 SlideDens = 2104.0
 SlideVisc = 0.00001
 SlideLambda = 0.5
@@ -309,6 +309,22 @@ SlideIniU = 0.0
 Cf_ul = 0.02
 PhiInt = 41.0
 PhiBed = 23.0
+
+! ----------------------VISCOUS SLIDE---------------------------
+! Slide thickness. The dimension are the same as in DEPTH_FILE
+SLIDE_FILE = slide.txt
+! Density, kg/m^3
+SLIDE_DENSITY = 1951.0
+! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
+! River coastal mud = 0.002-0.2 m^2/s
+! Mudslide and debris flows = 0.2-0.6 m^2/s
+SLIDE_VISCOSITY = .00001
+! Manning's coefficient for the viscous slide
+SLIDE_ROUGHNESS = 0.005
+! A tiny diffusivity for the mass equation
+SLIDE_DIFF = 0.00005
+! The minimum slide thickness, m
+SLIDE_MINTHICK = 0.00001  
 
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
@@ -318,7 +334,7 @@ Plastic_Visc = 0.0
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
 £¡in form of x,y,z, where z=-1.0 outputs velocity of all layers
-NSTAT = 5
+NSTAT = 2
 PLOT_INTV_STAT = 0.1
 
 ! -----------------------OUTPUT-------------------------------
@@ -346,11 +362,11 @@ OUT_E = T
 OUT_U = T
 OUT_V = T
 OUT_W = T
-OUT_P = F
-OUT_K = F
-OUT_D = F
+OUT_P = T
+OUT_K = T
+OUT_D = T
 OUT_S = F
-OUT_C = F
+OUT_C = T
 OUT_B = F
 OUT_A = F
 OUT_T = F

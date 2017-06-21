@@ -1331,7 +1331,7 @@
               D0(Mloc,Nloc),DeltH(Mloc,Nloc),DelxH(Mloc,Nloc),DelyH(Mloc,Nloc),Eta(Mloc,Nloc),Mask(Mloc,Nloc),  &
               Mask_Struct(Mloc,Nloc),Mask9(Mloc,Nloc),SourceC(Mloc,Nloc),SourceX(Mloc,Nloc), &
               SourceY(Mloc,Nloc),DeltHo(Mloc,Nloc),Uin_X0(Nloc,Kloc),Vin_X0(Nloc,Kloc),  &
-              Win_X0(Nloc,Kloc),Uin_Xn(Nloc,Kloc),Delt2H(Mloc,Nloc),  &
+              Win_X0(Nloc,Kloc),Uin_Xn(Nloc,Kloc),Uin_Xni(Nloc,Kloc),Uin_Xni0(Nloc,Kloc),Delt2H(Mloc,Nloc),  &
               Vin_Xn(Nloc,Kloc),Win_Xn(Nloc,Kloc),Bc_Prs(Mloc,Nloc),Brks(Mloc,Nloc))
      ALLOCATE(DxL(Mloc1,Nloc),DxR(Mloc1,Nloc),DyL(Mloc,Nloc1),DyR(Mloc,Nloc1), &
               EtaxL(Mloc1,Nloc),EtaxR(Mloc1,Nloc),EtayL(Mloc,Nloc1),EtayR(Mloc,Nloc1), &
@@ -2407,6 +2407,8 @@
      Ein_X0 = Zero
      Din_X0 = Zero
      Uin_Xn = Zero
+	 Uin_Xni = Zero
+     Uin_Xni0 = Zero
      Vin_Xn = Zero
      Win_Xn = Zero
      Ein_Xn = Zero

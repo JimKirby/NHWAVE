@@ -48,7 +48,6 @@ by Cheng Zhang
 ■Additions to Functions
 ·Added a function to hot start simulation with moving boundary.
 
-=======
 ■Bug Fixes
 ·Fixed a bug that can cause parallelization problem.
 
@@ -65,3 +64,11 @@ by Cheng Zhang
 ■Bug Fixes
 ·Fixed a bug that can cause parallelization problem.
 ·Fixed two bugs in the granular slide model.
+
+
+UPDATE_00005
+by Cheng Zhang
+02/06/2017
+
+■Changes
+·Changed influx boundary condition to impose fixed flux.

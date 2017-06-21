@@ -5487,9 +5487,27 @@
          enddo
        elseif(Bc_Xn==3) then
          do i = 1,Nghost
-           U(Iend+i,j,k) = 2.0*Uin_Xn(j,k)-U(Iend-i+1,j,k)
-           V(Iend+i,j,k) = 2.0*Vin_Xn(j,k)-V(Iend-i+1,j,k)
-           W(Iend+i,j,k) = 2.0*Win_Xn(j,k)-W(Iend-i+1,j,k)
+           !U(Iend+i,j,k) = 2.0*Uin_Xn(j,k)-U(Iend-i+1,j,k)
+           !V(Iend+i,j,k) = 2.0*Vin_Xn(j,k)-V(Iend-i+1,j,k)
+           !W(Iend+i,j,k) = 2.0*Win_Xn(j,k)-W(Iend-i+1,j,k)
+		   ! Changed by Cheng to combine Orlanski open boundary condition
+           Cg = -(U0(Iend+i-1,j,k)-U00(Iend+i-1,j,k)+1.e-16)/  &
+                 (U00(Iend+i-1,j,k)-U00(Iend+i-2,j,k)+1.e-16)
+!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
+           Cg = max(min(Cg,1.0),0.0)
+		   if (i==1) then
+             U(Iend+i,j,k) = Cg*U(Iend+i-1,j,k)+Uin_Xni0(j,k)-Cg*Uin_Xni(j,k)
+		   else
+		     U(Iend+i,j,k) = Cg*U(Iend+i-1,j,k)+(1.0-Cg)*U(Iend+i,j,k)
+		   endif
+           Cg =-(V0(Iend+i-1,j,k)-V00(Iend+i-1,j,k)+1.e-16)/  &
+                 (V00(Iend+i-1,j,k)-V00(Iend+i-2,j,k)+1.e-16)
+           Cg= max(min(Cg,1.0),0.0)
+           V(Iend+i,j,k) = Cg*V0(Iend+i-1,j,k)+(1.0-Cg)*V0(Iend+i,j,k)
+           Cg =-(W0(Iend+i-1,j,k)-W00(Iend+i-1,j,k)+1.e-16)/  &
+                 (W00(Iend+i-1,j,k)-W00(Iend+i-2,j,k)+1.e-16)
+           Cg= max(min(Cg,1.0),0.0)
+           W(Iend+i,j,k) = Cg*W0(Iend+i-1,j,k)+(1.0-Cg)*W0(Iend+i,j,k)
            DU(Iend+i,j,k) = 2.0*Din_Xn(j)*Uin_Xn(j,k)-DU(Iend-i+1,j,k)
            DV(Iend+i,j,k) = 2.0*Din_Xn(j)*Vin_Xn(j,k)-DV(Iend-i+1,j,k)
            DW(Iend+i,j,k) = 2.0*Din_Xn(j)*Win_Xn(j,k)-DW(Iend-i+1,j,k)
@@ -6102,7 +6120,14 @@
          enddo
        elseif(Bc_Xn==3) then 
          do i = 1,Nghost
-           D(Iend+i,j) = 2.0*Din_Xn(j)-D(Iend-i+1,j)
+         ! D(Iend+i,j) = 2.0*Din_Xn(j)-D(Iend-i+1,j)
+		 ! Changed by Cheng to combine Orlanski open boundary condition
+           Cg =-(Eta0(Iend+i-1,j)-Eta00(Iend+i-1,j)+1.e-16)/  &
+                 (Eta00(Iend+i-1,j)-Eta00(Iend+i-2,j)+1.e-16)
+!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
+           Cg= max(min(Cg,1.0),0.0)  
+           Eta(Iend+i,j) = Cg*Eta0(Iend+i-1,j)+(1.0-Cg)*Eta0(Iend+i,j)
+           D(Iend+i,j) = Hc(Iend+i,j)+Eta(Iend+i,j)
          enddo
        elseif(Bc_Xn==4) then
          do i = 1,Nghost
@@ -6486,14 +6511,14 @@
      implicit none
      integer :: j,k,n
      real(SP) :: Zlev1,Zlev2,Uavg_Left,Uavg_Right,Ufric,sintep,UU,  &
-                 FluxL,FluxR,myvar,Ramp
+                 FluxL,FluxR,myvar,Ramp,Cg
 # if defined (SEDIMENT)
      real(SP) :: Sinterp
      real(SP) :: Tim0(8),Cin0(8)
 # endif
 
-     Uavg_Left = 0.39
-     Uavg_Right = 0.39
+     Uavg_Left = 0.115
+     Uavg_Right = 0.115
 
      FluxL = 0.0
      FluxR = 0.0
@@ -6514,12 +6539,11 @@
      enddo
 
      ! log-profile of velocity
-     Ufric = Uavg_Left*Kappa/(log(30.*Din_X0(Jbeg)/Zob)-1) 
+     Ufric = Uavg_Left*Kappa/(log(30.*Din_X0(Jbeg)/Zob)) 
 
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev1 = sigc(k)*Din_X0(j)
-	   ! changed by Cheng to impose velocity rather than flux
        Uin_X0(j,k) = Ufric/Kappa*log(30.*Zlev1/Zob)*Ramp
        FluxL = FluxL+dsig(k)*Din_X0(j)*dy*Uin_X0(j,k)
 !       Uin_X0(j,k) = FluxL/Din_X0(j)
@@ -6572,19 +6596,39 @@
 !     endif
 
      do j = 1,Nloc
-!       Ein_Xn(j) = 1.5*Eta(Iend,j)-0.5*Eta(Iend-1,j)
-       Ein_Xn(j) = 0.0
-       Din_Xn(j) = Ein_Xn(j)+Hfx(Iend+1,j)
+       !Ein_Xn(j) = 1.5*Eta(Iend,j)-0.5*Eta(Iend-1,j)
+       !! Ein_Xn(j) = 0.0
+       !Din_Xn(j) = Ein_Xn(j)+Hfx(Iend+1,j)
+	   ! Changed by Cheng to combine Orlanski open boundary condition
+       Cg =-(Eta0(Iend,j)-Eta00(Iend,j)+1.e-16)/  &
+             (Eta00(Iend,j)-Eta00(Iend-1,j)+1.e-16)
+!       Cg = sqrt(Grav*D(Iend,j))*dt/dx
+       Cg= max(min(Cg,1.0),0.0)
+       Ein_Xn(j) = (Cg*Eta0(Iend,j)+(1.0-Cg)*Eta0(Iend+1,j)+Eta(Iend,j))/2.0
+       Din_Xn(j) = Hfx(Iend+1,j)+Ein_Xn(j)
      enddo
 
+	 Uin_Xni0=Uin_Xni
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev2 = sigc(k)*Din_Xn(j)
-	   ! changed by Cheng to impose velocity rather than flux
-       Uin_Xn(j,k) = FluxL/(Din_Xn(Jbeg)*dy*float(Nglob))
+       Uin_Xni(j,k) = FluxL/(Din_Xn(j)*dy*float(Nglob))
 !       Uin_Xn(j,k) = FluxR/Din_Xn(j)
-       Win_Xn(j,k) = 0.0
-       Vin_Xn(j,k) = 0.0
+       !Win_Xn(j,k) = 0.0
+       !Vin_Xn(j,k) = 0.0
+	   ! Changed by Cheng to combine Orlanski open boundary condition
+       Cg = -(U0(Iend,j,k)-U00(Iend,j,k)+1.e-16)/  &
+             (U00(Iend,j,k)-U00(Iend-1,j,k)+1.e-16)
+       Cg = max(min(Cg,1.0),0.0)
+       Uin_Xn(j,k) = (Cg*U(Iend,j,k)+Uin_Xni0(j,k)-Cg*Uin_Xni(j,k)+U(Iend,j,k))/2.0
+       Cg =-(V0(Iend,j,k)-V00(Iend,j,k)+1.e-16)/  &
+             (V00(Iend,j,k)-V00(Iend-1,j,k)+1.e-16)
+       Cg= max(min(Cg,1.0),0.0)
+       Vin_Xn(j,k) = (Cg*V0(Iend,j,k)+(1.0-Cg)*V0(Iend+1,j,k)+V(Iend,j,k))/2.0
+       Cg =-(W0(Iend,j,k)-W00(Iend,j,k)+1.e-16)/  &
+             (W00(Iend,j,k)-W00(Iend-1,j,k)+1.e-16)
+       Cg= max(min(Cg,1.0),0.0)
+       Win_Xn(j,k) = (Cg*W0(Iend,j,k)+(1.0-Cg)*W0(Iend+1,j,k)+W(Iend,j,k))/2.0
 
 # if defined (SALINITY)
        Sin_Xn(j,k) = 30.0
