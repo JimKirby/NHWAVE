@@ -938,8 +938,8 @@
      do k = Kbeg,Kend1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)
-       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j)
+       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j) 
        DelzS(i,j,k) = 1./D(i,j)
 
        A1(i,j,k) = DelxS(i,j,k)*DelxS(i,j,k)+DelyS(i,j,k)*DelyS(i,j,k)+  &
@@ -1833,7 +1833,8 @@
 
 # if defined (POROUSMEDIA)
            if(k==Kbeg) then
-             Wbot = -U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)                                                       
+             Wbot = -U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
+                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)                                                      
              Rhs0(Nlen) =(1.0+Cp_Por(i,j,k))*DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &                                                  
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &                                               
@@ -1850,7 +1851,8 @@
            Rhs0(Nlen) = Rhs0(Nlen)+dt*Cp_Por(i,j,k)*W(i,j,k)*R1(i,j)
 # else
            if(k==Kbeg) then
-             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j) 
+             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
+                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
              Rhs0(Nlen) = DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &
@@ -1985,8 +1987,8 @@
        do k = Kbeg,Kend
          W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
               DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
-              ((1.0-sigc(k))*DelxH(i,j)+sigc(k)*DelxEta(i,j))-  &
-              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)+sigc(k)*DelyEta(i,j))
+              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
+              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
          if(Mask(i,j)==0) W(i,j,k) = Zero
          DW(i,j,k) = D(i,j)*W(i,j,k)         
        enddo
@@ -3886,8 +3888,8 @@
      ! source terms for momentum eqs.
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       SourceX(i,j) = Grav*Eta(i,j)*DelxH(i,j)*Mask(i,j)
-       SourceY(i,j) = Grav*Eta(i,j)*DelyH(i,j)*Mask(i,j)
+       SourceX(i,j) = Grav*Eta(i,j)*DelxH(i,j)*Mask9(i,j)  ! modified by Cheng to use MASK9 for delxH delyH
+       SourceY(i,j) = Grav*Eta(i,j)*DelyH(i,j)*Mask9(i,j)
      enddo
      enddo
 
@@ -5198,7 +5200,8 @@
        Phi = dmin1(Phi,2.0)
 
        if(Bc_Z0==1) then  ! free-slip
-         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)
+         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
+         !       -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
          do k = 1,Nghost
            U(i,j,Kbeg-k) = U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = V(i,j,Kbeg+k-1)
@@ -5221,8 +5224,8 @@
          do k = 1,Nghost
            U(i,j,Kbeg-k) = (1.0-Phi)*U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = (1.0-Phi)*V(i,j,Kbeg+k-1)
-           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)-  &
-           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)
+           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)*Mask9(i,j)-  &  ! modified by Cheng to use MASK9 for delxH delyH
+           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)*Mask9(i,j)
            W(i,j,Kbeg-k) = 2.0*WzR(i,j,Kbeg)-W(i,j,Kbeg+k-1)
            DU(i,j,Kbeg-k) = D(i,j)*U(i,j,Kbeg-k)
            DV(i,j,Kbeg-k) = D(i,j)*V(i,j,Kbeg-k)
@@ -5739,18 +5742,20 @@
      call delyFun1_3d(VzR,DelyVzR)
      call delyFun1_3d(WzR,DelyWzR)
 
-     ! top and bottom
+     ! top and bottom (modified by Cheng to use MASK9 for delxH delyH,search for Mask9)
      ! rewritten by M.Derakhti as in derakhti etal 2015a
      do j = Jbeg,Jend
      do i = Ibeg,Iend
        !these are added to calculate the tangential external stress parallel to the surface and bed
        Atop = dsqrt(1.0+DelxEta(i,j)**2+DelyEta(i,j)**2)
        Btop = dsqrt(1.0+DelxEta(i,j)**2)
-       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
-       Bbot = dsqrt(1.0+DelxH(i,j)**2)
+       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))
+       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)  &
+                  +(1.0+Mask9(i,j)*DelxH(i,j)**2)*DV(i,j,Kbeg)  &
+                  -DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
        !the distance of the first grid point from the bed
        Dz1 = 0.5*D(i,j)*dsig(Kbeg)/Abot
@@ -5783,7 +5788,7 @@
 
        !equation (46)
        Fext_Bot1 = Bbot * TauBot1
-       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1+Abot*TauBot2)/Bbot
+       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1*Mask9(i,j)+Abot*TauBot2)/Bbot
        !Wind stress paralle to the free surface WS/rho (equation 49)
        Fext_Wind1 = 1.0/Atop*((1-DelxEta(i,j)**2)*Wsx(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsy(i,j))
        Fext_Wind2 = 1.0/Atop*((1-DelyEta(i,j)**2)*Wsy(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsx(i,j))
@@ -5807,11 +5812,11 @@
           else
           DU(i,j,Kbeg-k) = DU(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot1*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) &
-              + DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              + Mask9(i,j)*DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               + D(i,j)**2/Abot**2 &
-              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg) &
-              -(1.0-DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
-              -DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg))))
+              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg)*Mask9(i,j) &
+              -(1.0-Mask9(i,j)*DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
+              -Mask9(i,j)*DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg)*Mask9(i,j))))
           DUbot_old = 2.0*D(i,j)*UzR(i,j,Kbeg)-DU(i,j,Kbeg+k-1)
           if (DUbot_old>0.)then
              DU(i,j,Kbeg-k) = dmin1(3.0*DUbot_old,dmax1(-1.0*DUbot_old,DU(i,j,Kbeg-k)))
@@ -5825,11 +5830,11 @@
           ! y-dir
           DV(i,j,Kbeg-k) = DV(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot2*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) & 
-              +DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              +Mask9(i,j)*DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               +D(i,j)**2/Abot**2 &
-              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg) &
-              -(1.0-DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
-              -DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg))))
+              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg)*Mask9(i,j) &
+              -(1.0-Mask9(i,j)*DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
+              -Mask9(i,j)*DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg)*Mask9(i,j))))
           DVbot_old = 2.0*D(i,j)*VzR(i,j,Kbeg)-DV(i,j,Kbeg+k-1)
           if (DVbot_old>0.)then
              DV(i,j,Kbeg-k) = dmin1(3.0*DVbot_old,dmax1(-1.0*DVbot_old,DV(i,j,Kbeg-k)))
@@ -6036,7 +6041,7 @@
 !------------------------------------------------                                                                                 
      use global, only: WzR,UzR,VzR,UzL,VzL, &
                        Ibeg,Iend,Jbeg,Jend,Kbeg,&
-                       DelxH,DelyH,DeltH,Zero,Bc_Z0
+                       DelxH,DelyH,DeltH,Zero,Bc_Z0,Mask9
      implicit none
      integer :: i,j,k
 
@@ -6048,8 +6053,8 @@
          UzL(i,j,Kbeg) = Zero
          VzL(i,j,Kbeg) = Zero
        endif
-       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg)  &
-                       -DelyH(i,j)*VzR(i,j,Kbeg)
+       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
+                       -DelyH(i,j)*VzR(i,j,Kbeg)*Mask9(i,j)
      enddo
      enddo
 
@@ -8197,7 +8202,7 @@ endif
 !--------------------------------------------------
      use global, only: Zero,DelxSc,DelySc,D,DelxH,DelyH, &
                        DelxEta,DelyEta,sigc,Mloc,Nloc,Kloc, &
-                       DelxSl,DelySl,Kloc1,sig
+                       DelxSl,DelySl,Kloc1,sig,Mask9
      implicit none
      integer :: i,j,k
 
@@ -8206,8 +8211,8 @@ endif
      do k = 1,Kloc
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)-sigc(k)/D(i,j)*DelxEta(i,j)
-       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
+       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
      enddo
      enddo
      enddo
@@ -8218,8 +8223,8 @@ endif
      do k = 1,Kloc1
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)                                      
-       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j)                                      
+       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH                                
+       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j)                                      
      enddo
      enddo
      enddo
@@ -12112,8 +12117,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
       if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
-      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
            !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -12144,12 +12149,12 @@ endif
 # endif
           if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( & !(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+             -( & !(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
                   !(Eps_old(i,j,k)-Eps_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
+               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Eps_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -12296,8 +12301,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
      if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
-      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j)  ! modified by Cheng to use MASK9 for delxH delyH
+      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
             !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -12332,12 +12337,12 @@ endif
 # endif
         if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+             -( &!(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
                  !(Tke_old(i,j,k)-Tke_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
+               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Tke_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -12459,17 +12464,17 @@ endif
     enddo
     enddo
 
-   ! Modified by M.Derakhti as done in "vel_bc" subroutine
+   ! Modified by M.Derakhti as done in "vel_bc" subroutine (modified by Cheng to use MASK9 for delxH delyH)
     ! at the bottom
     do i = Ibeg,Iend
     do j = Jbeg,Jend
        !these are added to calculate the tangential external stress parallel to the surface and bed
-       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
-       Bbot = dsqrt(1.0+DelxH(i,j)**2)
+       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))  
+       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*  &
-                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)+(1.0+Mask9(i,j)*DelxH(i,j)**2)*  &
+                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
 
       if(D(i,j)<Dmin.or.Mask(i,j)==0) cycle
