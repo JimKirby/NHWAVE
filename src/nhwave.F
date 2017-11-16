@@ -5129,7 +5129,7 @@
          Phi = dmin1(Phi,2.0)
          do j =1,Nghost
            U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
-           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           V(i,Jend+j,k) = -V(i,Jend-j+1,k)
            W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
            DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
            DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
@@ -5685,7 +5685,7 @@
          Phi = dmin1(Phi,2.0)
          do j =1,Nghost
            U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
-           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           V(i,Jend+j,k) = -V(i,Jend-j+1,k)
            W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
            DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
            DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
