@@ -1918,6 +1918,20 @@
        endif
      enddo
      enddo
+	 
+	 ! added by Cheng to avoid non-zero DU/DV/DW in grid with Mask(i,j)==0
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Mask(i,j)==0) then
+         DU(i,j,k) = Zero
+         DV(i,j,k) = Zero
+         DW(i,j,k) = Zero
+       endif
+     enddo
+     enddo
+     enddo
+	 
 
      ! run non-hydrostatic simulation  
      if(NON_HYDRO) then
@@ -1953,22 +1967,20 @@
 	 
 	 ! added by Cheng for limiting the maximum Froude number
 # if defined(FROUDE_CAP)
-     DO K=Kbeg,Kend
      DO J=Jbeg,Jend
      DO I=Ibeg,Iend
-       IF(Mask(I,J)>0)THEN
-         FroudeU=SQRT(grav*D(I,J))*FROUDECAP*D(I,J)
-         DUU=SQRT(DU(I,J,K)**2+DV(I,J,K)**2)
-         IF(DUU>FroudeU)THEN
-          Dangle=atan2(DV(I,J,K),DU(I,J,K))
-          DU(I,J,K)=FroudeU*COS(Dangle)
-          DV(I,J,K)=FroudeU*SIN(Dangle)
-         ENDIF
-         IF(ABS(DW(I,J,K))>FroudeU)THEN
-          DW(I,J,K)=SIGN(FroudeU,DW(I,J,K))
-         ENDIF
+	   FroudeU=SQRT(grav*D(I,J))*FROUDECAP*D(I,J)
+	   IF(Mask(I,J)>0)THEN
+	     DO K=Kbeg,Kend
+           DUU=SQRT(DU(I,J,K)**2+DV(I,J,K)**2+DW(I,J,K)**2)
+           IF(DUU>FroudeU)THEN
+            Dangle=atan2(DV(I,J,K),DU(I,J,K))
+            DU(I,J,K)=FroudeU*COS(Dangle)
+            DV(I,J,K)=FroudeU*SIN(Dangle)
+	  	    DW(I,J,K)=ZERO
+           ENDIF
+         ENDDO
        ENDIF
-     ENDDO
      ENDDO
      ENDDO
 # endif
@@ -4473,6 +4485,14 @@
      call putfile2D(file,Ua)
      file=TRIM(FDIR)//'Va_'//TRIM(FILE_NAME)
      call putfile2D(file,Va)
+# endif
+
+# if defined (FLUIDSLIDE)
+     !added by Cheng for recording slide information
+     file=TRIM(FDIR)//'Us_'//TRIM(FILE_NAME)
+     call putfile2D(file,Uvs)
+     file=TRIM(FDIR)//'Vs_'//TRIM(FILE_NAME)
+     call putfile2D(file,Vvs)
 # endif
 
      end subroutine preview
@@ -15635,6 +15655,44 @@ SUBROUTINE hot_start
 ! Hc
      call phi_2D_coll(Hc)
 # endif
+
+# if defined (FLUIDSLIDE)
+! slide ! added by Cheng for slide information
+     file=TRIM(Us_HotStart_File)
+     call read_2d(Uvs,file)
+	 
+     file=TRIM(Vs_HotStart_File)
+     call read_2d(Vvs,file)
+	 
+# if defined (PARALLEL)
+     call phi_2D_exch(Uvs)
+     call phi_2D_exch(Vvs)
+# endif
+	 
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Hc(i,j)-Hc0(i,j)<=1.e-8) then
+         Dvs(i,j) = SLIDE_MINTHICK 
+	   else
+	     Dvs(i,j) = Hc(i,j)-Hc0(i,j)
+	   endif
+     enddo
+     enddo
+	 call wl_bc_vs
+	 
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       DUvs(i,j) = Uvs(i,j)*Dvs(i,j)
+       DVvs(i,j) = Vvs(i,j)*Dvs(i,j)
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call phi_2D_exch(DUvs)
+     call phi_2D_exch(DVvs)
+# endif
+	 call vel_bc_vs
+# endif
+
 ! eta
      ! collect data into ghost cells
      call phi_2D_coll(Eta)

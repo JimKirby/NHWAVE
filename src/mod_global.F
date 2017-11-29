@@ -296,6 +296,9 @@
 # if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
      CHARACTER(LEN=80) :: Depth_HotStart_File
 # endif
+# if defined (FLUIDSLIDE)
+     CHARACTER(LEN=80) :: Us_HotStart_File,Vs_HotStart_File
+# endif
 
 	 ! added by Cheng for limiting the maximum Froude number
 # if defined (FROUDE_CAP)
