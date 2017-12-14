@@ -337,6 +337,10 @@
 # if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
        CALL GET_STRING_VAL(Depth_HotStart_File,FILE_NAME,'Depth_HotStart_File',line,ierr)
 # endif
+# if defined (FLUIDSLIDE)
+       CALL GET_STRING_VAL(Us_HotStart_File,FILE_NAME,'Us_HotStart_File',line,ierr)
+	   CALL GET_STRING_VAL(Vs_HotStart_File,FILE_NAME,'Vs_HotStart_File',line,ierr)
+# endif
       IF(VISCOUS_FLOW)THEN
        ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
        CALL GET_STRING_VAL(TKE_HotStart_File,FILE_NAME,'TKE_HotStart_File',line,ierr)
@@ -1863,7 +1867,7 @@
      Mask_Struct = 1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Hc(i,j)<-10.0) then
+       if(Hc(i,j)<-100.0) then
          Mask_Struct(i,j) = 0
        endif
      enddo

@@ -48,6 +48,7 @@ DT_MAX = 0.10000
 ! DepConst is only used when ANA_BATHY = T
 DEPTH_TYPE = CELL_CENTER
 ANA_BATHY  = F
+
 DepConst = 0.42  
 
 ! -------------------INITIAL CONDITION---------------------------
@@ -57,16 +58,20 @@ INITIAL_SALI = F
 
 ! -----------------HOT START----------------------------------
 HOTSTART = F
-Eta_HotStart_File = ./results/eta_00050
-U_HotStart_File = ./results/u_00050
-V_HotStart_File = ./results/v_00050
-W_HotStart_File = ./results/w_00050
-P_HotStart_File = ./results/p_00050
-Sali_HotStart_File = ./results/sali_00050
-Temp_HotStart_File = ./results/temp_00050
-Rho_HotStart_File = ./results/rho_00050
-TKE_HotStart_File = ./results/k_00050
-EPS_HotStart_File = ./results/d_00050
+
+Eta_HotStart_File = ./results/eta_00001
+U_HotStart_File = ./results/u_00001
+V_HotStart_File = ./results/v_00001
+W_HotStart_File = ./results/w_00001
+P_HotStart_File = ./results/p_00001
+Sali_HotStart_File = ./results/sali_00001
+Temp_HotStart_File = ./results/temp_00001
+Rho_HotStart_File = ./results/rho_00001
+TKE_HotStart_File = ./results/k_00001
+EPS_HotStart_File = ./results/d_00001
+Depth_HotStart_File = ./results/depth_00001
+Us_HotStart_File = ./results/Us_00001
+Vs_HotStart_File = ./results/Vs_00001
 
 ! ----------------- COUPLING -------------------------
 ! if do coupling, have to set -DCOUPLING in Makefile
@@ -121,12 +126,12 @@ TRAMP = 0.0
 VISCOUS_FLOW = F
 IVTURB = 10
 IHTURB = 10
-PRODTYPE = 1
+PRODTYPE = 3
 VISCOSITY = 1.e-6
 Schmidt = 1.0
 Chs = 0.001
 Cvs = 0.001
-RNG = F
+RNG = T
 
 ! --------------------VISCOUS NUMBER----------------------------
 VISCOUS_NUMBER = 0.1666667
@@ -163,7 +168,7 @@ Pgrad0 = 9.81e-4
 !         2: no-slip
 !         3: influx
 !         4: outflux (specified eta)
-!         5: bottom friction
+!         5: bottom or wall friction
 !         6: radiation bc
 BC_X0 = 3
 BC_Xn = 1
@@ -189,6 +194,7 @@ BC_Zn = 1
 ! INT_SOL - internal wavemaker for solitary wave
 ! INT_JON - internal wavemaker for JONSWAP spectrum
 ! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! INT_IRR - internal wavemaker for irregular wave (need irr2d.txt)
 ! FLUX_LR - impose flux at both left and right boundaries
 ! FOCUSED - left boundary focusing wave packet (isolated whitecap)
 ! WAV_CUR - left boundary coexisting waves and currents
@@ -275,8 +281,12 @@ Veg_Y0 = 0.0
 Veg_Yn = 0.1
 VegH = 0.12
 VegDens = 1618.0
+VegVol = 0.0
+StemD = 0.0064
 Vegbv = 5.0e-3
 VegDrag = 1.5
+Cfk = 1.0
+Cfe = 1.33
 VegVM = 0.0
 EI = 8.0e-7
 
@@ -294,7 +304,7 @@ Por_Zn = 0.065
 
 ! -------------------LANDSLIDE PARAMETERS------------------------
 ! parameters for landslide module
-! SlideType = 'RIGID' or 'DEFORMABLE'
+! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
 ! SlideT: thickness; SlideL: length; SlideW: width
 ! SlideAngle: slide angle
 ! SlopeAngle: bottom slope
@@ -321,6 +331,7 @@ PhiBed = 23.0
 
 ! ----------------------VISCOUS SLIDE---------------------------
 ! Slide thickness. The dimension are the same as in DEPTH_FILE
+
 SLIDE_FILE = slide.txt
 ! Density, kg/m^3
 SLIDE_DENSITY = 1951.0
@@ -342,6 +353,7 @@ Plastic_Visc = 0.0
 
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
+! in form of x,y,z, where z=-1.0 outputs velocity of all layers
 NSTAT = 0
 PLOT_INTV_STAT = 0.01
 
