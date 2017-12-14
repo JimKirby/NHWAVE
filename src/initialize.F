@@ -1867,7 +1867,7 @@
      Mask_Struct = 1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Hc(i,j)<-10.0) then
+       if(Hc(i,j)<-100.0) then
          Mask_Struct(i,j) = 0
        endif
      enddo

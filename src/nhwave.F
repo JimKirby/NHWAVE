@@ -6372,10 +6372,13 @@
 !    Last update: 22/12/2010, Gangfeng Ma 
 !-----------------------------------------------------
      use global, only: Ibeg,Iend,Jbeg,Jend,Eta,Hc,D,MinDep,  &
-                       Mask,Mask_Struct,Mask9
+                       Mask,Mask_Struct,Mask9,Mloc,Nloc
      implicit none
      integer :: i,j
+	 integer,dimension(:,:),allocatable :: Masktmp
 
+	 allocate(Masktmp(Mloc,Nloc)) ! changed by Cheng to avoid unreal wet cells
+	 Masktmp = Mask
      ! Mask at ghost cells keeps no change
      do j = Jbeg,Jend
      do i = Ibeg,Iend
@@ -6383,22 +6386,21 @@
        
        ! flooding (dry->wet)
        if(Mask(i,j)==0) then
-         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j)) Mask(i,j)=1
+         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j)) Masktmp(i,j)=1
        else
          ! drying (wet->dry)
          if(abs(D(i,j)-MinDep)<=1.e-6) then
-           Mask(i,j) = 0
+           Masktmp(i,j) = 0
            Eta(i,j) = MinDep-Hc(i,j)
            D(i,j) = Eta(i,j)+Hc(i,j)           
          endif
        endif
      enddo
      enddo
-
-     Mask = Mask*Mask_Struct
+     Mask = Masktmp*Mask_Struct
 
 # if defined (PARALLEL)
      ! collect mask into ghost cells
@@ -6412,6 +6414,8 @@
                 *Mask(i+1,j-1)*Mask(i,j-1)*Mask(i-1,j-1)
      enddo
      enddo
+	 
+	 deallocate(Masktmp)
 
      end subroutine update_mask
 
@@ -15604,7 +15608,7 @@ SUBROUTINE hot_start
     endif
 
      open(5,file='time0.dat')
-     read(5,*) TIME0,Icount
+     read(5,*) TIME0,Icount,dt
      close(5)
 
      TIME=TIME0
@@ -15664,21 +15668,17 @@ SUBROUTINE hot_start
      file=TRIM(Vs_HotStart_File)
      call read_2d(Vvs,file)
 	 
-# if defined (PARALLEL)
-     call phi_2D_exch(Uvs)
-     call phi_2D_exch(Vvs)
-# endif
-	 
      do j=Jbeg,Jend
      do i=Ibeg,Iend
-	   if(Hc(i,j)-Hc0(i,j)<=1.e-8) then
+	   if(Hc0(i,j)-Hc(i,j)<=1.e-8) then
          Dvs(i,j) = SLIDE_MINTHICK 
 	   else
-	     Dvs(i,j) = Hc(i,j)-Hc0(i,j)
+	     Dvs(i,j) = Hc0(i,j)-Hc(i,j)
 	   endif
      enddo
      enddo
 	 call wl_bc_vs
+	 Hvs = Hc0-Dvs
 	 
      do j = Jbeg,Jend
      do i = Ibeg,Iend
@@ -15686,11 +15686,25 @@ SUBROUTINE hot_start
        DVvs(i,j) = Vvs(i,j)*Dvs(i,j)
      enddo
      enddo
+     call vel_bc_vs
 # if defined (PARALLEL)
+     call phi_2D_exch(Uvs)
+     call phi_2D_exch(Vvs)
      call phi_2D_exch(DUvs)
      call phi_2D_exch(DVvs)
 # endif
-	 call vel_bc_vs
+	 
+     Maskvs = 1
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Maskvs(i,j) = 0
+       endif
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call phi_int_exch(Maskvs)
+# endif
 # endif
 
 ! eta

@@ -2,34 +2,34 @@
 ! NOTE: all input parameter are capital sensitive
 
 ! --------------------TITLE-------------------------------------
-TITLE = Analytical benchmark 1_Solitary wave on simple beach_H_d_0.30
+TITLE = Field_Case_Valdez_AK_1964
 
 ! ---------------- RESULT_FOLDER-------------------------------
 RESULT_FOLDER = ./results/
 
 ! --------------------DIMENSION---------------------------------
 ! cell numbers
-Mglob = 1500
-Nglob = 1
-Kglob = 4
+Mglob = 2316
+Nglob = 620
+Kglob = 3
 
 ! --------------------PROCESSOR NUMBER-------------------------
-PX = 20
-PY = 1
+PX = 4
+PY = 155
 
 ! -----------------------TIME----------------------------------
 ! time: total computational time/ plot time / screen interval 
 ! all in seconds
 SIM_STEPS = 100000000
-TOTAL_TIME = 50.0
+TOTAL_TIME = 1000.0
 PLOT_START = 0.0
-PLOT_INTV = 0.1
+PLOT_INTV = 1.0
 SCREEN_INTV = 1.0
 
 ! ------------------------GRID----------------------------------
 ! grid sizes
-DX = 0.05
-DY = 0.05
+DX = 13.268895
+DY = 16.473460
 
 ! ---------------------VERTICAL GRID OPTION--------------------
 ! IVGRD = 1: uniform; 2: exponential
@@ -37,9 +37,9 @@ IVGRD = 1
 GRD_R = 1.1
 
 ! ----------------------TIME STEP-----------------------------
-DT_INI = 0.10000
+DT_INI = 0.01000
 DT_MIN = 0.00001
-DT_MAX = 0.10000
+DT_MAX = 60.0000
 
 ! ----------------------BATHYMETRY---------------------------
 ! if analytical bathymetry, set ANA_BATHY = T
@@ -85,8 +85,8 @@ HLLC = F
 ! Ibot = 1: given the drag coefficient Cd0
 ! Ibot = 2: given the bottom roughness height Zob
 Ibot = 2
-Cd0 = 0.000
-Zob = 0.0001
+Cd0 = 0.0025
+Zob = 1.5e-5
 Dfric_Min = 0.0
 
 ! ---------------------WIND STRESS--------------------------
@@ -112,15 +112,15 @@ NON_HYDRO = T
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
-! --------------------FOURDE CAP----------------------------------
-FROUDE_CAP = 10.0
+! --------------------FOURDE CAP ----------------------------------
+FROUDE_CAP = 0.5
 
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
 TRAMP = 0.0
 
 ! --------------------VISCOSITY------------------------------
-VISCOUS_FLOW = T
+VISCOUS_FLOW = F
 IVTURB = 10
 IHTURB = 10
 PRODTYPE = 3
@@ -135,7 +135,7 @@ VISCOUS_NUMBER = 0.1666667
 
 ! ----------------------WET-DRY-------------------------------
 ! minimum depth for wetting-drying
-MinDep = 0.001
+MinDep = 0.1
 
 ! ---------------------POISSON SOLVER-------------------------
 ! isolver is an option for different preconditioner.
@@ -167,11 +167,11 @@ Pgrad0 = 9.81e-4
 !         4: outflux (specified eta)
 !         5: bottom or wall friction
 !         6: radiation bc
-BC_X0 = 3
+BC_X0 = 1
 BC_Xn = 1
 BC_Y0 = 1
 BC_Yn = 1
-BC_Z0 = 5
+BC_Z0 = 1
 BC_Zn = 1
 
 ! ---------------------WAVEMAKER------------------------------
@@ -195,20 +195,20 @@ BC_Zn = 1
 ! FLUX_LR - impose flux at both left and right boundaries
 ! FOCUSED - left boundary focusing wave packet (isolated whitecap)
 ! WAV_CUR - left boundary coexisting waves and currents
-WAVEMAKER = LEF_SOL
-AMP = 0.3
+WAVEMAKER = NONE
+AMP = 0.0144
 PER = 10.5
-DEP = 1.0
+DEP = 0.32
 THETA = 0.0
 CUR = 0.0
 sd_return = 0.75
 
 ! ----------------------INTERNAL WAVEMAKER--------------------------------
 ! parameters for internal wavemaker
-Xsource_West = 0.0
-Xsource_East = 0.0
+Xsource_West = 1.26
+Xsource_East = 1.4
 Ysource_Suth = 0.0
-Ysource_Nrth = 0.0
+Ysource_Nrth = 3.388
 
 ! ----------------------FOCUSING WAVE PACKET--------------------------------
 ! parameters for FOC wavemaker type
@@ -238,10 +238,10 @@ NumFreq = 200
 ! DHI type sponge layer
 ! need to specify widths of four boundaries and parameters
 ! set width=0.0 if no sponge
-SPONGE_ON = F
+SPONGE_ON = T
 Sponge_West_Width =  0.0
 Sponge_East_Width =  0.0
-Sponge_South_Width = 0.0
+Sponge_South_Width = 823.6730
 Sponge_North_Width = 0.0
 
 ! ------------------WAVE AVERAGE CONTROL--------------------------
@@ -296,15 +296,15 @@ EI = 8.0e-7
 ! SlideUt,SlideA0: rigid landslide kinematics
 ! SlideDens: deformable landslide density
 SlideType = RIGID_2D
-SlideT = 0.082
-SlideL = 0.395
-SlideW = 0.680
+SlideT = 0.052
+SlideL = 1.6762
+SlideW = 0.200
 SlideAngle = 0.0
 SlopeAngle = 15.0
-SlideX0 = 0.651
+SlideX0 = 1.268
 SlideY0 = 0.0
-SlideUt = 1.70
-SlideA0 = 1.12
+SlideUt = 1.258
+SlideA0 = 0.750
 SlideDens = 2104.0
 SlideVisc = 0.00001
 SlideLambda = 0.5
@@ -336,8 +336,8 @@ Plastic_Visc = 0.0
 
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
-£¡in form of x,y,z, where z=-1.0 outputs velocity of all layers
-NSTAT = 0
+! in form of x,y,z, where z=-1.0 outputs velocity of all layers
+NSTAT = 4
 PLOT_INTV_STAT = 0.01
 
 ! -----------------------OUTPUT-------------------------------
@@ -362,10 +362,10 @@ PLOT_INTV_STAT = 0.01
 ! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
-OUT_U = F
-OUT_V = F
-OUT_W = F
-OUT_P = F
+OUT_U = T
+OUT_V = T
+OUT_W = T
+OUT_P = T
 OUT_K = F
 OUT_D = F
 OUT_S = F
@@ -376,5 +376,5 @@ OUT_T = F
 OUT_F = F
 OUT_G = F
 OUT_I = F
-OUT_Z = F
-OUT_M = F
+OUT_Z = T
+OUT_M = T

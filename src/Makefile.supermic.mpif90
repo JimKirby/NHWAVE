@@ -9,14 +9,14 @@
 #--------------------------------------------------------------------------
          FLAG_1 = -DDOUBLE_PRECISION
          FLAG_2 = -DPARALLEL
-#         FLAG_3 = -DLANDSLIDE
+#        FLAG_3 = -DLANDSLIDE
 #         FLAG_4 = -DSALINITY
 #         FLAG_5 = -DTEMPERATURE
 #         FLAG_6 = -DBUBBLE
 #         FLAG_7 = -DSEDIMENT
 #         FLAG_8 = -DVEGETATION
          FLAG_9 = -DINTEL
-#	      FLAG_10 = -DBALANCE2D
+#         FLAG_10 = -DBALANCE2D
 #	      FLAG_11 = -DOBSTACLE
 #	      FLAG_12 = -DTWOLAYERSLIDE
 #	      FLAG_13 = -DCORALREEF
@@ -49,8 +49,8 @@
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------
-         LIBS  = $(LDFLAGS) -lHYPRE
-         INCS  = $(CPPFLAGS)
+         LIBS  = -L/worka/work/chzhang/hypre/parallel/lib -lHYPRE
+         INCS  = -L/worka/work/chzhang/hypre/parallel/include
 #--------------------------------------------------------------------------
 #  Preprocessing and Compilation Directives
 #--------------------------------------------------------------------------

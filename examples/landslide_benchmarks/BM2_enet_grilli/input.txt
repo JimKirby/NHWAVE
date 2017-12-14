@@ -54,6 +54,26 @@ DepConst = 0.3
 INITIAL_EUVW = F
 INITIAL_SALI = F
 
+! -----------------HOT START----------------------------------
+HOTSTART = F
+Eta_HotStart_File = ./results/eta_00001
+U_HotStart_File = ./results/u_00001
+V_HotStart_File = ./results/v_00001
+W_HotStart_File = ./results/w_00001
+P_HotStart_File = ./results/p_00001
+Sali_HotStart_File = ./results/sali_00001
+Temp_HotStart_File = ./results/temp_00001
+Rho_HotStart_File = ./results/rho_00001
+TKE_HotStart_File = ./results/k_00001
+EPS_HotStart_File = ./results/d_00001
+Depth_HotStart_File = ./results/depth_00001
+Us_HotStart_File = ./results/Us_00001
+Vs_HotStart_File = ./results/Vs_00001
+
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
+
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
 HIGH_ORDER = SECOND
@@ -91,6 +111,9 @@ NON_HYDRO = T
 
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
+
+! --------------------FOURDE CAP ----------------------------------
+FROUDE_CAP = 10.0
 
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
@@ -142,7 +165,7 @@ Pgrad0 = 9.81e-4
 !         2: no-slip
 !         3: influx
 !         4: outflux (specified eta)
-!         5: bottom friction
+!         5: bottom or wall friction
 !         6: radiation bc
 BC_X0 = 1
 BC_Xn = 1
@@ -168,6 +191,7 @@ BC_Zn = 1
 ! INT_SOL - internal wavemaker for solitary wave
 ! INT_JON - internal wavemaker for JONSWAP spectrum
 ! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! INT_IRR - internal wavemaker for irregular wave (need irr2d.txt)
 ! FLUX_LR - impose flux at both left and right boundaries
 ! FOCUSED - left boundary focusing wave packet (isolated whitecap)
 ! WAV_CUR - left boundary coexisting waves and currents
@@ -264,14 +288,14 @@ EI = 8.0e-7
 
 ! -------------------LANDSLIDE PARAMETERS------------------------
 ! parameters for landslide module
-! SlideType = 'RIGID' or 'DEFORMABLE'
+! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
 ! SlideT: thickness; SlideL: length; SlideW: width
 ! SlideAngle: slide angle
 ! SlopeAngle: bottom slope
 ! SlideX0,SlideY0: initial location
 ! SlideUt,SlideA0: rigid landslide kinematics
 ! SlideDens: deformable landslide density
-SlideType = RIGID
+SlideType = RIGID_3D
 SlideT = 0.082
 SlideL = 0.395
 SlideW = 0.680
@@ -289,6 +313,22 @@ Cf_ul = 0.02
 PhiInt = 41.0
 PhiBed = 23.0
 
+! ----------------------VISCOUS SLIDE---------------------------
+! Slide thickness. The dimension are the same as in DEPTH_FILE
+SLIDE_FILE = slide_combine1.txt
+! Density, kg/m^3
+SLIDE_DENSITY = 2000.0
+! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
+! River coastal mud = 0.002-0.2 m^2/s
+! Mudslide and debris flows = 0.2-0.6 m^2/s
+SLIDE_VISCOSITY = 0.1
+! Manning's coefficient for the viscous slide
+SLIDE_ROUGHNESS = 0.1
+! A tiny diffusivity for the mass equation
+SLIDE_DIFF = 0.00005
+! The minimum slide thickness, m
+SLIDE_MINTHICK = 0.01  
+
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
 Yield_Stress = 10.
@@ -296,6 +336,7 @@ Plastic_Visc = 0.0
 
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
+! in form of x,y,z, where z=-1.0 outputs velocity of all layers
 NSTAT = 3
 PLOT_INTV_STAT = 0.01
 
@@ -317,6 +358,8 @@ PLOT_INTV_STAT = 0.01
 ! OUT_F = sediment concentration
 ! OUT_G = bed elevation
 ! OUT_I = salinity
+! OUT_Z = varying bathymetry
+! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
 OUT_U = F
@@ -333,3 +376,5 @@ OUT_T = F
 OUT_F = F
 OUT_G = F
 OUT_I = F
+OUT_Z = T
+OUT_M = F

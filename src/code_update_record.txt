@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------------
+﻿--------------------------------------------------------------------------------------
 
                                NHWAVE update records
 
@@ -72,3 +72,22 @@ by Cheng Zhang
 
 ■Changes
 ·Changed influx boundary condition to impose fixed flux.
+
+
+UPDATE_00006
+by Cheng Zhang
+04/12/2017
+
+■Bug Fixes
+·Fixed a bug in subroutine update_mask to ensure a wet-dry front moves correctly 
+ indepedent on the direction.
+·Fixed a bug in subroutine eval_duvw that can lead non-zero DU/DV/DW in grid with 
+ Mask(i,j)=0.
+·Fixed a bug in wall friction boundary condition.
+
+■Additions to Functions
+·Added a function to hot start simulation with viscous landslide.
+
+■Changes
+·Changed delxH and delyxH at the edge of wet-dry boundary by using Mask9 to avoid 
+ extremely height slope at that place.
