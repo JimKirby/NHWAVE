@@ -45,9 +45,11 @@ DT_MAX = 0.10000
 ! if analytical bathymetry, set ANA_BATHY = T
 ! DEPTH_TYPE = CELL_CENTER if the water depth is defined at
 ! cell center, otherwise, DEPTH_TYPE = CELL_GRID 
+! DepConst is only used when ANA_BATHY = T
 DEPTH_TYPE = CELL_CENTER
 ANA_BATHY  = F
-DepConst = 0.3
+
+DepConst = 0.42  
 
 ! -------------------INITIAL CONDITION---------------------------
 ! if INITIAL_SALI = T, need file sali0.txt
@@ -56,6 +58,7 @@ INITIAL_SALI = F
 
 ! -----------------HOT START----------------------------------
 HOTSTART = F
+
 Eta_HotStart_File = ./results/eta_00001
 U_HotStart_File = ./results/u_00001
 V_HotStart_File = ./results/v_00001
@@ -201,7 +204,7 @@ PER = 1.0
 DEP = 0.45
 THETA = 0.0
 CUR = 0.0
-sd_return = 0.75
+sd_return = 0.0
 
 ! ----------------------INTERNAL WAVEMAKER--------------------------------
 ! parameters for internal wavemaker
@@ -287,6 +290,18 @@ Cfe = 1.33
 VegVM = 0.0
 EI = 8.0e-7
 
+! ------------------POROUS MEDIA--------------------------------
+alpha_por = 200.0
+beta_por = 1.1
+D50_por = 1.50e-2
+Por_n = 0.52
+Por_X0 = 4.0
+Por_Xn = 4.13
+Por_Y0 = 0.0
+Por_Yn = 0.1
+Por_Z0 = 0.0
+Por_Zn = 0.065
+
 ! -------------------LANDSLIDE PARAMETERS------------------------
 ! parameters for landslide module
 ! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
@@ -316,20 +331,21 @@ PhiBed = 23.0
 
 ! ----------------------VISCOUS SLIDE---------------------------
 ! Slide thickness. The dimension are the same as in DEPTH_FILE
-SLIDE_FILE = slide_combine1.txt
+
+SLIDE_FILE = slide.txt
 ! Density, kg/m^3
-SLIDE_DENSITY = 2000.0
+SLIDE_DENSITY = 1951.0
 ! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
 ! River coastal mud = 0.002-0.2 m^2/s
 ! Mudslide and debris flows = 0.2-0.6 m^2/s
-SLIDE_VISCOSITY = 0.1
+SLIDE_VISCOSITY = .00001
 ! Manning's coefficient for the viscous slide
-SLIDE_ROUGHNESS = 0.1
+SLIDE_ROUGHNESS = 0.005
 ! A tiny diffusivity for the mass equation
 SLIDE_DIFF = 0.00005
 ! The minimum slide thickness, m
-SLIDE_MINTHICK = 0.01
-  
+SLIDE_MINTHICK = 0.00001
+
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
 Yield_Stress = 10.
