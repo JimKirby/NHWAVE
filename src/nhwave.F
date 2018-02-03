@@ -490,33 +490,7 @@
      enddo
      enddo
      enddo
-
-# if defined (OBSTACLE)
-     ! update velocities for calculating IB forces
-     call get_UVW     
-
-     ! calculate forcing at obstacle boundary                                                                                    
-     call imm_obs
-
-     do k = Kbeg,Kend
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       if(Mask(i,j)==0) cycle
-
-       if(set_flag(i,j,k)==1) then
-         DU(i,j,k) = D(i,j)*obs_u
-         DV(i,j,k) = D(i,j)*obs_v
-         DW(i,j,k) = D(i,j)*obs_w
-       else
-         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
-         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
-         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
-       endif
-     enddo
-     enddo
-     enddo
-# endif
-
+ 
      deallocate(DelxP)
      deallocate(DelyP)
      deallocate(DelzP)
@@ -1947,6 +1921,32 @@
        ! correct velocity field  
        call projection_corrector
      endif
+
+# if defined (OBSTACLE)
+     ! update velocities for calculating IB forces
+     call get_UVW     
+
+     ! calculate forcing at obstacle boundary                                                                                    
+     call imm_obs
+
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Mask(i,j)==0) cycle
+
+       if(set_flag(i,j,k)==1) then
+         DU(i,j,k) = D(i,j)*obs_u
+         DV(i,j,k) = D(i,j)*obs_v
+         DW(i,j,k) = D(i,j)*obs_w
+       else
+         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
+         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
+         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
+       endif
+     enddo
+     enddo
+     enddo
+# endif
 
      ! SSP Runge-Kutta time stepping
      do k = Kbeg,Kend
@@ -15014,7 +15014,7 @@ endif
     use global
     implicit none
     integer :: i,j,k
-    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad
+    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad,dist
 
     ! save flag in the previous step
     set_flag_old = set_flag
@@ -15029,19 +15029,11 @@ endif
       zc = D(i,j)*sigc(k)
 
       ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        if(zc<0.05*(xc(i)-6.0)) set_flag(i,j,k) = 1
+      dist = sqrt((xc(i)-5.0)**2+(yc(j)-0.75)**2)
+      if(dist<=0.1815) then
+        set_flag(i,j,k) = 1
       endif
 
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        if(zc<0.3) set_flag(i,j,k) = 1
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        if(zc<0.1*(17.0-xc(i))) set_flag(i,j,k) = 1
-      endif
     enddo
     enddo
     enddo
@@ -15056,57 +15048,35 @@ endif
     do j = Jbeg,Jend
     do i = Ibeg,Iend
 
-      ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
+      ! obstacle #1 (x-5.0)^2+(y-0.75)^2=0.1815^2
+      ! loop over all fluid cells
+      if(set_flag(i,j,k)==0) then
           ! obstacle on the right
           if(set_flag(i+1,j,k)==1) then
-            zc = D(i,j)*sigc(k)   
-            xlin = 20.0*zc+6.0
-            set_dist_x(i,j,k) = abs(xlin-xc(i))
-          endif
-
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then           
-            zc = D(i,j)*sigc(k)
-            zlin = 0.05*(xc(i)-6.0)
-            set_dist_z(i,j,k) = abs(zc-zlin)
-          endif
-        endif  
-      endif
-
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            set_dist_z(i,j,k) = abs(zc-0.3)
-          endif
-        endif
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle on the left
-          if(set_flag(i-1,j,k)==1) then
-            zc = D(i,j)*sigc(k)
-            xlin = 17.0-10.0*zc
+            xlin = 5.0-sqrt(0.1815**2-(yc(j)-0.75)**2)
             set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
 
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            zlin = 0.1*(17.0-xc(i))
-            set_dist_z(i,j,k) = abs(zc-zlin)
+          ! obstacle on the left
+          if(set_flag(i-1,j,k)==1) then
+            xlin = 5.0+sqrt(0.1815**2-(yc(j)-0.75)**2)
+            set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
-        endif
+
+          ! obstacle on the front
+          if(set_flag(i,j-1,k)==1) then
+            ylin = 0.75+sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
+          ! obstacle on the back                                                                                               
+          if(set_flag(i,j+1,k)==1) then
+            ylin = 0.75-sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
       endif
+
     enddo
     enddo
     enddo
