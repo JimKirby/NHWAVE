@@ -7560,7 +7560,7 @@
      integer :: i,j,m,n,iter
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,y0,xt,yt,zt,ut,t0,a0, &
-           s0,st,slope0
+           s0,st,slope0,xl1,xl2,yl1,yl2
 !     ! added by Cheng for analytical dh/dt (need to comment code for numerical dh/dt)
 !     real(SP) :: DeltS,Delt2S
      ! added by Cheng for 3D triangle landslide
@@ -7701,6 +7701,34 @@
 !         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
 !       enddo
 !       enddo
+     elseif(SlideType(1:9)=='RIGID_SLP') then
+       e = 0.717
+       alpha0 = SlideAngle*pi/180.
+       slope0 = SlopeAngle*pi/180. 
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       ut = SlideUt
+       a0 = SlideA0
+       t0 = ut/a0
+       s0 = ut**2/a0
+       st = s0*(1.0-cos(min(time,pi*t0)/t0))
+       x0 = SlideX0+st*cos(slope0)
+       y0 = SlideY0
+       xl1 = x0-0.5*SlideL*cos(slope0)
+       xl2 = x0+0.5*SlideL*cos(slope0)
+       yl1 = y0-0.5*SlideW
+       yl2 = y0+0.5*SlideW
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)>=xl1.and.xc(i)<=xl2.and.yc(j)>=yl1.and.yc(j)<=yl2) then
+           xt = (xc(i)-x0)/cos(slope0)
+           yt = yc(j)-y0
+           zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+           zt = max(0.0,zt)
+           Hc(i,j) = Hc0(i,j)-zt
+         endif
+       enddo
+       enddo
      endif
 # endif
 

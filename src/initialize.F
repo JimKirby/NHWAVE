@@ -1595,7 +1595,8 @@
      real(SP), dimension(Mglob,Nglob) :: Dvstmp
 # endif
 # if defined (LANDSLIDE)
-     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1
+     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1, &
+	             slope0,xl1,xl2,yl1,yl2
      ! added by Cheng for 3D triangle landslide
 !     real(SP) :: slope0,xgb,xgn,xg,yg,ztm
 # endif
@@ -1776,6 +1777,25 @@
 !         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
 !       enddo
 !       enddo
+     elseif(SlideType(1:9)=='RIGID_SLP') then
+       e = 0.717
+       slope0 = SlopeAngle*pi/180.
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       xl1 = SlideX0-0.5*SlideL*cos(slope0)
+       xl2 = SlideX0+0.5*SlideL*cos(slope0)
+       yl1 = SlideY0-0.5*SlideW
+       yl2 = SlideY0+0.5*SlideW
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)>=xl1.and.xc(i)<=xl2.and.yc(j)>=yl1.and.yc(j)<=yl2) then
+           xt = (xc(i)-SlideX0)/cos(slope0)
+           yt = yc(j)-SlideY0
+           zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+           Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+         endif
+       enddo
+       enddo
      endif
 # endif
 
