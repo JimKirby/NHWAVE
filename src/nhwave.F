@@ -1993,23 +1993,23 @@
 
      ! if running hydrostatic mode, replace vertical velocity
      ! in fact, W is useless. Only for output
-     if(.not.NON_HYDRO) then
-       do i = Ibeg,Iend
-       do j = Jbeg,Jend
-       do k = Kbeg,Kend
-         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
-              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
-              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
-              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
-         if(Mask(i,j)==0) W(i,j,k) = Zero
-         DW(i,j,k) = D(i,j)*W(i,j,k)         
-       enddo
-       enddo
-       enddo
-
-       ! update velocity field
-       call get_UVW
-     endif
+!     if(.not.NON_HYDRO) then
+!       do i = Ibeg,Iend
+!       do j = Jbeg,Jend
+!       do k = Kbeg,Kend
+!         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
+!              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
+!              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
+!              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
+!         if(Mask(i,j)==0) W(i,j,k) = Zero
+!         DW(i,j,k) = D(i,j)*W(i,j,k)         
+!       enddo
+!       enddo
+!       enddo
+!
+!       ! update velocity field
+!       call get_UVW
+!     endif
 
      deallocate(qz)
      deallocate(R1)
