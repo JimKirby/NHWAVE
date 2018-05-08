@@ -154,7 +154,7 @@
      real(SP) :: obs_u,obs_v,obs_w
      real(SP), dimension(:,:,:), allocatable :: ObsForceX,ObsForceY,ObsForceZ
      real(SP), dimension(:,:,:), allocatable :: set_dist_x,set_dist_y,set_dist_z
-     integer, dimension(:,:,:), allocatable :: set_flag
+     integer, dimension(:,:,:), allocatable :: set_flag,set_flag_old
 # endif
 
 # if defined (TWOLAYERSLIDE)
@@ -224,7 +224,7 @@
                                                 DTke,DEps,DTke0,DEps0,Prod_s,Prod_b,Richf,Lag_Umean,Lag_Vmean,Lag_Wmean, &
                                                 Euler_Umean,Euler_Vmean,Euler_Wmean,DRhoX,DRhoY,ExtForceX,ExtForceY, &
                                                 UpWp,PresForceX,PresForceY,PresForceZ,Pdiff,DelxSl,DelySl
-     real(SP), dimension(:,:,:,:), allocatable :: UGrad,VGrad,WGrad
+!     real(SP), dimension(:,:,:,:), allocatable :: UGrad,VGrad,WGrad  ! deleted by Cheng, they are arrays never used.
 
      ! integer arrays
      integer, dimension(:,:), allocatable :: Mask,Mask_Struct,Mask9,Brks,Num_Zero_Up

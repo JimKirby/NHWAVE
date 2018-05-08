@@ -91,3 +91,14 @@ by Cheng Zhang
 ■Changes
 ·Changed delxH and delyxH at the edge of wet-dry boundary by using Mask9 to avoid 
  extremely height slope at that place.
+ 
+ 
+UPDATE_00007
+by Cheng Zhang
+04/02/2018
+
+■Additions to Functions
+·Added a function to simulate slump case of rigid landslide.
+
+■Changes
+·Changed the IBM code to be applicable to the hydrostatic case. 

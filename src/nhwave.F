@@ -490,33 +490,7 @@
      enddo
      enddo
      enddo
-
-# if defined (OBSTACLE)
-     ! update velocities for calculating IB forces
-     call get_UVW     
-
-     ! calculate forcing at obstacle boundary                                                                                    
-     call imm_obs
-
-     do k = Kbeg,Kend
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       if(Mask(i,j)==0) cycle
-
-       if(set_flag(i,j,k)==1) then
-         DU(i,j,k) = D(i,j)*obs_u
-         DV(i,j,k) = D(i,j)*obs_v
-         DW(i,j,k) = D(i,j)*obs_w
-       else
-         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
-         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
-         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
-       endif
-     enddo
-     enddo
-     enddo
-# endif
-
+ 
      deallocate(DelxP)
      deallocate(DelyP)
      deallocate(DelzP)
@@ -1948,6 +1922,32 @@
        call projection_corrector
      endif
 
+# if defined (OBSTACLE)
+     ! update velocities for calculating IB forces
+     call get_UVW     
+
+     ! calculate forcing at obstacle boundary                                                                                    
+     call imm_obs
+
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Mask(i,j)==0) cycle
+
+       if(set_flag(i,j,k)==1) then
+         DU(i,j,k) = D(i,j)*obs_u
+         DV(i,j,k) = D(i,j)*obs_v
+         DW(i,j,k) = D(i,j)*obs_w
+       else
+         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
+         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
+         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
+       endif
+     enddo
+     enddo
+     enddo
+# endif
+
      ! SSP Runge-Kutta time stepping
      do k = Kbeg,Kend
      do j = Jbeg,Jend
@@ -1993,23 +1993,23 @@
 
      ! if running hydrostatic mode, replace vertical velocity
      ! in fact, W is useless. Only for output
-     if(.not.NON_HYDRO) then
-       do i = Ibeg,Iend
-       do j = Jbeg,Jend
-       do k = Kbeg,Kend
-         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
-              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
-              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
-              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
-         if(Mask(i,j)==0) W(i,j,k) = Zero
-         DW(i,j,k) = D(i,j)*W(i,j,k)         
-       enddo
-       enddo
-       enddo
-
-       ! update velocity field
-       call get_UVW
-     endif
+!     if(.not.NON_HYDRO) then
+!       do i = Ibeg,Iend
+!       do j = Jbeg,Jend
+!       do k = Kbeg,Kend
+!         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
+!              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
+!              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
+!              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
+!         if(Mask(i,j)==0) W(i,j,k) = Zero
+!         DW(i,j,k) = D(i,j)*W(i,j,k)         
+!       enddo
+!       enddo
+!       enddo
+!
+!       ! update velocity field
+!       call get_UVW
+!     endif
 
      deallocate(qz)
      deallocate(R1)
@@ -7560,7 +7560,7 @@
      integer :: i,j,m,n,iter
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,y0,xt,yt,zt,ut,t0,a0, &
-           s0,st,slope0
+           s0,st,slope0,xl1,xl2,yl1,yl2
 !     ! added by Cheng for analytical dh/dt (need to comment code for numerical dh/dt)
 !     real(SP) :: DeltS,Delt2S
      ! added by Cheng for 3D triangle landslide
@@ -7701,6 +7701,34 @@
 !         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
 !       enddo
 !       enddo
+     elseif(SlideType(1:9)=='RIGID_SLP') then
+       e = 0.717
+       alpha0 = SlideAngle*pi/180.
+       slope0 = SlopeAngle*pi/180. 
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       ut = SlideUt
+       a0 = SlideA0
+       t0 = ut/a0
+       s0 = ut**2/a0
+       st = s0*(1.0-cos(min(time,pi*t0)/t0))
+       x0 = SlideX0+st*cos(slope0)
+       y0 = SlideY0
+       xl1 = x0-0.5*SlideL*cos(slope0)
+       xl2 = x0+0.5*SlideL*cos(slope0)
+       yl1 = y0-0.5*SlideW
+       yl2 = y0+0.5*SlideW
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)>=xl1.and.xc(i)<=xl2.and.yc(j)>=yl1.and.yc(j)<=yl2) then
+           xt = (xc(i)-x0)/cos(slope0)
+           yt = yc(j)-y0
+           zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+           zt = max(0.0,zt)
+           Hc(i,j) = Hc0(i,j)-zt
+         endif
+       enddo
+       enddo
      endif
 # endif
 
@@ -15014,7 +15042,7 @@ endif
     use global
     implicit none
     integer :: i,j,k
-    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad
+    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad,dist
 
     ! save flag in the previous step
     set_flag_old = set_flag
@@ -15029,19 +15057,11 @@ endif
       zc = D(i,j)*sigc(k)
 
       ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        if(zc<0.05*(xc(i)-6.0)) set_flag(i,j,k) = 1
+      dist = sqrt((xc(i)-5.0)**2+(yc(j)-0.75)**2)
+      if(dist<=0.1815) then
+        set_flag(i,j,k) = 1
       endif
 
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        if(zc<0.3) set_flag(i,j,k) = 1
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        if(zc<0.1*(17.0-xc(i))) set_flag(i,j,k) = 1
-      endif
     enddo
     enddo
     enddo
@@ -15056,57 +15076,35 @@ endif
     do j = Jbeg,Jend
     do i = Ibeg,Iend
 
-      ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
+      ! obstacle #1 (x-5.0)^2+(y-0.75)^2=0.1815^2
+      ! loop over all fluid cells
+      if(set_flag(i,j,k)==0) then
           ! obstacle on the right
           if(set_flag(i+1,j,k)==1) then
-            zc = D(i,j)*sigc(k)   
-            xlin = 20.0*zc+6.0
-            set_dist_x(i,j,k) = abs(xlin-xc(i))
-          endif
-
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then           
-            zc = D(i,j)*sigc(k)
-            zlin = 0.05*(xc(i)-6.0)
-            set_dist_z(i,j,k) = abs(zc-zlin)
-          endif
-        endif  
-      endif
-
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            set_dist_z(i,j,k) = abs(zc-0.3)
-          endif
-        endif
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle on the left
-          if(set_flag(i-1,j,k)==1) then
-            zc = D(i,j)*sigc(k)
-            xlin = 17.0-10.0*zc
+            xlin = 5.0-sqrt(0.1815**2-(yc(j)-0.75)**2)
             set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
 
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            zlin = 0.1*(17.0-xc(i))
-            set_dist_z(i,j,k) = abs(zc-zlin)
+          ! obstacle on the left
+          if(set_flag(i-1,j,k)==1) then
+            xlin = 5.0+sqrt(0.1815**2-(yc(j)-0.75)**2)
+            set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
-        endif
+
+          ! obstacle on the front
+          if(set_flag(i,j-1,k)==1) then
+            ylin = 0.75+sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
+          ! obstacle on the back                                                                                               
+          if(set_flag(i,j+1,k)==1) then
+            ylin = 0.75-sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
       endif
+
     enddo
     enddo
     enddo
