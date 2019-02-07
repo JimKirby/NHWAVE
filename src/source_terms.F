@@ -1,34 +1,43 @@
     subroutine source_terms
-!------------------------------------------------
-!    This subroutine is used to evaluate source
+!-----------------------------------------------------------------------------------------------------------
+!    This subroutine is used to evaluate sources
 !    Called by
 !       main
 !    Last update: 23/12/2010, Gangfeng Ma
-!------------------------------------------------
+!
+!    Note that the wavemaker code needs to be split between here and initialize.F
+!    Wavemaker parmameters are getting recomputed every time step.  This is what they
+!    call BAD.
+!
+!    Change log:
+!           2/7/19 Kirby modifying wavenumber solver using Eckart's initial guess.
+!                  (Should iterate to 10-6 accuracy in two iterations.
+!                  Change Segma to Omega so I can use Sigma when there is a current
+!                  entering through the boundary (not yet - Segma also appears elsewhere)
+!----------------------------------------------------------------------------------------------------------
      use global
      implicit none
      integer :: i,j,k,Iter,nn,ndir,nfreq,nk
-     real(SP) :: Segma,Celerity,Wave_Length,Wave_Number,Fk,Fkdif,Source_Area,myvar, &
+     real(SP) :: Segma,Celerity,Wave_Length,Wave_Number,Source_Area,myvar, &
                  WnumX,WnumY,Phs_lag,dfreq,ddir,Angle,tmp1,tmp2,tmp3,tmp4,Umag,Ubar,Vbar
      real(SP) :: Ytrough,Mod1,Zup,Zlow,Zmid,Xstart,Zero1,cnoidal_cn,cnoidal_ck,Atmp
+!
+!  All wave info here needs to be moved to a routine called by initialize except for final calculation
+!  of the source
 
-     ! internal wavemaker for linear wave
+!  internal wavemaker for linear wave
+!
      if(WaveMaker(1:7)=='INT_LIN') then
-       ! Find wave number for linear wave (Newton-Ralphson Method)
+!
+!  Find wave number for linear wave (Newton-Ralphson Method)
+!
        Segma = 2.0*pi/Per_Wave
-       Celerity = sqrt(Grav*Dep_Wave)
-       Wave_Length = Celerity*Per_Wave
-       Wave_Number = 2.0*pi/Wave_Length
-     
-       Iter = 0
- 55    Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-       if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 65
-       Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
-           Grav*tanh(Wave_Number*Dep_Wave) 
-       Wave_Number = Wave_Number-Fk/Fkdif
-       Iter = Iter+1
-       goto 55
- 65    continue
+       call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+!
+!       Celerity = sqrt(Grav*Dep_Wave)
+!       Wave_Length = Celerity*Per_Wave
+!       Wave_Number = 2.0*pi/Wave_Length
+!
        Wave_Length = 2.0*pi/Wave_Number
        Celerity = Wave_Length/Per_Wave
        WnumX = Wave_Number*cos(Theta_Wave*pi/180.)
@@ -56,8 +65,9 @@
        enddo
        enddo
      endif
-
-     ! internal wavemaker for random waves 
+!
+! internal wavemaker for random waves
+!
      if(WaveMaker(1:7)=='INT_SPC') then
        Source_Area = 0.0
        do i = Ibeg,Iend
@@ -80,23 +90,25 @@
            do ndir = 1,NumDir
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             Celerity = sqrt(Grav*Dep_Wave)
-             Wave_Length = Celerity*Per_Wave
-             Wave_Number = 2.0*pi/Wave_Length
+             call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+!            Celerity = sqrt(Grav*Dep_Wave)
+!            Wave_Length = Celerity*Per_Wave
+!            Wave_Number = 2.0*pi/Wave_Length
        
-             Iter = 0
-   75        Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 85
-             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  & 
-               Grav*tanh(Wave_Number*Dep_Wave)
-             Wave_Number = Wave_Number-Fk/Fkdif
-             Iter = Iter+1
-             goto 75
-   85        continue
+!            Iter = 0
+!  75        Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
+!            if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 85
+!            Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
+!              Grav*tanh(Wave_Number*Dep_Wave)
+!             Wave_Number = Wave_Number-Fk/Fkdif
+!             Iter = Iter+1
+!             goto 75
+!   85        continue
              Wave_Length = 2.0*pi/Wave_Number
              Celerity = Wave_Length/Per_Wave
 
-             ! adjust wave direction for periodic bc
+!   adjust wave direction for periodic bc
+!   change as in funwave - to do (Kirby, 2/7/19)
              Angle = Dire(ndir)*pi/180.
              if(Angle>zero) then
                tmp3 = zero
@@ -112,7 +124,7 @@
                  endif
                enddo
 
-               ! judge between nk-1 and nk which is closer                                          
+!   judge between nk-1 and nk which is closer
                tmp4 = asin((nk-1)*2.0*pi/(Nglob*dy)/tmp1)
                if(abs(tmp4-Angle)<abs(Angle-tmp3)) then
                  Angle = tmp4
@@ -133,7 +145,7 @@
                  endif
                enddo
 
-               ! judge between nk-1 and nk which is closer                                          
+!   judge between nk-1 and nk which is closer
                tmp4= asin((nk-1)*2.0*pi/(Nglob*dy)/tmp1)
                if(abs(tmp4-Angle)<abs(Angle-tmp3)) then
                  Angle = tmp4
@@ -145,7 +157,7 @@
              WnumX = Wave_Number*cos(Angle)
              WnumY = Wave_Number*sin(Angle)
 
-             ! calculate root-mean-squre wave height for each component
+!    calculate root-mean-square wave height for each component  (there is no such thing - Kirby)
              if(nfreq==1) then
                dfreq = Freq(2)-Freq(1)
              elseif(nfreq==NumFreq) then
@@ -175,8 +187,10 @@
        enddo
        enddo
      endif
-	 
-	 ! Added by Cheng Zhang, internal wavemaker for irregular waves 
+!
+! Added by Cheng Zhang, internal wavemaker for irregular waves
+!  Why is this different from INT_SPC? (Kirby)
+!
      if(WaveMaker(1:7)=='INT_IRR') then
        Source_Area = 0.0
        do i = Ibeg,Iend
@@ -199,19 +213,20 @@
            do ndir = 1,NumDir
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             Celerity = sqrt(Grav*Dep_Wave)
-             Wave_Length = Celerity*Per_Wave
-             Wave_Number = 2.0*pi/Wave_Length
+             call wave_dispersion(Dep_wave, Segma, Wave_Number)
+!             Celerity = sqrt(Grav*Dep_Wave)
+!             Wave_Length = Celerity*Per_Wave
+!             Wave_Number = 2.0*pi/Wave_Length
        
-             Iter = 0
-   95        Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 105
-             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  & 
-               Grav*tanh(Wave_Number*Dep_Wave)
-             Wave_Number = Wave_Number-Fk/Fkdif
-             Iter = Iter+1
-             goto 95
-   105        continue
+!             Iter = 0
+!   95        Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
+!             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 105
+!             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
+!               Grav*tanh(Wave_Number*Dep_Wave)
+!             Wave_Number = Wave_Number-Fk/Fkdif
+!             Iter = Iter+1
+!             goto 95
+!   105        continue
              Wave_Length = 2.0*pi/Wave_Number
              Celerity = Wave_Length/Per_Wave
 
@@ -310,23 +325,24 @@
            do nfreq = 1,NumFreq
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             Celerity = sqrt(Grav*Dep_Wave)
-             Wave_Length = Celerity*Per_Wave
-             Wave_Number = 2.0*pi/Wave_Length
+             call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+!             Celerity = sqrt(Grav*Dep_Wave)
+!             Wave_Length = Celerity*Per_Wave
+!             Wave_Number = 2.0*pi/Wave_Length
        
-             Iter = 0
- 76          Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 86
-             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  & 
-               Grav*tanh(Wave_Number*Dep_Wave)
-             Wave_Number = Wave_Number-Fk/Fkdif
-             Iter = Iter+1
-             goto 76
- 86          continue
+!             Iter = 0
+ !76          Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
+!             if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 86
+!             Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
+!               Grav*tanh(Wave_Number*Dep_Wave)
+!             Wave_Number = Wave_Number-Fk/Fkdif
+!             Iter = Iter+1
+!             goto 76
+! 86          continue
              Wave_Length = 2.0*pi/Wave_Number
              Celerity = Wave_Length/Per_Wave
 
-             ! root-mean-square wave height
+!   root-mean-square wave height (not defined)
              Amp_Wave = 2.0*sqrt(2.0*Jon_Spc(nfreq)*DFreq)
 
              SourceC(i,j) = SourceC(i,j)+Celerity*Amp_Wave/Source_Area*  &
