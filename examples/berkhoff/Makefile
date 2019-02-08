@@ -66,7 +66,7 @@
 
 MODS  = mod_global.F	mod_util.F 
 
-MAIN  = nhwave.F initialize.F two_layer_slide.F
+MAIN  = nhwave.F initialize.F two_layer_slide.F source_terms.F waves.F
 
 SRCS = $(MODS)  $(MAIN)
 
