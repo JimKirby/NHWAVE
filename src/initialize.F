@@ -337,6 +337,10 @@
 # if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
        CALL GET_STRING_VAL(Depth_HotStart_File,FILE_NAME,'Depth_HotStart_File',line,ierr)
 # endif
+# if defined (FLUIDSLIDE)
+       CALL GET_STRING_VAL(Us_HotStart_File,FILE_NAME,'Us_HotStart_File',line,ierr)
+	   CALL GET_STRING_VAL(Vs_HotStart_File,FILE_NAME,'Vs_HotStart_File',line,ierr)
+# endif
       IF(VISCOUS_FLOW)THEN
        ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
        CALL GET_STRING_VAL(TKE_HotStart_File,FILE_NAME,'TKE_HotStart_File',line,ierr)
@@ -1331,7 +1335,7 @@
               D0(Mloc,Nloc),DeltH(Mloc,Nloc),DelxH(Mloc,Nloc),DelyH(Mloc,Nloc),Eta(Mloc,Nloc),Mask(Mloc,Nloc),  &
               Mask_Struct(Mloc,Nloc),Mask9(Mloc,Nloc),SourceC(Mloc,Nloc),SourceX(Mloc,Nloc), &
               SourceY(Mloc,Nloc),DeltHo(Mloc,Nloc),Uin_X0(Nloc,Kloc),Vin_X0(Nloc,Kloc),  &
-              Win_X0(Nloc,Kloc),Uin_Xn(Nloc,Kloc),Delt2H(Mloc,Nloc),  &
+              Win_X0(Nloc,Kloc),Uin_Xn(Nloc,Kloc),Uin_Xni(Nloc,Kloc),Uin_Xni0(Nloc,Kloc),Delt2H(Mloc,Nloc),  &
               Vin_Xn(Nloc,Kloc),Win_Xn(Nloc,Kloc),Bc_Prs(Mloc,Nloc),Brks(Mloc,Nloc))
      ALLOCATE(DxL(Mloc1,Nloc),DxR(Mloc1,Nloc),DyL(Mloc,Nloc1),DyR(Mloc,Nloc1), &
               EtaxL(Mloc1,Nloc),EtaxR(Mloc1,Nloc),EtayL(Mloc,Nloc1),EtayR(Mloc,Nloc1), &
@@ -1591,7 +1595,8 @@
      real(SP), dimension(Mglob,Nglob) :: Dvstmp
 # endif
 # if defined (LANDSLIDE)
-     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1
+     real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1, &
+	             slope0,xl1,xl2,yl1,yl2
      ! added by Cheng for 3D triangle landslide
 !     real(SP) :: slope0,xgb,xgn,xg,yg,ztm
 # endif
@@ -1772,6 +1777,25 @@
 !         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
 !       enddo
 !       enddo
+     elseif(SlideType(1:9)=='RIGID_SLP') then
+       e = 0.717
+       slope0 = SlopeAngle*pi/180.
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       xl1 = SlideX0-0.5*SlideL*cos(slope0)
+       xl2 = SlideX0+0.5*SlideL*cos(slope0)
+       yl1 = SlideY0-0.5*SlideW
+       yl2 = SlideY0+0.5*SlideW
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)>=xl1.and.xc(i)<=xl2.and.yc(j)>=yl1.and.yc(j)<=yl2) then
+           xt = (xc(i)-SlideX0)/cos(slope0)
+           yt = yc(j)-SlideY0
+           zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+           Hc(i,j) = Hc0(i,j)-max(0.0,zt)
+         endif
+       enddo
+       enddo
      endif
 # endif
 
@@ -1863,7 +1887,7 @@
      Mask_Struct = 1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Hc(i,j)<-10.0) then
+       if(Hc(i,j)<-100.0) then
          Mask_Struct(i,j) = 0
        endif
      enddo
@@ -2407,6 +2431,8 @@
      Ein_X0 = Zero
      Din_X0 = Zero
      Uin_Xn = Zero
+	 Uin_Xni = Zero
+     Uin_Xni0 = Zero
      Vin_Xn = Zero
      Win_Xn = Zero
      Ein_Xn = Zero

@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------------
+﻿--------------------------------------------------------------------------------------
 
                                NHWAVE update records
 
@@ -48,7 +48,6 @@ by Cheng Zhang
 ■Additions to Functions
 ·Added a function to hot start simulation with moving boundary.
 
-=======
 ■Bug Fixes
 ·Fixed a bug that can cause parallelization problem.
 
@@ -65,3 +64,41 @@ by Cheng Zhang
 ■Bug Fixes
 ·Fixed a bug that can cause parallelization problem.
 ·Fixed two bugs in the granular slide model.
+
+
+UPDATE_00005
+by Cheng Zhang
+02/06/2017
+
+■Changes
+·Changed influx boundary condition to impose fixed flux.
+
+
+UPDATE_00006
+by Cheng Zhang
+04/12/2017
+
+■Bug Fixes
+·Fixed a bug in subroutine update_mask to ensure a wet-dry front moves correctly 
+ indepedent on the direction.
+·Fixed a bug in subroutine eval_duvw that can lead non-zero DU/DV/DW in grid with 
+ Mask(i,j)=0.
+·Fixed a bug in wall friction boundary condition.
+
+■Additions to Functions
+·Added a function to hot start simulation with viscous landslide.
+
+■Changes
+·Changed delxH and delyxH at the edge of wet-dry boundary by using Mask9 to avoid 
+ extremely height slope at that place.
+ 
+ 
+UPDATE_00007
+by Cheng Zhang
+04/02/2018
+
+■Additions to Functions
+·Added a function to simulate slump case of rigid landslide.
+
+■Changes
+·Changed the IBM code to be applicable to the hydrostatic case. 

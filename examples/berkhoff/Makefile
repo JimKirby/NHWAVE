@@ -16,16 +16,22 @@
 #         FLAG_7 = -DSEDIMENT
 #         FLAG_8 = -DVEGETATION
          FLAG_9 = -DINTEL
-#	  FLAG_10 = -DBALANCE2D
-#	 FLAG_12 = -DTWOLAYERSLIDE
-#	 FLAG_13 = -DCORALREEF
+#	      FLAG_10 = -DBALANCE2D
+#	      FLAG_11 = -DOBSTACLE
+#	      FLAG_12 = -DTWOLAYERSLIDE
+#	      FLAG_13 = -DCORALREEF
+#	      FLAG_14 = -DPOROUSMEDIA
+         FLAG_15 = -DFROUDE_CAP
+#         FLAG_16 = -DCOUPLING
+#         FLAG_17 = -DFLUIDSLIDE
+#         FLAG_18 = -DLANDSLIDE_COMPREHENSIVE
 #--------------------------------------------------------------------------
 #  mpi defs 
 #--------------------------------------------------------------------------
-         CPP      = /usr/bin/cpp 
+         CPP      = /usr/bin/cpp
          CPPFLAGS = $(DEF_FLAGS)
 #         FC       = ifort
-         FC        = mpiifort
+         FC        = mpif90
          DEBFLGS  = 
          OPT      = #-g
          CLIB     = 
@@ -38,12 +44,13 @@
 #--------------------------------------------------------------------------
          CPPARGS = $(CPPFLAGS) $(DEF_FLAGS) $(FLAG_1) $(FLAG_2) $(FLAG_3) \
                    $(FLAG_4) $(FLAG_5) $(FLAG_6) $(FLAG_7) $(FLAG_8) $(FLAG_9) \
-	           $(FLAG_10) $(FLAG_11) $(FLAG_12) $(FLAG_13)
+	           $(FLAG_10) $(FLAG_11) $(FLAG_12) $(FLAG_13) $(FLAG_14) \
+			   $(FLAG_15) $(FLAG_16)
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------
-         LIBS  = -L/home/gma/hypre/parallel/lib -lHYPRE
-         INCS  = -I/home/gma/hypre/parallel/include
+         LIBS  = $(LDFLAGS) -lHYPRE
+         INCS  = $(CPPFLAGS)
 #--------------------------------------------------------------------------
 #  Preprocessing and Compilation Directives
 #--------------------------------------------------------------------------
@@ -59,7 +66,7 @@
 
 MODS  = mod_global.F	mod_util.F 
 
-MAIN  = nhwave.F 
+MAIN  = nhwave.F initialize.F two_layer_slide.F
 
 SRCS = $(MODS)  $(MAIN)
 

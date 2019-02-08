@@ -490,33 +490,7 @@
      enddo
      enddo
      enddo
-
-# if defined (OBSTACLE)
-     ! update velocities for calculating IB forces
-     call get_UVW     
-
-     ! calculate forcing at obstacle boundary                                                                                    
-     call imm_obs
-
-     do k = Kbeg,Kend
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       if(Mask(i,j)==0) cycle
-
-       if(set_flag(i,j,k)==1) then
-         DU(i,j,k) = D(i,j)*obs_u
-         DV(i,j,k) = D(i,j)*obs_v
-         DW(i,j,k) = D(i,j)*obs_w
-       else
-         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
-         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
-         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
-       endif
-     enddo
-     enddo
-     enddo
-# endif
-
+ 
      deallocate(DelxP)
      deallocate(DelyP)
      deallocate(DelzP)
@@ -938,8 +912,8 @@
      do k = Kbeg,Kend1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)
-       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j)
+       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j) 
        DelzS(i,j,k) = 1./D(i,j)
 
        A1(i,j,k) = DelxS(i,j,k)*DelxS(i,j,k)+DelyS(i,j,k)*DelyS(i,j,k)+  &
@@ -1833,7 +1807,8 @@
 
 # if defined (POROUSMEDIA)
            if(k==Kbeg) then
-             Wbot = -U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)                                                       
+             Wbot = -U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
+                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)                                                      
              Rhs0(Nlen) =(1.0+Cp_Por(i,j,k))*DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &                                                  
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &                                               
@@ -1850,7 +1825,8 @@
            Rhs0(Nlen) = Rhs0(Nlen)+dt*Cp_Por(i,j,k)*W(i,j,k)*R1(i,j)
 # else
            if(k==Kbeg) then
-             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j) 
+             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
+                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
              Rhs0(Nlen) = DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &
@@ -1916,6 +1892,20 @@
        endif
      enddo
      enddo
+	 
+	 ! added by Cheng to avoid non-zero DU/DV/DW in grid with Mask(i,j)==0
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Mask(i,j)==0) then
+         DU(i,j,k) = Zero
+         DV(i,j,k) = Zero
+         DW(i,j,k) = Zero
+       endif
+     enddo
+     enddo
+     enddo
+	 
 
      ! run non-hydrostatic simulation  
      if(NON_HYDRO) then
@@ -1931,6 +1921,32 @@
        ! correct velocity field  
        call projection_corrector
      endif
+
+# if defined (OBSTACLE)
+     ! update velocities for calculating IB forces
+     call get_UVW     
+
+     ! calculate forcing at obstacle boundary                                                                                    
+     call imm_obs
+
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Mask(i,j)==0) cycle
+
+       if(set_flag(i,j,k)==1) then
+         DU(i,j,k) = D(i,j)*obs_u
+         DV(i,j,k) = D(i,j)*obs_v
+         DW(i,j,k) = D(i,j)*obs_w
+       else
+         DU(i,j,k) = DU(i,j,k)+dt*ObsForceX(i,j,k)
+         DV(i,j,k) = DV(i,j,k)+dt*ObsForceY(i,j,k)
+         DW(i,j,k) = DW(i,j,k)+dt*ObsForceZ(i,j,k)
+       endif
+     enddo
+     enddo
+     enddo
+# endif
 
      ! SSP Runge-Kutta time stepping
      do k = Kbeg,Kend
@@ -1951,22 +1967,20 @@
 	 
 	 ! added by Cheng for limiting the maximum Froude number
 # if defined(FROUDE_CAP)
-     DO K=Kbeg,Kend
      DO J=Jbeg,Jend
      DO I=Ibeg,Iend
-       IF(Mask(I,J)>0)THEN
-         FroudeU=SQRT(grav*D(I,J))*FROUDECAP*D(I,J)
-         DUU=SQRT(DU(I,J,K)**2+DV(I,J,K)**2)
-         IF(DUU>FroudeU)THEN
-          Dangle=atan2(DV(I,J,K),DU(I,J,K))
-          DU(I,J,K)=FroudeU*COS(Dangle)
-          DV(I,J,K)=FroudeU*SIN(Dangle)
-         ENDIF
-         IF(ABS(DW(I,J,K))>FroudeU)THEN
-          DW(I,J,K)=SIGN(FroudeU,DW(I,J,K))
-         ENDIF
+	   FroudeU=SQRT(grav*D(I,J))*FROUDECAP*D(I,J)
+	   IF(Mask(I,J)>0)THEN
+	     DO K=Kbeg,Kend
+           DUU=SQRT(DU(I,J,K)**2+DV(I,J,K)**2+DW(I,J,K)**2)
+           IF(DUU>FroudeU)THEN
+            Dangle=atan2(DV(I,J,K),DU(I,J,K))
+            DU(I,J,K)=FroudeU*COS(Dangle)
+            DV(I,J,K)=FroudeU*SIN(Dangle)
+	  	    DW(I,J,K)=ZERO
+           ENDIF
+         ENDDO
        ENDIF
-     ENDDO
      ENDDO
      ENDDO
 # endif
@@ -1979,23 +1993,23 @@
 
      ! if running hydrostatic mode, replace vertical velocity
      ! in fact, W is useless. Only for output
-     if(.not.NON_HYDRO) then
-       do i = Ibeg,Iend
-       do j = Jbeg,Jend
-       do k = Kbeg,Kend
-         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
-              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
-              ((1.0-sigc(k))*DelxH(i,j)+sigc(k)*DelxEta(i,j))-  &
-              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)+sigc(k)*DelyEta(i,j))
-         if(Mask(i,j)==0) W(i,j,k) = Zero
-         DW(i,j,k) = D(i,j)*W(i,j,k)         
-       enddo
-       enddo
-       enddo
-
-       ! update velocity field
-       call get_UVW
-     endif
+!     if(.not.NON_HYDRO) then
+!       do i = Ibeg,Iend
+!       do j = Jbeg,Jend
+!       do k = Kbeg,Kend
+!         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
+!              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
+!              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
+!              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
+!         if(Mask(i,j)==0) W(i,j,k) = Zero
+!         DW(i,j,k) = D(i,j)*W(i,j,k)         
+!       enddo
+!       enddo
+!       enddo
+!
+!       ! update velocity field
+!       call get_UVW
+!     endif
 
      deallocate(qz)
      deallocate(R1)
@@ -3452,9 +3466,7 @@
 
      RETURN
      END FUNCTION LIMITER
-
-
-
+ 
      subroutine wave_average
 !---------------------------------------------------
 !    Estimate wave averaged quantities
@@ -4032,6 +4044,14 @@
      call putfile2D(file,Ua)
      file=TRIM(FDIR)//'Va_'//TRIM(FILE_NAME)
      call putfile2D(file,Va)
+# endif
+
+# if defined (FLUIDSLIDE)
+     !added by Cheng for recording slide information
+     file=TRIM(FDIR)//'Us_'//TRIM(FILE_NAME)
+     call putfile2D(file,Uvs)
+     file=TRIM(FDIR)//'Vs_'//TRIM(FILE_NAME)
+     call putfile2D(file,Vvs)
 # endif
 
      end subroutine preview
@@ -4690,7 +4710,7 @@
          Phi = dmin1(Phi,2.0)
          do j =1,Nghost
            U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
-           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           V(i,Jend+j,k) = -V(i,Jend-j+1,k)
            W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
            DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
            DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
@@ -4759,7 +4779,8 @@
        Phi = dmin1(Phi,2.0)
 
        if(Bc_Z0==1) then  ! free-slip
-         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)
+         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
+         !       -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
          do k = 1,Nghost
            U(i,j,Kbeg-k) = U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = V(i,j,Kbeg+k-1)
@@ -4782,8 +4803,8 @@
          do k = 1,Nghost
            U(i,j,Kbeg-k) = (1.0-Phi)*U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = (1.0-Phi)*V(i,j,Kbeg+k-1)
-           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)-  &
-           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)
+           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)*Mask9(i,j)-  &  ! modified by Cheng to use MASK9 for delxH delyH
+           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)*Mask9(i,j)
            W(i,j,Kbeg-k) = 2.0*WzR(i,j,Kbeg)-W(i,j,Kbeg+k-1)
            DU(i,j,Kbeg-k) = D(i,j)*U(i,j,Kbeg-k)
            DV(i,j,Kbeg-k) = D(i,j)*V(i,j,Kbeg-k)
@@ -5048,9 +5069,27 @@
          enddo
        elseif(Bc_Xn==3) then
          do i = 1,Nghost
-           U(Iend+i,j,k) = 2.0*Uin_Xn(j,k)-U(Iend-i+1,j,k)
-           V(Iend+i,j,k) = 2.0*Vin_Xn(j,k)-V(Iend-i+1,j,k)
-           W(Iend+i,j,k) = 2.0*Win_Xn(j,k)-W(Iend-i+1,j,k)
+           !U(Iend+i,j,k) = 2.0*Uin_Xn(j,k)-U(Iend-i+1,j,k)
+           !V(Iend+i,j,k) = 2.0*Vin_Xn(j,k)-V(Iend-i+1,j,k)
+           !W(Iend+i,j,k) = 2.0*Win_Xn(j,k)-W(Iend-i+1,j,k)
+		   ! Changed by Cheng to combine Orlanski open boundary condition
+           Cg = -(U0(Iend+i-1,j,k)-U00(Iend+i-1,j,k)+1.e-16)/  &
+                 (U00(Iend+i-1,j,k)-U00(Iend+i-2,j,k)+1.e-16)
+!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
+           Cg = max(min(Cg,1.0),0.0)
+		   if (i==1) then
+             U(Iend+i,j,k) = Cg*U(Iend+i-1,j,k)+Uin_Xni0(j,k)-Cg*Uin_Xni(j,k)
+		   else
+		     U(Iend+i,j,k) = Cg*U(Iend+i-1,j,k)+(1.0-Cg)*U(Iend+i,j,k)
+		   endif
+           Cg =-(V0(Iend+i-1,j,k)-V00(Iend+i-1,j,k)+1.e-16)/  &
+                 (V00(Iend+i-1,j,k)-V00(Iend+i-2,j,k)+1.e-16)
+           Cg= max(min(Cg,1.0),0.0)
+           V(Iend+i,j,k) = Cg*V0(Iend+i-1,j,k)+(1.0-Cg)*V0(Iend+i,j,k)
+           Cg =-(W0(Iend+i-1,j,k)-W00(Iend+i-1,j,k)+1.e-16)/  &
+                 (W00(Iend+i-1,j,k)-W00(Iend+i-2,j,k)+1.e-16)
+           Cg= max(min(Cg,1.0),0.0)
+           W(Iend+i,j,k) = Cg*W0(Iend+i-1,j,k)+(1.0-Cg)*W0(Iend+i,j,k)
            DU(Iend+i,j,k) = 2.0*Din_Xn(j)*Uin_Xn(j,k)-DU(Iend-i+1,j,k)
            DV(Iend+i,j,k) = 2.0*Din_Xn(j)*Vin_Xn(j,k)-DV(Iend-i+1,j,k)
            DW(Iend+i,j,k) = 2.0*Din_Xn(j)*Win_Xn(j,k)-DW(Iend-i+1,j,k)
@@ -5228,7 +5267,7 @@
          Phi = dmin1(Phi,2.0)
          do j =1,Nghost
            U(i,Jend+j,k) = (1.0-Phi)*U(i,Jend-j+1,k)
-           V(i,Jend+j,k) = -V(i,Jbeg+j-1,k)
+           V(i,Jend+j,k) = -V(i,Jend-j+1,k)
            W(i,Jend+j,k) = (1.0-Phi)*W(i,Jend-j+1,k)
            DU(i,Jend+j,k) = D(i,j)*U(i,Jend+j,k)
            DV(i,Jend+j,k) = D(i,j)*V(i,Jend+j,k)
@@ -5282,18 +5321,20 @@
      call delyFun1_3d(VzR,DelyVzR)
      call delyFun1_3d(WzR,DelyWzR)
 
-     ! top and bottom
+     ! top and bottom (modified by Cheng to use MASK9 for delxH delyH,search for Mask9)
      ! rewritten by M.Derakhti as in derakhti etal 2015a
      do j = Jbeg,Jend
      do i = Ibeg,Iend
        !these are added to calculate the tangential external stress parallel to the surface and bed
        Atop = dsqrt(1.0+DelxEta(i,j)**2+DelyEta(i,j)**2)
        Btop = dsqrt(1.0+DelxEta(i,j)**2)
-       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
-       Bbot = dsqrt(1.0+DelxH(i,j)**2)
+       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))
+       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)  &
+                  +(1.0+Mask9(i,j)*DelxH(i,j)**2)*DV(i,j,Kbeg)  &
+                  -DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
        !the distance of the first grid point from the bed
        Dz1 = 0.5*D(i,j)*dsig(Kbeg)/Abot
@@ -5326,7 +5367,7 @@
 
        !equation (46)
        Fext_Bot1 = Bbot * TauBot1
-       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1+Abot*TauBot2)/Bbot
+       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1*Mask9(i,j)+Abot*TauBot2)/Bbot
        !Wind stress paralle to the free surface WS/rho (equation 49)
        Fext_Wind1 = 1.0/Atop*((1-DelxEta(i,j)**2)*Wsx(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsy(i,j))
        Fext_Wind2 = 1.0/Atop*((1-DelyEta(i,j)**2)*Wsy(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsx(i,j))
@@ -5350,11 +5391,11 @@
           else
           DU(i,j,Kbeg-k) = DU(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot1*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) &
-              + DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              + Mask9(i,j)*DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               + D(i,j)**2/Abot**2 &
-              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg) &
-              -(1.0-DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
-              -DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg))))
+              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg)*Mask9(i,j) &
+              -(1.0-Mask9(i,j)*DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
+              -Mask9(i,j)*DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg)*Mask9(i,j))))
           DUbot_old = 2.0*D(i,j)*UzR(i,j,Kbeg)-DU(i,j,Kbeg+k-1)
           if (DUbot_old>0.)then
              DU(i,j,Kbeg-k) = dmin1(3.0*DUbot_old,dmax1(-1.0*DUbot_old,DU(i,j,Kbeg-k)))
@@ -5368,11 +5409,11 @@
           ! y-dir
           DV(i,j,Kbeg-k) = DV(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot2*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) & 
-              +DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              +Mask9(i,j)*DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               +D(i,j)**2/Abot**2 &
-              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg) &
-              -(1.0-DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
-              -DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg))))
+              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg)*Mask9(i,j) &
+              -(1.0-Mask9(i,j)*DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
+              -Mask9(i,j)*DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg)*Mask9(i,j))))
           DVbot_old = 2.0*D(i,j)*VzR(i,j,Kbeg)-DV(i,j,Kbeg+k-1)
           if (DVbot_old>0.)then
              DV(i,j,Kbeg-k) = dmin1(3.0*DVbot_old,dmax1(-1.0*DVbot_old,DV(i,j,Kbeg-k)))
@@ -5579,7 +5620,7 @@
 !------------------------------------------------                                                                                 
      use global, only: WzR,UzR,VzR,UzL,VzL, &
                        Ibeg,Iend,Jbeg,Jend,Kbeg,&
-                       DelxH,DelyH,DeltH,Zero,Bc_Z0
+                       DelxH,DelyH,DeltH,Zero,Bc_Z0,Mask9
      implicit none
      integer :: i,j,k
 
@@ -5591,8 +5632,8 @@
          UzL(i,j,Kbeg) = Zero
          VzL(i,j,Kbeg) = Zero
        endif
-       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg)  &
-                       -DelyH(i,j)*VzR(i,j,Kbeg)
+       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
+                       -DelyH(i,j)*VzR(i,j,Kbeg)*Mask9(i,j)
      enddo
      enddo
 
@@ -5663,7 +5704,14 @@
          enddo
        elseif(Bc_Xn==3) then 
          do i = 1,Nghost
-           D(Iend+i,j) = 2.0*Din_Xn(j)-D(Iend-i+1,j)
+         ! D(Iend+i,j) = 2.0*Din_Xn(j)-D(Iend-i+1,j)
+		 ! Changed by Cheng to combine Orlanski open boundary condition
+           Cg =-(Eta0(Iend+i-1,j)-Eta00(Iend+i-1,j)+1.e-16)/  &
+                 (Eta00(Iend+i-1,j)-Eta00(Iend+i-2,j)+1.e-16)
+!           Cg = sqrt(Grav*D(Iend,j))*dt/dx
+           Cg= max(min(Cg,1.0),0.0)  
+           Eta(Iend+i,j) = Cg*Eta0(Iend+i-1,j)+(1.0-Cg)*Eta0(Iend+i,j)
+           D(Iend+i,j) = Hc(Iend+i,j)+Eta(Iend+i,j)
          enddo
        elseif(Bc_Xn==4) then
          do i = 1,Nghost
@@ -5883,10 +5931,13 @@
 !    Last update: 22/12/2010, Gangfeng Ma 
 !-----------------------------------------------------
      use global, only: Ibeg,Iend,Jbeg,Jend,Eta,Hc,D,MinDep,  &
-                       Mask,Mask_Struct,Mask9
+                       Mask,Mask_Struct,Mask9,Mloc,Nloc
      implicit none
      integer :: i,j
+	 integer,dimension(:,:),allocatable :: Masktmp
 
+	 allocate(Masktmp(Mloc,Nloc)) ! changed by Cheng to avoid unreal wet cells
+	 Masktmp = Mask
      ! Mask at ghost cells keeps no change
      do j = Jbeg,Jend
      do i = Ibeg,Iend
@@ -5894,22 +5945,21 @@
        
        ! flooding (dry->wet)
        if(Mask(i,j)==0) then
-         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j)) Mask(i,j)=1
-         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j)) Mask(i,j)=1
+         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j)) Masktmp(i,j)=1
        else
          ! drying (wet->dry)
          if(abs(D(i,j)-MinDep)<=1.e-6) then
-           Mask(i,j) = 0
+           Masktmp(i,j) = 0
            Eta(i,j) = MinDep-Hc(i,j)
            D(i,j) = Eta(i,j)+Hc(i,j)           
          endif
        endif
      enddo
      enddo
-
-     Mask = Mask*Mask_Struct
+     Mask = Masktmp*Mask_Struct
 
 # if defined (PARALLEL)
      ! collect mask into ghost cells
@@ -5923,6 +5973,8 @@
                 *Mask(i+1,j-1)*Mask(i,j-1)*Mask(i-1,j-1)
      enddo
      enddo
+	 
+	 deallocate(Masktmp)
 
      end subroutine update_mask
 
@@ -6047,14 +6099,14 @@
      implicit none
      integer :: j,k,n
      real(SP) :: Zlev1,Zlev2,Uavg_Left,Uavg_Right,Ufric,sintep,UU,  &
-                 FluxL,FluxR,myvar,Ramp
+                 FluxL,FluxR,myvar,Ramp,Cg
 # if defined (SEDIMENT)
      real(SP) :: Sinterp
      real(SP) :: Tim0(8),Cin0(8)
 # endif
 
-     Uavg_Left = 0.39
-     Uavg_Right = 0.39
+     Uavg_Left = 0.115
+     Uavg_Right = 0.115
 
      FluxL = 0.0
      FluxR = 0.0
@@ -6075,12 +6127,11 @@
      enddo
 
      ! log-profile of velocity
-     Ufric = Uavg_Left*Kappa/(log(30.*Din_X0(Jbeg)/Zob)-1) 
+     Ufric = Uavg_Left*Kappa/(log(30.*Din_X0(Jbeg)/Zob)) 
 
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev1 = sigc(k)*Din_X0(j)
-	   ! changed by Cheng to impose velocity rather than flux
        Uin_X0(j,k) = Ufric/Kappa*log(30.*Zlev1/Zob)*Ramp
        FluxL = FluxL+dsig(k)*Din_X0(j)*dy*Uin_X0(j,k)
 !       Uin_X0(j,k) = FluxL/Din_X0(j)
@@ -6133,19 +6184,39 @@
 !     endif
 
      do j = 1,Nloc
-!       Ein_Xn(j) = 1.5*Eta(Iend,j)-0.5*Eta(Iend-1,j)
-       Ein_Xn(j) = 0.0
-       Din_Xn(j) = Ein_Xn(j)+Hfx(Iend+1,j)
+       !Ein_Xn(j) = 1.5*Eta(Iend,j)-0.5*Eta(Iend-1,j)
+       !! Ein_Xn(j) = 0.0
+       !Din_Xn(j) = Ein_Xn(j)+Hfx(Iend+1,j)
+	   ! Changed by Cheng to combine Orlanski open boundary condition
+       Cg =-(Eta0(Iend,j)-Eta00(Iend,j)+1.e-16)/  &
+             (Eta00(Iend,j)-Eta00(Iend-1,j)+1.e-16)
+!       Cg = sqrt(Grav*D(Iend,j))*dt/dx
+       Cg= max(min(Cg,1.0),0.0)
+       Ein_Xn(j) = (Cg*Eta0(Iend,j)+(1.0-Cg)*Eta0(Iend+1,j)+Eta(Iend,j))/2.0
+       Din_Xn(j) = Hfx(Iend+1,j)+Ein_Xn(j)
      enddo
 
+	 Uin_Xni0=Uin_Xni
      do k = Kbeg,Kend
      do j = Jbeg,Jend
        Zlev2 = sigc(k)*Din_Xn(j)
-	   ! changed by Cheng to impose velocity rather than flux
-       Uin_Xn(j,k) = FluxL/(Din_Xn(Jbeg)*dy*float(Nglob))
+       Uin_Xni(j,k) = FluxL/(Din_Xn(j)*dy*float(Nglob))
 !       Uin_Xn(j,k) = FluxR/Din_Xn(j)
-       Win_Xn(j,k) = 0.0
-       Vin_Xn(j,k) = 0.0
+       !Win_Xn(j,k) = 0.0
+       !Vin_Xn(j,k) = 0.0
+	   ! Changed by Cheng to combine Orlanski open boundary condition
+       Cg = -(U0(Iend,j,k)-U00(Iend,j,k)+1.e-16)/  &
+             (U00(Iend,j,k)-U00(Iend-1,j,k)+1.e-16)
+       Cg = max(min(Cg,1.0),0.0)
+       Uin_Xn(j,k) = (Cg*U(Iend,j,k)+Uin_Xni0(j,k)-Cg*Uin_Xni(j,k)+U(Iend,j,k))/2.0
+       Cg =-(V0(Iend,j,k)-V00(Iend,j,k)+1.e-16)/  &
+             (V00(Iend,j,k)-V00(Iend-1,j,k)+1.e-16)
+       Cg= max(min(Cg,1.0),0.0)
+       Vin_Xn(j,k) = (Cg*V0(Iend,j,k)+(1.0-Cg)*V0(Iend+1,j,k)+V(Iend,j,k))/2.0
+       Cg =-(W0(Iend,j,k)-W00(Iend,j,k)+1.e-16)/  &
+             (W00(Iend,j,k)-W00(Iend-1,j,k)+1.e-16)
+       Cg= max(min(Cg,1.0),0.0)
+       Win_Xn(j,k) = (Cg*W0(Iend,j,k)+(1.0-Cg)*W0(Iend+1,j,k)+W(Iend,j,k))/2.0
 
 # if defined (SALINITY)
        Sin_Xn(j,k) = 30.0
@@ -6216,7 +6287,7 @@
      integer :: i,j,m,n,iter
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,y0,xt,yt,zt,ut,t0,a0, &
-           s0,st,slope0
+           s0,st,slope0,xl1,xl2,yl1,yl2
 !     ! added by Cheng for analytical dh/dt (need to comment code for numerical dh/dt)
 !     real(SP) :: DeltS,Delt2S
      ! added by Cheng for 3D triangle landslide
@@ -6357,6 +6428,34 @@
 !         Hc(i,j) = Hc0(i,j)-max(0.0,zt)
 !       enddo
 !       enddo
+     elseif(SlideType(1:9)=='RIGID_SLP') then
+       e = 0.717
+       alpha0 = SlideAngle*pi/180.
+       slope0 = SlopeAngle*pi/180. 
+       kb = 2.0*acosh(1.0/e)/SlideL
+       kw = 2.0*acosh(1.0/e)/SlideW
+       ut = SlideUt
+       a0 = SlideA0
+       t0 = ut/a0
+       s0 = ut**2/a0
+       st = s0*(1.0-cos(min(time,pi*t0)/t0))
+       x0 = SlideX0+st*cos(slope0)
+       y0 = SlideY0
+       xl1 = x0-0.5*SlideL*cos(slope0)
+       xl2 = x0+0.5*SlideL*cos(slope0)
+       yl1 = y0-0.5*SlideW
+       yl2 = y0+0.5*SlideW
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+         if(xc(i)>=xl1.and.xc(i)<=xl2.and.yc(j)>=yl1.and.yc(j)<=yl2) then
+           xt = (xc(i)-x0)/cos(slope0)
+           yt = yc(j)-y0
+           zt = SlideT/(1-e)*(1.0/cosh(kb*xt)/cosh(kw*yt)-e)
+           zt = max(0.0,zt)
+           Hc(i,j) = Hc0(i,j)-zt
+         endif
+       enddo
+       enddo
      endif
 # endif
 
@@ -6882,7 +6981,7 @@ endif
 !--------------------------------------------------
      use global, only: Zero,DelxSc,DelySc,D,DelxH,DelyH, &
                        DelxEta,DelyEta,sigc,Mloc,Nloc,Kloc, &
-                       DelxSl,DelySl,Kloc1,sig
+                       DelxSl,DelySl,Kloc1,sig,Mask9
      implicit none
      integer :: i,j,k
 
@@ -6891,8 +6990,8 @@ endif
      do k = 1,Kloc
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)-sigc(k)/D(i,j)*DelxEta(i,j)
-       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
+       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
      enddo
      enddo
      enddo
@@ -6903,8 +7002,8 @@ endif
      do k = 1,Kloc1
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)                                      
-       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j)                                      
+       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH                                
+       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j)                                      
      enddo
      enddo
      enddo
@@ -10797,8 +10896,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
       if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
-      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j) ! modified by Cheng to use MASK9 for delxH delyH
+      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
            !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -10829,12 +10928,12 @@ endif
 # endif
           if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( & !(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+             -( & !(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
                   !(Eps_old(i,j,k)-Eps_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
+               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Eps_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -10981,8 +11080,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
      if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
-      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j)  ! modified by Cheng to use MASK9 for delxH delyH
+      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
             !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -11017,12 +11116,12 @@ endif
 # endif
         if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
+             -( &!(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
                  !(Tke_old(i,j,k)-Tke_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
+               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Tke_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -11144,17 +11243,17 @@ endif
     enddo
     enddo
 
-   ! Modified by M.Derakhti as done in "vel_bc" subroutine
+   ! Modified by M.Derakhti as done in "vel_bc" subroutine (modified by Cheng to use MASK9 for delxH delyH)
     ! at the bottom
     do i = Ibeg,Iend
     do j = Jbeg,Jend
        !these are added to calculate the tangential external stress parallel to the surface and bed
-       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
-       Bbot = dsqrt(1.0+DelxH(i,j)**2)
+       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))  
+       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*  &
-                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)+(1.0+Mask9(i,j)*DelxH(i,j)**2)*  &
+                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
 
       if(D(i,j)<Dmin.or.Mask(i,j)==0) cycle
@@ -13670,7 +13769,7 @@ endif
     use global
     implicit none
     integer :: i,j,k
-    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad
+    real(SP) :: zc,xlin,ylin,zlin,dista,ugrad,vgrad,wgrad,dist
 
     ! save flag in the previous step
     set_flag_old = set_flag
@@ -13685,19 +13784,11 @@ endif
       zc = D(i,j)*sigc(k)
 
       ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        if(zc<0.05*(xc(i)-6.0)) set_flag(i,j,k) = 1
+      dist = sqrt((xc(i)-5.0)**2+(yc(j)-0.75)**2)
+      if(dist<=0.1815) then
+        set_flag(i,j,k) = 1
       endif
 
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        if(zc<0.3) set_flag(i,j,k) = 1
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        if(zc<0.1*(17.0-xc(i))) set_flag(i,j,k) = 1
-      endif
     enddo
     enddo
     enddo
@@ -13712,57 +13803,35 @@ endif
     do j = Jbeg,Jend
     do i = Ibeg,Iend
 
-      ! obstacle 1
-      if(xc(i)>=6.0.and.xc(i)<=12.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
+      ! obstacle #1 (x-5.0)^2+(y-0.75)^2=0.1815^2
+      ! loop over all fluid cells
+      if(set_flag(i,j,k)==0) then
           ! obstacle on the right
           if(set_flag(i+1,j,k)==1) then
-            zc = D(i,j)*sigc(k)   
-            xlin = 20.0*zc+6.0
-            set_dist_x(i,j,k) = abs(xlin-xc(i))
-          endif
-
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then           
-            zc = D(i,j)*sigc(k)
-            zlin = 0.05*(xc(i)-6.0)
-            set_dist_z(i,j,k) = abs(zc-zlin)
-          endif
-        endif  
-      endif
-
-      ! obstacle 2
-      if(xc(i)>=12.0.and.xc(i)<=14.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            set_dist_z(i,j,k) = abs(zc-0.3)
-          endif
-        endif
-      endif
-
-      ! obstacle 3
-      if(xc(i)>=14.0.and.xc(i)<=17.0) then
-        ! loop over all fluid cells
-        if(set_flag(i,j,k)==0) then
-          ! obstacle on the left
-          if(set_flag(i-1,j,k)==1) then
-            zc = D(i,j)*sigc(k)
-            xlin = 17.0-10.0*zc
+            xlin = 5.0-sqrt(0.1815**2-(yc(j)-0.75)**2)
             set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
 
-          ! obstacle under the fluid
-          if(set_flag(i,j,k-1)==1) then
-            zc = D(i,j)*sigc(k)
-            zlin = 0.1*(17.0-xc(i))
-            set_dist_z(i,j,k) = abs(zc-zlin)
+          ! obstacle on the left
+          if(set_flag(i-1,j,k)==1) then
+            xlin = 5.0+sqrt(0.1815**2-(yc(j)-0.75)**2)
+            set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
-        endif
+
+          ! obstacle on the front
+          if(set_flag(i,j-1,k)==1) then
+            ylin = 0.75+sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
+          ! obstacle on the back                                                                                               
+          if(set_flag(i,j+1,k)==1) then
+            ylin = 0.75-sqrt(0.1815**2-(xc(i)-5.0)**2)
+            set_dist_y(i,j,k) = abs(yc(j)-ylin)
+          endif
+		  
       endif
+
     enddo
     enddo
     enddo
@@ -14264,7 +14333,7 @@ SUBROUTINE hot_start
     endif
 
      open(5,file='time0.dat')
-     read(5,*) TIME0,Icount
+     read(5,*) TIME0,Icount,dt
      close(5)
 
      TIME=TIME0
@@ -14315,6 +14384,54 @@ SUBROUTINE hot_start
 ! Hc
      call phi_2D_coll(Hc)
 # endif
+
+# if defined (FLUIDSLIDE)
+! slide ! added by Cheng for slide information
+     file=TRIM(Us_HotStart_File)
+     call read_2d(Uvs,file)
+	 
+     file=TRIM(Vs_HotStart_File)
+     call read_2d(Vvs,file)
+	 
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Hc0(i,j)-Hc(i,j)<=1.e-8) then
+         Dvs(i,j) = SLIDE_MINTHICK 
+	   else
+	     Dvs(i,j) = Hc0(i,j)-Hc(i,j)
+	   endif
+     enddo
+     enddo
+	 call wl_bc_vs
+	 Hvs = Hc0-Dvs
+	 
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       DUvs(i,j) = Uvs(i,j)*Dvs(i,j)
+       DVvs(i,j) = Vvs(i,j)*Dvs(i,j)
+     enddo
+     enddo
+     call vel_bc_vs
+# if defined (PARALLEL)
+     call phi_2D_exch(Uvs)
+     call phi_2D_exch(Vvs)
+     call phi_2D_exch(DUvs)
+     call phi_2D_exch(DVvs)
+# endif
+	 
+     Maskvs = 1
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Dvs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Maskvs(i,j) = 0
+       endif
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call phi_int_exch(Maskvs)
+# endif
+# endif
+
 ! eta
      ! collect data into ghost cells
      call phi_2D_coll(Eta)

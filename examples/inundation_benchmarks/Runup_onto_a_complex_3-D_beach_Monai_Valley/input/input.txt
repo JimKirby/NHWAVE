@@ -56,16 +56,19 @@ INITIAL_SALI = F
 
 ! -----------------HOT START----------------------------------
 HOTSTART = F
-Eta_HotStart_File = ./results/eta_00050
-U_HotStart_File = ./results/u_00050
-V_HotStart_File = ./results/v_00050
-W_HotStart_File = ./results/w_00050
-P_HotStart_File = ./results/p_00050
-Sali_HotStart_File = ./results/sali_00050
-Temp_HotStart_File = ./results/temp_00050
-Rho_HotStart_File = ./results/rho_00050
-TKE_HotStart_File = ./results/k_00050
-EPS_HotStart_File = ./results/d_00050
+Eta_HotStart_File = ./results/eta_00001
+U_HotStart_File = ./results/u_00001
+V_HotStart_File = ./results/v_00001
+W_HotStart_File = ./results/w_00001
+P_HotStart_File = ./results/p_00001
+Sali_HotStart_File = ./results/sali_00001
+Temp_HotStart_File = ./results/temp_00001
+Rho_HotStart_File = ./results/rho_00001
+TKE_HotStart_File = ./results/k_00001
+EPS_HotStart_File = ./results/d_00001
+Depth_HotStart_File = ./results/depth_00001
+Us_HotStart_File = ./results/Us_00001
+Vs_HotStart_File = ./results/Vs_00001
 
 ! ----------------- COUPLING -------------------------
 ! if do coupling, have to set -DCOUPLING in Makefile
@@ -285,14 +288,14 @@ EI = 8.0e-7
 
 ! -------------------LANDSLIDE PARAMETERS------------------------
 ! parameters for landslide module
-! SlideType = 'RIGID' or 'DEFORMABLE'
+! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
 ! SlideT: thickness; SlideL: length; SlideW: width
 ! SlideAngle: slide angle
 ! SlopeAngle: bottom slope
 ! SlideX0,SlideY0: initial location
 ! SlideUt,SlideA0: rigid landslide kinematics
 ! SlideDens: deformable landslide density
-SlideType = RIGID
+SlideType = RIGID_2D
 SlideT = 0.082
 SlideL = 0.395
 SlideW = 0.680
@@ -309,6 +312,22 @@ SlideIniU = 0.0
 Cf_ul = 0.02
 PhiInt = 41.0
 PhiBed = 23.0
+
+! ----------------------VISCOUS SLIDE---------------------------
+! Slide thickness. The dimension are the same as in DEPTH_FILE
+SLIDE_FILE = slide_combine1.txt
+! Density, kg/m^3
+SLIDE_DENSITY = 2000.0
+! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
+! River coastal mud = 0.002-0.2 m^2/s
+! Mudslide and debris flows = 0.2-0.6 m^2/s
+SLIDE_VISCOSITY = 0.1
+! Manning's coefficient for the viscous slide
+SLIDE_ROUGHNESS = 0.1
+! A tiny diffusivity for the mass equation
+SLIDE_DIFF = 0.00005
+! The minimum slide thickness, m
+SLIDE_MINTHICK = 0.01  
 
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
@@ -356,6 +375,6 @@ OUT_A = F
 OUT_T = F
 OUT_F = F
 OUT_G = F
-OUT_Z = F
 OUT_I = F
+OUT_Z = F
 OUT_M = T

@@ -595,16 +595,16 @@
      ! SSP Runge-Kutta time stepping
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-	 ! implicit vertical stress
+	 ! implicit vertical stress (without manning friction)
 	   DUvs(i,j) = DUvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2)
 	   DVvs(i,j) = DVvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2)
-	 ! take account of manning friction
+	 ! implicit vertical stress (with manning friction)
 !       DUvs(i,j) = DUvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2 & 
-!	               +Grav*0.005**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
+!	               +Grav*0.01**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
 !       DVvs(i,j) = DVvs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY/Dvs(i,j)**2 &
-!	               +Grav*0.005**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
-       DUvs(i,j) = ALPHA(ISTEP)*DUvs0(i,j)+BETA(ISTEP)*DUvs(i,j)
-       DVvs(i,j) = ALPHA(ISTEP)*DVvs0(i,j)+BETA(ISTEP)*DVvs(i,j)
+!	               +Grav*0.01**2*sqrt(DUvs(i,j)**2+DVvs(i,j)**2)/Dvs(i,j)**(7./3.))
+!       DUvs(i,j) = ALPHA(ISTEP)*DUvs0(i,j)+BETA(ISTEP)*DUvs(i,j)
+!       DVvs(i,j) = ALPHA(ISTEP)*DVvs0(i,j)+BETA(ISTEP)*DVvs(i,j)
      enddo
      enddo
 	 

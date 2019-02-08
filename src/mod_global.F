@@ -154,7 +154,7 @@
      real(SP) :: obs_u,obs_v,obs_w
      real(SP), dimension(:,:,:), allocatable :: ObsForceX,ObsForceY,ObsForceZ
      real(SP), dimension(:,:,:), allocatable :: set_dist_x,set_dist_y,set_dist_z
-     integer, dimension(:,:,:), allocatable :: set_flag
+     integer, dimension(:,:,:), allocatable :: set_flag,set_flag_old
 # endif
 
 # if defined (TWOLAYERSLIDE)
@@ -211,7 +211,7 @@
                                               SourceX,SourceY,SourceC,DxL,DxR,DyL,DyR,EtaxL,EtaxR,EtayL,EtayR, &
                                               DelxEta,DelyEta,DelxD,DelyD,Uin_X0,Vin_X0,Win_X0,Uin_Xn,Vin_Xn, &
                                               Win_Xn,Bc_Prs,Sponge,Setup,WaveHeight,Umean,Vmean,Emax,Emin,WdU,WdV,Wsx,Wsy, &
-											  HeightMax
+											  HeightMax,Uin_Xni,Uin_Xni0
      real(SP), dimension(:,:,:), allocatable :: U,V,W,U0,V0,W0,U00,V00,W00,Omega,P,DU,DV,DW,DU0,DV0,DW0, &
                                                 UxL,UxR,VxL,VxR,WxL,WxR,DUxL,DUxR,DVxL,DVxR,DWxL, &
                                                 DWxR,UyL,UyR,VyL,VyR,WyL,WyR,DUyL,DUyR,DVyL,DVyR,DWyL,DWyR, &
@@ -224,7 +224,7 @@
                                                 DTke,DEps,DTke0,DEps0,Prod_s,Prod_b,Richf,Lag_Umean,Lag_Vmean,Lag_Wmean, &
                                                 Euler_Umean,Euler_Vmean,Euler_Wmean,DRhoX,DRhoY,ExtForceX,ExtForceY, &
                                                 UpWp,PresForceX,PresForceY,PresForceZ,Pdiff,DelxSl,DelySl
-     real(SP), dimension(:,:,:,:), allocatable :: UGrad,VGrad,WGrad
+!     real(SP), dimension(:,:,:,:), allocatable :: UGrad,VGrad,WGrad  ! deleted by Cheng, they are arrays never used.
 
      ! integer arrays
      integer, dimension(:,:), allocatable :: Mask,Mask_Struct,Mask9,Brks,Num_Zero_Up
@@ -295,6 +295,9 @@
 # endif
 # if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
      CHARACTER(LEN=80) :: Depth_HotStart_File
+# endif
+# if defined (FLUIDSLIDE)
+     CHARACTER(LEN=80) :: Us_HotStart_File,Vs_HotStart_File
 # endif
 
 	 ! added by Cheng for limiting the maximum Froude number

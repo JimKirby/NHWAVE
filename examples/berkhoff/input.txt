@@ -45,13 +45,37 @@ DT_MAX = 0.10000
 ! if analytical bathymetry, set ANA_BATHY = T
 ! DEPTH_TYPE = CELL_CENTER if the water depth is defined at
 ! cell center, otherwise, DEPTH_TYPE = CELL_GRID 
+! DepConst is only used when ANA_BATHY = T
 DEPTH_TYPE = CELL_CENTER
 ANA_BATHY  = F
+
+DepConst = 0.42  
 
 ! -------------------INITIAL CONDITION---------------------------
 ! if INITIAL_SALI = T, need file sali0.txt
 INITIAL_EUVW = F
 INITIAL_SALI = F
+
+! -----------------HOT START----------------------------------
+HOTSTART = F
+
+Eta_HotStart_File = ./results/eta_00001
+U_HotStart_File = ./results/u_00001
+V_HotStart_File = ./results/v_00001
+W_HotStart_File = ./results/w_00001
+P_HotStart_File = ./results/p_00001
+Sali_HotStart_File = ./results/sali_00001
+Temp_HotStart_File = ./results/temp_00001
+Rho_HotStart_File = ./results/rho_00001
+TKE_HotStart_File = ./results/k_00001
+EPS_HotStart_File = ./results/d_00001
+Depth_HotStart_File = ./results/depth_00001
+Us_HotStart_File = ./results/Us_00001
+Vs_HotStart_File = ./results/Vs_00001
+
+! ----------------- COUPLING -------------------------
+! if do coupling, have to set -DCOUPLING in Makefile
+COUPLING_FILE = coupling.txt
 
 ! ----------------------NUMERICS----------------------------
 ! Scalar convection scheme: "TVD" or "HLPA"
@@ -66,6 +90,7 @@ HLLC = F
 Ibot = 1
 Cd0 = 0.006
 Zob = 0.0001
+Dfric_Min = 0.0
 
 ! ---------------------WIND STRESS--------------------------
 ! Iws = 1: given constant wind speed
@@ -90,6 +115,9 @@ NON_HYDRO = T
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
+! --------------------FOURDE CAP ----------------------------------
+FROUDE_CAP = 10.0
+
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
 TRAMP = 0.0
@@ -98,10 +126,12 @@ TRAMP = 0.0
 VISCOUS_FLOW = F
 IVTURB = 10
 IHTURB = 10
+PRODTYPE = 3
 VISCOSITY = 1.e-6
 Schmidt = 1.0
 Chs = 0.001
 Cvs = 0.001
+RNG = T
 
 ! --------------------VISCOUS NUMBER----------------------------
 VISCOUS_NUMBER = 0.1666667
@@ -131,13 +161,14 @@ PERIODIC_Y = F
 
 ! ------------------EXTERNAL FORCING------------------------------
 EXTERNAL_FORCING = F
+Pgrad0 = 9.81e-4
 
 ! -------------------BOUNDARY_TYPE--------------------------------
 ! bc_type=1: free-slip
 !         2: no-slip
 !         3: influx
 !         4: outflux (specified eta)
-!         5: bottom friction
+!         5: bottom or wall friction
 !         6: radiation bc
 BC_X0 = 3
 BC_Xn = 1
@@ -163,12 +194,17 @@ BC_Zn = 1
 ! INT_SOL - internal wavemaker for solitary wave
 ! INT_JON - internal wavemaker for JONSWAP spectrum
 ! INT_SPC - internal wavemaker for 2D spectrum (need spc2d.txt)
+! INT_IRR - internal wavemaker for irregular wave (need irr2d.txt)
 ! FLUX_LR - impose flux at both left and right boundaries
+! FOCUSED - left boundary focusing wave packet (isolated whitecap)
+! WAV_CUR - left boundary coexisting waves and currents
 WAVEMAKER = LEF_LIN
 AMP = 0.0464
 PER = 1.0
 DEP = 0.45
 THETA = 0.0
+CUR = 0.0
+sd_return = 0.0
 
 ! ----------------------INTERNAL WAVEMAKER--------------------------------
 ! parameters for internal wavemaker
@@ -176,6 +212,18 @@ Xsource_West = 0.0
 Xsource_East = 0.0
 Ysource_Suth = 0.0
 Ysource_Nrth = 0.0
+
+! ----------------------FOCUSING WAVE PACKET--------------------------------
+! parameters for FOC wavemaker type
+nwave = 32
+Component_Amp_Type = 2
+k_center = 5.15
+f_center = 1.08
+x_breaking = 3.3
+t_breaking = 9.0
+Slope_group = 0.28
+normalized_delta_f = 0.7306
+depth_comp = 0.3
 
 ! ---------------------PARAMETERS FOR JONSWAP SPECTRUM------------------
 ! Hm0 - significant wave height
@@ -233,14 +281,30 @@ Veg_Y0 = 0.0
 Veg_Yn = 0.1
 VegH = 0.12
 VegDens = 1618.0
+VegVol = 0.0
+StemD = 0.0064
 Vegbv = 5.0e-3
 VegDrag = 1.5
+Cfk = 1.0
+Cfe = 1.33
 VegVM = 0.0
 EI = 8.0e-7
 
+! ------------------POROUS MEDIA--------------------------------
+alpha_por = 200.0
+beta_por = 1.1
+D50_por = 1.50e-2
+Por_n = 0.52
+Por_X0 = 4.0
+Por_Xn = 4.13
+Por_Y0 = 0.0
+Por_Yn = 0.1
+Por_Z0 = 0.0
+Por_Zn = 0.065
+
 ! -------------------LANDSLIDE PARAMETERS------------------------
 ! parameters for landslide module
-! SlideType = 'RIGID' or 'DEFORMABLE'
+! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
 ! SlideT: thickness; SlideL: length; SlideW: width
 ! SlideAngle: slide angle
 ! SlopeAngle: bottom slope
@@ -265,6 +329,23 @@ Cf_ul = 0.02
 PhiInt = 41.0
 PhiBed = 23.0
 
+! ----------------------VISCOUS SLIDE---------------------------
+! Slide thickness. The dimension are the same as in DEPTH_FILE
+
+SLIDE_FILE = slide.txt
+! Density, kg/m^3
+SLIDE_DENSITY = 1951.0
+! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
+! River coastal mud = 0.002-0.2 m^2/s
+! Mudslide and debris flows = 0.2-0.6 m^2/s
+SLIDE_VISCOSITY = .00001
+! Manning's coefficient for the viscous slide
+SLIDE_ROUGHNESS = 0.005
+! A tiny diffusivity for the mass equation
+SLIDE_DIFF = 0.00005
+! The minimum slide thickness, m
+SLIDE_MINTHICK = 0.00001
+
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
 Yield_Stress = 10.
@@ -272,6 +353,7 @@ Plastic_Visc = 0.0
 
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
+! in form of x,y,z, where z=-1.0 outputs velocity of all layers
 NSTAT = 0
 PLOT_INTV_STAT = 0.01
 
@@ -293,6 +375,8 @@ PLOT_INTV_STAT = 0.01
 ! OUT_F = sediment concentration
 ! OUT_G = bed elevation
 ! OUT_I = salinity
+! OUT_Z = varying bathymetry
+! OUT_M = max wave height
 OUT_H = T
 OUT_E = T
 OUT_U = F
@@ -309,3 +393,5 @@ OUT_T = F
 OUT_F = F
 OUT_G = F
 OUT_I = F
+OUT_Z = F
+OUT_M = F
