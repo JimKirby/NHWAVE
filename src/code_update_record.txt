@@ -1,4 +1,4 @@
-﻿--------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
 
                                NHWAVE update records
 
@@ -109,3 +109,10 @@ J. Kirby
 
 Collected all known instances (so far of solutions of linear dispersion relation and replaced by a call to new subroutine wave_dispersion.  Created new file waves.F that contains wave_dispersion plus boundary or initial wave generation.  
 subroutine source_terms remains to be modified (to extract portions that only need to be executed once.)  Subroutines in waves.F all extracted from nhwave.F except for teh new wave_dispersion.
+
+Update_00009
+J. Kirby
+02/11/2019
+
+Corrected error made in wave_dispersion subroutine.  Changed some of the copyright statements (gnu -> bsd)
+
