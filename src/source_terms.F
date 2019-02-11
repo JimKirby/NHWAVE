@@ -32,7 +32,7 @@
 !  Find wave number for linear wave (Newton-Ralphson Method)
 !
        Segma = 2.0*pi/Per_Wave
-       call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+       call wave_dispersion(Segma, Wave_Number)
 !
 !       Celerity = sqrt(Grav*Dep_Wave)
 !       Wave_Length = Celerity*Per_Wave
@@ -90,7 +90,7 @@
            do ndir = 1,NumDir
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+             call wave_dispersion(Segma, Wave_Number)
 !            Celerity = sqrt(Grav*Dep_Wave)
 !            Wave_Length = Celerity*Per_Wave
 !            Wave_Number = 2.0*pi/Wave_Length
@@ -213,7 +213,7 @@
            do ndir = 1,NumDir
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             call wave_dispersion(Dep_wave, Segma, Wave_Number)
+             call wave_dispersion(Segma, Wave_Number)
 !             Celerity = sqrt(Grav*Dep_Wave)
 !             Wave_Length = Celerity*Per_Wave
 !             Wave_Number = 2.0*pi/Wave_Length
@@ -325,7 +325,7 @@
            do nfreq = 1,NumFreq
              Per_Wave = 1.0/Freq(nfreq)
              Segma = 2.0*pi/Per_Wave
-             call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+             call wave_dispersion(Segma, Wave_Number)
 !             Celerity = sqrt(Grav*Dep_Wave)
 !             Wave_Length = Celerity*Per_Wave
 !             Wave_Number = 2.0*pi/Wave_Length

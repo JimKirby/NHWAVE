@@ -173,13 +173,13 @@
      integer, dimension(:,:), allocatable :: Maska
 # endif
 
-     ! define output logical parameters
+! define output logical parameters
      logical :: ANA_BATHY,NON_HYDRO,VISCOUS_FLOW,SPONGE_ON,OUT_H,OUT_E,OUT_U,OUT_V,OUT_W,OUT_P, &
                 OUT_K,OUT_D,OUT_S,OUT_C,OUT_B,OUT_A,OUT_F,OUT_T,OUT_G,OUT_I,OUT_Z,OUT_M,PERIODIC_X,PERIODIC_Y, &
                 WAVE_AVERAGE_ON,ADV_HLLC,BAROTROPIC,RIGID_LID,BED_CHANGE,EXTERNAL_FORCING,STATIONARY, &
                 INITIAL_EUVW,INITIAL_SALI,RHEOLOGY_ON,RNG
 
-     ! variables
+! variables
      integer :: It_Order,Ibeg,Iend,Iend1,Jbeg,Jend,Jend1,Kbeg,Kend,Kend1,PX,PY,IVturb,IHturb,Iws,  &
                 Mglob,Nglob,Kglob,Mloc,Nloc,Kloc,Mloc1,Nloc1,Kloc1,Icount,RUN_STEP,Ivgrd,SIM_STEPS,Ibot, &
                 NumFreq,NumDir,NSTAT,WaveheightID,ProdType

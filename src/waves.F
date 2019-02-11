@@ -38,7 +38,7 @@
 !
 !   Subroutines included in this file:
 !
-!   wave_dispersion      Calculate wavenumber given depth anf frequency
+!   (1) wave_dispersion      Calculate wavenumber given depth anf frequency
 
 !   cnoidal_wave_left_boundary
 !
@@ -47,13 +47,16 @@
 !
 !   (1) Subroutine wave_dispersion
 !
-!       J. Kirby, 2/7/19
+!       Solve the linear wave dispersion relation \omega^2 - gk\tanh kh = 0
+!       by Newton-Raphson.  Initial guess due to Eckart (1951).
+!
+!       J. Kirby, 2/7/19, 2/11/19
 !
 !----------------------------------------------------------------------------------------------
 !
-      subroutine wave_dispersion(Dep_Wave, Segma, Wave_Number)
+      subroutine wave_dispersion(Segma, Wave_Number)
 !
-      use global
+      use global, only: Dep_Wave, Grav
       implicit none
       real(SP) :: Segma, Wave_Number,Wn_new, error,Fk,Fkdif
 !
@@ -62,11 +65,10 @@
       Wave_Number = (Segma*Segma)/(Grav*(tanh(Segma*Segma*Dep_Wave/grav))**0.5)
       do while ( error >= 1.0e-8  )
          Fk = Segma**2 - Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)
-!       if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 65
          Fkdif = -Grav*( tanh(Wave_Number*Dep_Wave) +  (Wave_Number*Dep_wave)/  &
                   cosh(Wave_Number*Dep_Wave)**2 )
          Wn_new = Wave_Number - Fk/Fkdif
-         error = abs( (Wave_Number - Wn_new)/Wave_Number)
+         error = abs( (Wave_Number - Wn_new)/Wave_Number )
          Wave_Number = Wn_new
       end do
 
@@ -81,8 +83,9 @@
 !       update_wave_bc
 !    Last update: 06/02/2011, Gangfeng Ma
 !------------------------------------------------------------------------------------------
+!
      subroutine cnoidal_wave_left_boundary
-!-----------------------------------------------------
+!
      use global, only: SP,pi,Zero,Ibeg,Grav,TIME,Nloc,Kloc,Amp_Wave,Per_Wave,Dep_Wave, &
                        Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,Hfx,Jbeg,Jend,Kbeg,Kend,sigc
      implicit none
@@ -91,11 +94,13 @@
                  Zero1,Zlev,Xcn,Xsn,Xdn,cnoidal_cn,cnoidal_ck,Stokes_Drift,Fact
 
       call cnoidal(Amp_Wave,Dep_Wave,Per_Wave,Wave_Length,Celerity,Ytrough,Mod1)
-
+!
 ! wave number
+!
       Wave_Number = 2.0*pi/Wave_Length
-
+!
 ! find zero start
+!
       Zup = 1.0
       Zlow = 0.0
       Zmid= (Zup+Zlow)/2.0
@@ -128,8 +133,9 @@
                    2.0*cnoidal_ck(Mod1)*(-TIME/Per_Wave),Mod1)**2
        Din_X0(j) = Ein_X0(j)+Hfx(Ibeg,j)
      enddo
-
+!
 ! mean mass transport
+!
      Stokes_Drift = Grav*Amp_Wave**2/(Wave_Length/Per_Wave)/Dep_Wave/8.0
      Fact = 1.0
 
@@ -158,16 +164,20 @@
 
      end subroutine cnoidal_wave_left_boundary
 !
-!-----------------------------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------------------------
 !
-
+!    Subroutine cnoidal
+!
+!    Compute elliptic integrals needed for cnoidal wave solution
+!
+!    Called by: cnoidal_wave_left_boundary
+!
+!    Last update: 06/02/2011, Gangfeng Ma
+!
+!--------------------------------------------------------------------------------------------
+!
      subroutine cnoidal(height,depth,period,l,c,x2,mod)
-!----------------------------------------------------------------
-!    Cnoidal Function 
-!    Called by
-!       cnoidal_wave_left_boundary 
-!    Last update: 06/02/2011, Gangfeng Ma 
-!----------------------------------------------------------------
+!
      use global, only: SP,Grav
      implicit none
 
@@ -347,15 +357,19 @@
 !
 !----------------------------------------------------------------------
 !
-
-
+!    Subroutine random_wave_left_boundary
+!
+!    Specify random waves on left boundary
+!
+!    Called by: update_wave_bc
+!
+!    Last update: 04/11/2011, Gangfeng Ma
+!                 02/11/2019, J. Kirby remove dispersion calculation to routine wave_dispersion
+!
+!--------------------------------------------------------------------------------------------------
+!
      subroutine random_wave_left_boundary
-!-----------------------------------------------------    
-!    This subroutine is used to specify left boundary 
-!    Called by 
-!       update_wave_bc  
-!    Last update: 04/11/2011, Gangfeng Ma  
-!-----------------------------------------------------  
+!
      use global, only: SP,pi,Zero,small,Ibeg,Grav,TIME,Nloc,Kloc,NumFreq,NumDir,Freq,Dire,Wave_Spc2d, & 
                        Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy,yc, &
                        MaxNumFreq,MaxNumDir,Nglob,Dep_Wave,Random_Phs
@@ -373,7 +387,7 @@
      do ndir = 1,NumDir
        Per_Wave = 1.0/Freq(nfreq)
        Segma = 2.0*pi/Per_Wave
-       call wave_dispersion(Dep_wave, Segma, Wave_Number
+       call wave_dispersion(Segma, Wave_Number)
 !       Celerity = sqrt(Grav*Dep_Wave)
 !       Wave_Length = Celerity*Per_Wave
 !       Wave_Number = 2.0*pi/Wave_Length
@@ -524,7 +538,7 @@
 
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
-     call wave_dispersion(Dep_wav, Segma, Wave_Number)
+     call wave_dispersion(Segma, Wave_Number)
 !     Celerity = sqrt(Grav*Dep_Wave)
 !     Wave_Length = Celerity*Per_Wave
 !     Wave_Number = 2.0*pi/Wave_Length
@@ -533,7 +547,7 @@
 !55   Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
 !     if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 65
 !    Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
-        Grav*tanh(Wave_Number*Dep_Wave) 
+!        Grav*tanh(Wave_Number*Dep_Wave)
 !     Wave_Number = Wave_Number-Fk/Fkdif
 !     Iter = Iter+1
 !     goto 55
@@ -730,7 +744,7 @@
 
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
-     call wave_dispersion(Dep_wave, Segma, Wave_Number)
+     call wave_dispersion(Segma, Wave_Number)
 !     Celerity = sqrt(Grav*Dep_Wave)
 !     Wave_Length = Celerity*Per_Wave
 !     Wave_Number = 2.0*pi/Wave_Length
@@ -797,7 +811,7 @@
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
 
-     call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+     call wave_dispersion(Segma, Wave_Number)
 
      Wave_Length = 2.0*pi/Wave_Number
 
@@ -841,7 +855,7 @@
 
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
-     call wave_dispersion(Dep_Wave, Segma, Wave_Number)
+     call wave_dispersion(Segma, Wave_Number)
 
      Wave_Length = 2.0*pi/Wave_Number
 
