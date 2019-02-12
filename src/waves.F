@@ -63,6 +63,7 @@
 !  Initial guess (Eckart, 1951)
 !
       Wave_Number = (Segma*Segma)/(Grav*(tanh(Segma*Segma*Dep_Wave/grav))**0.5)
+      error = 100.
       do while ( error >= 1.0e-8  )
          Fk = Segma**2 - Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)
          Fkdif = -Grav*( tanh(Wave_Number*Dep_Wave) +  (Wave_Number*Dep_wave)/  &
