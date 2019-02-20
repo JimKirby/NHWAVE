@@ -3,8 +3,8 @@ clc
 
 fdir='/Users/fengyanshi/tmp1/';
 
-im = 600;
-jm = 200;
+im = 1200;
+jm = 400;
 
 prt_dt = 0.02;
 tp_wave = 1.0;
@@ -24,7 +24,7 @@ emin(im,jm) = 2000;
 for n = 1 : num_w
   k = num1+(m-1)*num_w+n-1
   fnum = sprintf('%.4d',k);
-  zeta = load([fdir 'eta_' fnum]);
+  zeta = load([fdir 'eta_0' fnum]);
   zeta = zeta';
   
   for i=1:im
