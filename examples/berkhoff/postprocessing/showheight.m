@@ -11,18 +11,18 @@
 
  clear all;
 figure(1)
-x(1:600)=0.0;
-y(1:200)=0.0;
+x(1:1200)=0.0;
+y(1:400)=0.0;
 
 xshift=4;
 yshift=1;
 
 
-for i=1:600
-    x(i)=(i-260-xshift)*0.05;
+for i=1:1200
+    x(i)=(i-520-xshift)*0.025;
 end
-for j=1:200
-    y(j)=(j-100)*0.1-0.15;
+for j=1:400
+    y(j)=(j-200)*0.05-0.15;
 end
 
 height=load('height_full.dat');      %computated wave height 
@@ -41,7 +41,7 @@ clf
   subplot(4,2,1);
   plot(section1(:,1),section1(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(y,wh(280+xshift,:)*1000);
+  plot(y,wh(560+xshift,:)*1000);
   axis([-5,5,10,80]);
   xlabel('x(m)');
   ylabel('H(mm)')
@@ -50,7 +50,7 @@ clf
   subplot(4,2,2);
   plot(section2(:,1),section2(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(y,wh(320+xshift,:)*1000);
+  plot(y,wh(640+xshift,:)*1000);
   axis([-5,5,10,80]);
   xlabel('x(m)');
   ylabel('H(mm)')
@@ -59,7 +59,7 @@ clf
   subplot(4,2,3);
   plot(section3(:,1),section3(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(y,wh(360+xshift,:)*1000);
+  plot(y,wh(720+xshift,:)*1000);
   axis([-5,5,10,120]);
   xlabel('x(m)');
   ylabel('H(mm)')
@@ -68,7 +68,7 @@ clf
   subplot(4,2,4);
   plot(section4(:,1),section4(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(y,wh(400+xshift,:)*1000);
+  plot(y,wh(800+xshift,:)*1000);
   axis([-5,5,-5,120]);
   xlabel('x(m)');
   ylabel('H(mm)')
@@ -77,7 +77,7 @@ clf
   subplot(4,2,5);
   plot(section5(:,1),section5(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(y,wh(440+xshift,:)*1000);
+  plot(y,wh(880+xshift,:)*1000);
   axis([-5,5,5,100]);
   xlabel('x(m)');
   ylabel('H(mm)')
@@ -86,7 +86,7 @@ clf
   subplot(4,2,6);
   plot(-section678(:,1),section678(:,2)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(x,wh(:,80+yshift)*1000);
+  plot(x,wh(:,160+yshift)*1000);
   axis([0,11,5,120]);
   xlabel('y(m)');
   ylabel('H(mm)')
@@ -95,7 +95,7 @@ clf
   subplot(4,2,7);
   plot(-section678(:,1),section678(:,3)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(x,wh(:,100+yshift)*1000);
+  plot(x,wh(:,200+yshift)*1000);
   axis([0,11,5,120]);
   xlabel('y(m)');
   ylabel('H(mm)')
@@ -105,7 +105,7 @@ clf
   subplot(4,2,8);
   plot(-section678(:,1),section678(:,4)*2,'bo','MarkerSize',3.5);
   hold;
-  plot(x,wh(:,120+yshift)*1000);
+  plot(x,wh(:,240+yshift)*1000);
   axis([0,11,5,120]);
   xlabel('y(m)');
   ylabel('H(mm)')
