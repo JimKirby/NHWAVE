@@ -9,6 +9,10 @@
 !
 !-----------------------------------------------------------------------------------------------
 !
+!   This file is part of NHWAVE, and is copyrighted under the terms of the BSD 2-Clause License
+!
+!-----------------------------------------------------------------------------------------------
+!
 !   BSD 2-Clause License
 !
 !   Copyright (c) 2019, NHWAVE Development Group

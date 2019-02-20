@@ -66,7 +66,7 @@
 
 MODS  = mod_global.F	mod_util.F 
 
-MAIN  = nhwave.F initialize.F two_layer_slide.F fluid_slide.F source_terms.F waves.F
+MAIN  = nhwave.F initialize.F two_layer_slide.F fluid_slide.F source_terms.F waves.F pressure.F
 
 SRCS = $(MODS)  $(MAIN)
 

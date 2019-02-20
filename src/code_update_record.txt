@@ -116,3 +116,12 @@ J. Kirby
 
 Corrected error made in wave_dispersion subroutine.  Changed some of the copyright statements (gnu -> bsd)
 
+Update_00010
+J. Kirby
+02/20/2019
+
+Corrected two typos in waves.F
+Moved subroutines related to Poisson solver from nhwave.F to pressure.F
+
+
+
