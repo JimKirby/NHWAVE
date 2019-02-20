@@ -56,7 +56,7 @@
 !
       subroutine wave_dispersion(Segma, Wave_Number)
 !
-      use global, only: Dep_Wave, Grav
+      use global, only: SP,Dep_Wave, Grav
       implicit none
       real(SP) :: Segma, Wave_Number,Wn_new, error,Fk,Fkdif
 !
@@ -389,19 +389,6 @@
        Per_Wave = 1.0/Freq(nfreq)
        Segma = 2.0*pi/Per_Wave
        call wave_dispersion(Segma, Wave_Number)
-!       Celerity = sqrt(Grav*Dep_Wave)
-!       Wave_Length = Celerity*Per_Wave
-!       Wave_Number = 2.0*pi/Wave_Length
-
-!       Iter = 0
-! 75    Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-!       if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 85
-!         Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &                
-!            Grav*tanh(Wave_Number*Dep_Wave)
-!         Wave_Number = Wave_Number-Fk/Fkdif
-!         Iter = Iter+1
-!         goto 75
-! 85    continue
        Wave_Length = 2.0*pi/Wave_Number
 
        Angle = Dire(ndir)*pi/180.
@@ -540,20 +527,6 @@
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
      call wave_dispersion(Segma, Wave_Number)
-!     Celerity = sqrt(Grav*Dep_Wave)
-!     Wave_Length = Celerity*Per_Wave
-!     Wave_Number = 2.0*pi/Wave_Length
-     
-!     Iter = 0
-!55   Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-!     if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 65
-!    Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &
-!        Grav*tanh(Wave_Number*Dep_Wave)
-!     Wave_Number = Wave_Number-Fk/Fkdif
-!     Iter = Iter+1
-!     goto 55
-!65   continue
-     
      Wave_Length = 2.0*pi/Wave_Number
      Celerity = Wave_Length/Per_Wave
      
@@ -605,24 +578,12 @@
      do nfreq = 1,NumFreq
        Per_Wave = 1.0/Freq(nfreq)
        Segma = 2.0*pi/Per_Wave
-       call wave_disperson(dep_wave, Segma, Wave_Number)
-!       Celerity = sqrt(Grav*Dep_Wave)
-!       Wave_Length = Celerity*Per_Wave
-!       Wave_Number = 2.0*pi/Wave_Length
-
-!       Iter = 0
-! 77    Fk = Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)-Segma**2
-!       if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 87
-!         Fkdif = Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)+  &                 
-!              Grav*tanh(Wave_Number*Dep_Wave)
-!         Wave_Number = Wave_Number-Fk/Fkdif
-!         Iter = Iter+1
-!         goto 77
-! 87    continue
+       call wave_dispersion(dep_wave, Segma, Wave_Number)
        Wave_Length = 2.0*pi/Wave_Number
        Celerity = Wave_Length/Per_Wave
-
-!   root-mean-square wave height   ! not defined for a single component                                                                
+!
+!   root-mean-square wave height   ! not defined for a single component
+!
        Wh(nfreq) = 2.0*sqrt(2.0*Jon_Spc(nfreq)*DFreq)
        Wnum(nfreq) = Wave_Number
        Stokes_Drift(nfreq) = Grav*Wh(nfreq)**2/(Wave_Length/Per_Wave)/Dep_Wave/8.0
@@ -659,20 +620,27 @@
 !
 !------------------------------------------------------------------------------------------------------------
 !
-
+!    Subroutine focused_wave_left_boundary
+!
+!    Used to specify a focusing wave packet on the left boundary
+!    left boundary
+!
+!    Called by: update_wave_bc
+!
+!    Last update: 03/15/2013, Derakhti Morteza (derakhti@udel.edu)
+!
+!------------------------------------------------------------------------------------------------------------
+!
      subroutine focused_wave_left_boundary
-     !-----------------------------------------------------
-     !    This subroutine is used to specify left boundary 
-     !    Called by
-     !       update_wave_bc 
-     !    Last update: 03/15/2013, Derakhti Morteza (derakhti@udel.edu)
-     !-----------------------------------------------------
+!
      use global, only: Amp_i,k_i,f_i,nwave,x_breaking,t_breaking,depth_comp,sd_return, &
-      SP,pi,Zero,Ibeg,Grav,TIME,Nloc,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy, &
-      Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,myid
+          SP,pi,Zero,Ibeg,Grav,TIME,Nloc,Hfx,Jbeg,Jend,Kbeg,Kend,sigc,dy, &
+          Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,myid
+!
 # if defined (INTEL)
      use IFPORT, only: rand
 # endif
+!
      implicit none
      integer  :: j,k,Iter,nw
      real(SP),dimension(12000) :: Segma_i,c_i,eta_i,Stokes_Drift_i
@@ -721,14 +689,18 @@
 !
 !------------------------------------------------------------------------------------------------------------
 !
-
-     subroutine wave_current_left_boundary
-!-----------------------------------------------------
-!    This subroutine is used to specify left boundary 
-!    Called by
-!       update_wave_bc 
+!    Subroutine wave_current_left_boundary
+!
+!    Used to specify (what?) on left boundary
+!
+!    Called by:  update_wave_bc
+!
 !    Last update: 05/02/2011, Gangfeng Ma
+!
 !-----------------------------------------------------
+!
+     subroutine wave_current_left_boundary
+!
      use global
      implicit none
      integer  :: j,k,Iter
@@ -746,19 +718,6 @@
      ! Find wave number for linear wave (Newton-Ralphson Method)
      Segma = 2.0*pi/Per_Wave
      call wave_dispersion(Segma, Wave_Number)
-!     Celerity = sqrt(Grav*Dep_Wave)
-!     Wave_Length = Celerity*Per_Wave
-!     Wave_Number = 2.0*pi/Wave_Length
-     
-!     Iter = 0
-! 55  Fk = (Segma-Wave_Number*Ucur)**2-Grav*Wave_Number*tanh(Wave_Number*Dep_Wave)
-!     if(abs(Fk)<=1.0e-8.or.Iter>1000) goto 65
-!     Fkdif = 2*(Segma-Wave_Number*Ucur)*(-Ucur)-Grav*Wave_Number*Dep_Wave*(1.0-tanh(Wave_Number*Dep_Wave)**2)-  &
-!        Grav*tanh(Wave_Number*Dep_Wave) 
-!     Wave_Number = Wave_Number-Fk/Fkdif
-!     Iter = Iter+1
-!     goto 55
-! 65  continue
      Wave_Length = 2.0*pi/Wave_Number
 
      Stokes_Drift = Grav*Amp_Wave**2/(Wave_Length/Per_Wave)/Dep_Wave/8.0
@@ -890,15 +849,21 @@
 # endif
 
      end subroutine linear_wave_left_boundary
-!---------------------------------------------------------------------------------------------------------------------
-
+!
+!--------------------------------------------------------------------------------------------------------------
+!
+!    Subroutine solitary wave left boundary
+!
+!    Used to specify solitary wave on left boundary
+!
+!    Called by:  update_bc
+!
+!    Last update: 22/12/2010, Gangfeng Ma
+!
+!-------------------------------------------------------------------------------------------------------------
+!
      subroutine solitary_wave_left_boundary
-!------------------------------------------------------
-!    This subroutine is used to specify left boundary
-!    Called by
-!       update_bc
-!    Last update: 22/12/2010, Gangfeng Ma 
-!-----------------------------------------------------
+!
      use global, only: SP,Zero,pi,Ibeg,Grav,TIME,Nloc,Kloc,Amp_Wave,Dep_Wave, &
                        Ein_X0,Din_X0,Uin_X0,Vin_X0,Win_X0,Hfx,Kbeg,Kend,sigc,BC_X0
      implicit none
