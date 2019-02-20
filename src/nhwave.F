@@ -2,11 +2,14 @@
 !
 !    NHWAVE: Nonhydrostatic WAVE dynamics
 !
-!    Code developer: Gangfeng Ma, University of Delaware
-!    Last update: 14/04/2011
-!    Last update: 14/08/2011, parallel implementation
-
-!    NHWAVE V2.0_kirby
+!    Code development team:
+!        Jim Kirby             kirby@udel.edu        University of Delaware
+!        Gangfeng Ma           gma@odu.edu           Old Dominion University
+!        Fengyan Shi           fyshi@udel.edu        University of Delaware
+!        Morteza Derakhti      derakhti@uw.edu       University of Washington
+!        Cheng Zhang           chzhang@udel.edu      University of Delaware
+!
+!    NHWAVE V..
 !
 !-----------------------------------------------------------------------------------------
 !
