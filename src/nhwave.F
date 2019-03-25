@@ -3083,8 +3083,8 @@
 	   elseif(zstat(n).eq.-1.0) then
 	     do j = Jbeg,Jend
          do i = Ibeg,Iend
-           if(xstat(n)>=x(i).and.xstat(n)<=x(i+1).and.  &
-              ystat(n)>=y(j).and.ystat(n)<=y(j+1)) then
+           if(xstat(n)>=x(i).and.xstat(n)<x(i+1).and.  &
+              ystat(n)>=y(j).and.ystat(n)<y(j+1)) then
              write(iu,'(100E14.6)') time,eta(i,j),(u(i,j,k),v(i,j,k),w(i,j,k),k=Kbeg,Kend)
            endif
          enddo
