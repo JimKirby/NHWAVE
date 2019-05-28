@@ -98,7 +98,17 @@ by Cheng Zhang
 04/02/2018
 
 ■Additions to Functions
-·Added a function to simulate slump case of rigid landslide.
+·Added a function to simulate slump case of rigid landslide (Rigid_SLP).
 
 ■Changes
 ·Changed the IBM code to be applicable to the hydrostatic case. 
+
+UPDATE_00008
+by Cheng Zhang
+28/05/2019
+
+■Additions to Functions
+·Added subroutines to simulate deformable landslide for granular and viscous flow.
+
+■Changes
+·Changed the flux boundary condition at wet-dry boundary to avoid numerical oscillation.

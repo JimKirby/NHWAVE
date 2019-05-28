@@ -25,6 +25,7 @@
 #         FLAG_16 = -DCOUPLING
 #         FLAG_17 = -DFLUIDSLIDE
 #         FLAG_18 = -DLANDSLIDE_COMPREHENSIVE
+#         FLAG_19 = -DDEFORMABLESLIDE
 #--------------------------------------------------------------------------
 #  mpi defs 
 #--------------------------------------------------------------------------
@@ -45,7 +46,7 @@
          CPPARGS = $(CPPFLAGS) $(DEF_FLAGS) $(FLAG_1) $(FLAG_2) $(FLAG_3) \
                    $(FLAG_4) $(FLAG_5) $(FLAG_6) $(FLAG_7) $(FLAG_8) $(FLAG_9) \
 	           $(FLAG_10) $(FLAG_11) $(FLAG_12) $(FLAG_13) $(FLAG_14) \
-			   $(FLAG_15) $(FLAG_16) $(FLAG_17) $(FLAG_18)
+			   $(FLAG_15) $(FLAG_16) $(FLAG_17) $(FLAG_18) $(FLAG_19)
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------
@@ -66,7 +67,7 @@
 
 MODS  = mod_global.F	mod_util.F 
 
-MAIN  = nhwave.F initialize.F two_layer_slide.F fluid_slide.F
+MAIN  = nhwave.F initialize.F two_layer_slide.F fluid_slide.F deformable_slide.F
 
 SRCS = $(MODS)  $(MAIN)
 
