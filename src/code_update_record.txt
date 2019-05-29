@@ -6,7 +6,7 @@
 
 UPDATE_00001
 by Cheng Zhang
-23/11/2016
+11/23/2016
 
 ■Bug Fixes
 ·Fixed two bugs that leaded to unstability since two variables were not initialized.
@@ -28,7 +28,7 @@ by Cheng Zhang
  
 UPDATE_00002
 by Cheng Zhang
-08/03/2017
+03/08/2017
 
 ■Additions to Functions
 ·Added a subroutine for fluid slide simulation.
@@ -43,7 +43,7 @@ by Cheng Zhang
 
 UPDATE_00003
 by Cheng Zhang
-23/03/2017
+03/23/2017
 
 ■Additions to Functions
 ·Added a function to hot start simulation with moving boundary.
@@ -68,7 +68,7 @@ by Cheng Zhang
 
 UPDATE_00005
 by Cheng Zhang
-02/06/2017
+06/02/2017
 
 ■Changes
 ·Changed influx boundary condition to impose fixed flux.
@@ -95,7 +95,7 @@ by Cheng Zhang
  
 UPDATE_00007
 by Cheng Zhang
-04/02/2018
+02/04/2018
 
 ■Additions to Functions
 ·Added a function to simulate slump case of rigid landslide.
@@ -123,5 +123,13 @@ J. Kirby
 Corrected two typos in waves.F
 Moved subroutines related to Poisson solver from nhwave.F to pressure.F
 
+UPDATE_00011
+by Cheng Zhang
+05/28/2019
 
+■Additions to Functions
+·Added subroutines to simulate deformable landslide for granular and viscous flow.
+
+■Changes
+·Changed the flux boundary condition at wet-dry boundary to avoid numerical oscillation.
 

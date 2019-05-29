@@ -446,8 +446,9 @@
      ! source terms for momentum eqs.
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       SourceX(i,j) = Grav*Eta(i,j)*DelxH(i,j)*Mask(i,j)
-       SourceY(i,j) = Grav*Eta(i,j)*DelyH(i,j)*Mask(i,j)
+	   !hfx0 is flux of bed, which is different from hfx at wet-dry front (Cheng)
+       SourceX(i,j) = Grav*0.5*(EtaxL(i+1,j)+EtaxR(i,j))*(hfx0(i+1,j)-hfx0(i,j))/dx*Mask(i,j)
+       SourceY(i,j) = Grav*0.5*(EtayL(i,j+1)+EtayR(i,j))*(hfy0(i,j+1)-hfy0(i,j))/dy*Mask(i,j)
      enddo
      enddo
 

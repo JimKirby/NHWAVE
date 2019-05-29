@@ -206,7 +206,7 @@
 
      ! real arrays
      real(SP), dimension(:), allocatable :: x,xc,y,yc,sig,dsig,sigc,Ein_X0,Din_X0,Ein_Xn,Din_Xn
-     real(SP), dimension(:,:), allocatable :: Ho,H,Hc,HCG,Hc0,Hfx,Hfy,DeltH,DeltHo,Delt2H,  &
+     real(SP), dimension(:,:), allocatable :: Ho,H,Hc,HCG,Hc0,Hfx,Hfy,Hfx0,Hfy0,DeltH,DeltHo,Delt2H,  &
                                               DelxH,DelyH,D,D0,Eta,Eta0,Eta00, &
                                               SourceX,SourceY,SourceC,DxL,DxR,DyL,DyR,EtaxL,EtaxR,EtayL,EtayR, &
                                               DelxEta,DelyEta,DelxD,DelyD,Uin_X0,Vin_X0,Win_X0,Uin_Xn,Vin_Xn, &
@@ -293,10 +293,10 @@
 # if defined (SALINITY)
      CHARACTER(LEN=80) :: Sali_HotStart_File,Temp_HotStart_File
 # endif
-# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE) || defined (DEFORMABLESLIDE)
      CHARACTER(LEN=80) :: Depth_HotStart_File
 # endif
-# if defined (FLUIDSLIDE)
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
      CHARACTER(LEN=80) :: Us_HotStart_File,Vs_HotStart_File
 # endif
 
@@ -326,4 +326,34 @@
      real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK
 # endif
 
+# if defined (DEFORMABLESLIDE)
+     CHARACTER(LEN=80) :: Slide_File	
+	 CHARACTER(LEN=80) :: RHEO_OPT
+     real(SP), dimension(:,:), allocatable :: Ugs ,Vgs ,Wgs ,DUgs ,DVgs ,DWgs ,Dgs ,Rhogs ,Hgs  ,Wtgs,Qtgs, &
+	                                          Ugs0,Vgs0,Wgs0,DUgs0,DVgs0,DWgs0,Dgs0,Rhogs0,Wgs00,Wbgs,Qbgs, &
+                                              DelxUgs,DelxVgs,DelxDUgs,DelxDVgs,DelxDgs,DelxHgs,DelxCxgs, &
+	                                          DelyUgs,DelyVgs,DelyDUgs,DelyDVgs,DelyDgs,DelyHgs,DelyCygs, &
+											  DelxH0,Delx2H0,Kx,Cxgs,SrcpgsX,SrctgsX,UgsP,VgsP,WgsP, &
+											  DelyH0,Dely2H0,Ky,Cygs,SrcpgsY,SrctgsY, &
+											  Cxx,Cxy,Cxz,Cyx,Cyy,Cyz,Czx,Czy,Czz,Czz0,Taxx,Taxy,Tayx,Tayy, &
+											  Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz
+     real(SP), dimension(:,:), allocatable :: DgsxL,DgsxR,UgsxL,UgsxR,VgsxL,VgsxR, &
+											  H0fx,DUgsxL,DUgsxR,DVgsxL,DVgsxR, &
+											  CxgsxL,CxgsxR,SgsxL,SgsxR,Egsx,Fgsx,Ggsx, &
+											  EgsxL,EgsxR,FgsxL,FgsxR,GgsxL,GgsxR
+     real(SP), dimension(:,:), allocatable :: DgsyL,DgsyR,UgsyL,UgsyR,VgsyL,VgsyR, &
+	                                          H0fy,DUgsyL,DUgsyR,DVgsyL,DVgsyR, &
+											  CygsyL,CygsyR,SgsyL,SgsyR,Egsy,Fgsy,Ggsy, &
+											  EgsyL,EgsyR,FgsyL,FgsyR,GgsyL,GgsyR
+     integer,  dimension(:,:), allocatable :: Maskgs
+	 logical :: NON_HYDRO_SLD
+     real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK,SLIDE_GAMMA, &
+	             SLIDE_CONC,GRAIN_DENSITY,PhiInt,PhiBed, &
+				 SLIDE_INIU,SLIDE_INIV,SLIDE_INIW
+     ! poisson solvers
+     integer  :: neqnsgs
+     real(SP), dimension(:),   allocatable :: Rhsgs
+     integer,  dimension(:),   allocatable :: JCoefgs
+     real(SP), dimension(:,:), allocatable :: Coefgs
+# endif
      End Module GLOBAL

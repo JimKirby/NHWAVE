@@ -133,8 +133,8 @@
        endif
 # endif
 
-!added by Cheng for fluid slide
-# if defined (FLUIDSLIDE)
+!added by Cheng for fluid slide and deformable slide
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
        call update_bathymetry
 # endif
 
@@ -1084,8 +1084,7 @@
 
 # if defined (POROUSMEDIA)
            if(k==Kbeg) then
-             Wbot = -U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
-                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)                                                      
+             Wbot = -U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)
              Rhs0(Nlen) =(1.0+Cp_Por(i,j,k))*DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &                                                  
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &                                               
@@ -1102,8 +1101,7 @@
            Rhs0(Nlen) = Rhs0(Nlen)+dt*Cp_Por(i,j,k)*W(i,j,k)*R1(i,j)
 # else
            if(k==Kbeg) then
-             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
-                    -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
+             Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)  
              Rhs0(Nlen) = DW(i,j,k)+dt*R4(i,j,k)+  &
                 dt/D(i,j)*(0.5*(Cmu(i,j,k-1)+Cmu(i,j,k)+CmuR(i,j,k-1)+  &
                 CmuR(i,j,k))+0.5*(CmuVt(i,j,k-1)+CmuVt(i,j,k))/Schmidt)/  &
@@ -1276,8 +1274,8 @@
 !       do k = Kbeg,Kend
 !         W(i,j,k) = 0.5*(Omega(i,j,k)+Omega(i,j,k+1))-  &
 !              DeltH(i,j)+sigc(k)*R1(i,j)-U(i,j,k)*  &
-!              ((1.0-sigc(k))*DelxH(i,j)*Mask9(i,j)+sigc(k)*DelxEta(i,j))-  &      ! modified by Cheng to use MASK9 for delxH delyH
-!              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)*Mask9(i,j)+sigc(k)*DelyEta(i,j))
+!              ((1.0-sigc(k))*DelxH(i,j)+sigc(k)*DelxEta(i,j))-  &
+!              V(i,j,k)*((1.0-sigc(k))*DelyH(i,j)+sigc(k)*DelyEta(i,j))
 !         if(Mask(i,j)==0) W(i,j,k) = Zero
 !         DW(i,j,k) = D(i,j)*W(i,j,k)         
 !       enddo
@@ -1446,35 +1444,95 @@
      call construct_3D_y(DU,DelyDU,DUyL,DUyR)
      call construct_3D_y(DV,DelyDV,DVyL,DVyR)
 
-     do k = Kbeg,Kend
+	
+     !set flux to zero in x at wet-dry front (Cheng)
      do j = Jbeg,Jend
      do i = Ibeg,Iend1
        DxL(i,j) = EtaxL(i,j)+hfx(i,j)
        DxR(i,j) = EtaxR(i,j)+hfx(i,j)
+     enddo
+     enddo
+	 DxL = max(DxL,MinDep)
+	 DxR = max(DxR,MinDep)
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+ 	   if (Mask(i,j)==1.and.Mask(i+1,j)==0) then
+	     EtaxL(i+1,j) = Eta(i,j)
+         DxL(i+1,j) = D(i,j)
+         DUxL(i+1,j,k) = Zero
+ 	   elseif (Mask(i,j)==1.and.Mask(i-1,j)==0) then
+	     EtaxR(i,j) = Eta(i,j)
+         DxR(i,j) = D(i,j)
+         DUxR(i,j,k) = Zero
+ 	   elseif (Mask(i,j)==0) then
+         EtaxL(i+1,j) = Eta(i,j)	   
+         DxL(i+1,j) = D(i,j)
+         DUxL(i+1,j,k) = Zero
+ 		 DVxL(i+1,j,k) = Zero
+		 EtaxR(i,j) = Eta(i,j)
+         DxR(i,j) = D(i,j)
+         DUxR(i,j,k) = Zero
+       endif   
+     enddo
+     enddo
+     enddo
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend1
        ExL(i,j,k) = DUxL(i,j,k)
        ExR(i,j,k) = DUxR(i,j,k)
      enddo
      enddo
      enddo
-
-     do k = Kbeg,Kend
+	 
+     !set flux to zero in y at wet-dry front (Cheng)
      do j = Jbeg,Jend1
      do i = Ibeg,Iend
        DyL(i,j) = EtayL(i,j)+hfy(i,j)
-       DyR(i,j) = EtayR(i,j)+hfy(i,j) 
+       DyR(i,j) = EtayR(i,j)+hfy(i,j)
+     enddo
+     enddo
+	 DyL = max(DyL,MinDep)
+	 DyR = max(DyR,MinDep)
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+	   if (Mask(i,j)==1.and.Mask(i,j+1)==0) then
+	     EtayL(i,j+1) = Eta(i,j)
+         DyL(i,j+1) = D(i,j)
+		 DVyL(i,j+1,k) = Zero
+	   elseif (Mask(i,j)==1.and.Mask(i,j-1)==0) then
+	     EtayR(i,j) = Eta(i,j)
+         DyR(i,j) = D(i,j)
+		 DVyR(i,j,k) = Zero
+	   elseif (Mask(i,j)==0) then	
+         EtayL(i,j+1) = Eta(i,j)
+         DyL(i,j+1) = D(i,j)
+		 DVyL(i,j+1,k) = Zero
+         EtayR(i,j) = Eta(i,j)
+         DyR(i,j) = D(i,j)
+		 DVyR(i,j,k) = Zero
+       endif   
+     enddo
+     enddo
+     enddo
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
        EyL(i,j,k) = DVyL(i,j,k)
        EyR(i,j,k) = DVyR(i,j,k)
      enddo
      enddo
-     enddo     
+     enddo   	 
 
      allocate(D3xL(Mloc1,Nloc,Kloc))
      allocate(D3xR(Mloc1,Nloc,Kloc))
      do k = 1,Kloc
      do j = 1,Nloc
      do i = 1,Mloc1
-       D3xL(i,j,k) = EtaxL(i,j)
-       D3xR(i,j,k) = EtaxR(i,j)
+       D3xL(i,j,k) = DxL(i,j) !revised the flux by Cheng
+       D3xR(i,j,k) = DxR(i,j)
      enddo
      enddo
      enddo
@@ -1484,8 +1542,8 @@
      do k = 1,Kloc
      do j = 1,Nloc1
      do i = 1,Mloc
-       D3yL(i,j,k) = EtayL(i,j)
-       D3yR(i,j,k) = EtayR(i,j)
+       D3yL(i,j,k) = DyL(i,j)
+       D3yR(i,j,k) = DyR(i,j)
      enddo
      enddo
      enddo
@@ -1674,16 +1732,67 @@
      call construct_3D_x(DU,DelxDU,DUxL,DUxR)
      call construct_3D_x(DV,DelxDV,DVxL,DVxR)
      call construct_3D_x(DW,DelxDW,DWxL,DWxR)
-
-     do k = Kbeg,Kend
+	 
+	 !set flux in x zero at wet-dry front (Cheng)
      do j = Jbeg,Jend
      do i = Ibeg,Iend1
        DxL(i,j) = EtaxL(i,j)+hfx(i,j)
        DxR(i,j) = EtaxR(i,j)+hfx(i,j)
+     enddo
+     enddo
+	 DxL = max(DxL,MinDep)
+	 DxR = max(DxR,MinDep)
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+ 	   if (Mask(i,j)==1.and.Mask(i+1,j)==0) then
+	     EtaxL(i+1,j) = Eta(i,j)
+         DxL(i+1,j) = D(i,j)
+		 hfx0(i+1,j) = Hc(i,j)
+         DUxL(i+1,j,k) = Zero
+ 		 DVxL(i+1,j,k) = Zero
+ 		 DWxL(i+1,j,k) = Zero
+         UxL(i+1,j,k) = Zero
+ 		 VxL(i+1,j,k) = Zero
+ 		 WxL(i+1,j,k) = Zero
+ 	   elseif (Mask(i,j)==1.and.Mask(i-1,j)==0) then
+	     EtaxR(i,j) = Eta(i,j)
+         DxR(i,j) = D(i,j)
+		 hfx0(i,j) = Hc(i,j)
+         DUxR(i,j,k) = Zero
+ 		 DVxR(i,j,k) = Zero
+ 		 DWxR(i,j,k) = Zero
+         UxR(i,j,k) = Zero
+ 		 VxR(i,j,k) = Zero
+ 		 WxR(i,j,k) = Zero
+ 	   elseif (Mask(i,j)==0) then
+         EtaxL(i+1,j) = Eta(i,j)	   
+         DxL(i+1,j) = D(i,j)
+         DUxL(i+1,j,k) = Zero
+ 		 DVxL(i+1,j,k) = Zero
+ 		 DWxL(i+1,j,k) = Zero
+         UxL(i+1,j,k) = Zero
+ 		 VxL(i+1,j,k) = Zero
+ 		 WxL(i+1,j,k) = Zero
+		 EtaxR(i,j) = Eta(i,j)
+         DxR(i,j) = D(i,j)
+         DUxR(i,j,k) = Zero
+ 		 DVxR(i,j,k) = Zero
+ 		 DWxR(i,j,k) = Zero
+         UxR(i,j,k) = Zero
+ 		 VxR(i,j,k) = Zero
+ 		 WxR(i,j,k) = Zero
+       endif   
+     enddo
+     enddo
+     enddo
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend1
        ExL(i,j,k) = DUxL(i,j,k)
        ExR(i,j,k) = DUxR(i,j,k)
-       FxL(i,j,k) = DUxL(i,j,k)*UxL(i,j,k)+0.5*Grav*(EtaxL(i,j)*EtaxL(i,j)+2.0*EtaxL(i,j)*hfx(i,j))
-       FxR(i,j,k) = DUxR(i,j,k)*UxR(i,j,k)+0.5*Grav*(EtaxR(i,j)*EtaxR(i,j)+2.0*EtaxR(i,j)*hfx(i,j))
+       FxL(i,j,k) = DUxL(i,j,k)*UxL(i,j,k)+0.5*Grav*(EtaxL(i,j)*EtaxL(i,j)+2.0*EtaxL(i,j)*hfx0(i,j))
+       FxR(i,j,k) = DUxR(i,j,k)*UxR(i,j,k)+0.5*Grav*(EtaxR(i,j)*EtaxR(i,j)+2.0*EtaxR(i,j)*hfx0(i,j))
        GxL(i,j,k) = DxL(i,j)*UxL(i,j,k)*VxL(i,j,k)
        GxR(i,j,k) = DxR(i,j)*UxR(i,j,k)*VxR(i,j,k)
        HxL(i,j,k) = DxL(i,j)*UxL(i,j,k)*WxL(i,j,k)
@@ -1700,17 +1809,68 @@
      call construct_3D_y(DV,DelyDV,DVyL,DVyR)
      call construct_3D_y(DW,DelyDW,DWyL,DWyR)
 
-     do k = Kbeg,Kend
+     !set flux in y zero at wet-dry front (Cheng)
      do j = Jbeg,Jend1
      do i = Ibeg,Iend
        DyL(i,j) = EtayL(i,j)+hfy(i,j)
        DyR(i,j) = EtayR(i,j)+hfy(i,j)
+     enddo
+     enddo
+	 DyL = max(DyL,MinDep)
+	 DyR = max(DyR,MinDep)
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+	   if (Mask(i,j)==1.and.Mask(i,j+1)==0) then
+	     EtayL(i,j+1) = Eta(i,j)
+         DyL(i,j+1) = D(i,j)
+		 hfy0(i,j+1) = Hc(i,j)
+         DUyL(i,j+1,k) = Zero
+		 DVyL(i,j+1,k) = Zero
+		 DWyL(i,j+1,k) = Zero
+         UyL(i,j+1,k) = Zero
+		 VyL(i,j+1,k) = Zero
+		 WyL(i,j+1,k) = Zero
+	   elseif (Mask(i,j)==1.and.Mask(i,j-1)==0) then
+	     EtayR(i,j) = Eta(i,j)
+         DyR(i,j) = D(i,j)
+		 hfy0(i,j) = Hc(i,j)
+         DUyR(i,j,k) = Zero
+		 DVyR(i,j,k) = Zero
+		 DWyR(i,j,k) = Zero
+         UyR(i,j,k) = Zero
+		 VyR(i,j,k) = Zero
+		 WyR(i,j,k) = Zero
+	   elseif (Mask(i,j)==0) then	
+         EtayL(i,j+1) = Eta(i,j)
+         DyL(i,j+1) = D(i,j)
+         DUyL(i,j+1,k) = Zero
+		 DVyL(i,j+1,k) = Zero
+		 DWyL(i,j+1,k) = Zero
+         UyL(i,j+1,k) = Zero
+		 VyL(i,j+1,k) = Zero
+		 WyL(i,j+1,k) = Zero
+         EtayR(i,j) = Eta(i,j)
+         DyR(i,j) = D(i,j)
+         DUyR(i,j,k) = Zero
+		 DVyR(i,j,k) = Zero
+		 DWyR(i,j,k) = Zero
+         UyR(i,j,k) = Zero
+		 VyR(i,j,k) = Zero
+		 WyR(i,j,k) = Zero
+       endif   
+     enddo
+     enddo
+     enddo
+     do k = Kbeg,Kend
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
        EyL(i,j,k) = DVyL(i,j,k)
        EyR(i,j,k) = DVyR(i,j,k)
        FyL(i,j,k) = DyL(i,j)*UyL(i,j,k)*VyL(i,j,k)
        FyR(i,j,k) = DyR(i,j)*UyR(i,j,k)*VyR(i,j,k)
-       GyL(i,j,k) = DVyL(i,j,k)*VyL(i,j,k)+0.5*Grav*(EtayL(i,j)*EtayL(i,j)+2.0*EtayL(i,j)*hfy(i,j))
-       GyR(i,j,k) = DVyR(i,j,k)*VyR(i,j,k)+0.5*Grav*(EtayR(i,j)*EtayR(i,j)+2.0*EtayR(i,j)*hfy(i,j))
+       GyL(i,j,k) = DVyL(i,j,k)*VyL(i,j,k)+0.5*Grav*(EtayL(i,j)*EtayL(i,j)+2.0*EtayL(i,j)*hfy0(i,j))
+       GyR(i,j,k) = DVyR(i,j,k)*VyR(i,j,k)+0.5*Grav*(EtayR(i,j)*EtayR(i,j)+2.0*EtayR(i,j)*hfy0(i,j))
        HyL(i,j,k) = DyL(i,j)*VyL(i,j,k)*WyL(i,j,k)
        HyR(i,j,k) = DyR(i,j)*VyR(i,j,k)*WyR(i,j,k) 
      enddo
@@ -2214,13 +2374,14 @@
      do k = Kbeg,Kend
        if(Bc_X0==1.or.Bc_X0==2.or.Bc_X0==5) then ! added by Cheng for wall friction
          Ex(Ibeg,j,k) = Zero
-         Fx(Ibeg,j,k) = 0.5*Grav*(EtaxR(Ibeg,j)*EtaxR(Ibeg,j)+2.0*EtaxR(Ibeg,j)*hfx(Ibeg,j))
+         Fx(Ibeg,j,k) = 0.5*Grav*(EtaxR(Ibeg,j)*EtaxR(Ibeg,j)+ &
+		                2.0*EtaxR(Ibeg,j)*hfx0(Ibeg,j))
          Gx(Ibeg,j,k) = Zero
          Hx(Ibeg,j,k) = Zero
        elseif(Bc_X0==3) then
          Ex(Ibeg,j,k) = Din_X0(j)*Uin_X0(j,k)
          Fx(Ibeg,j,k) = Din_X0(j)*Uin_X0(j,k)*Uin_X0(j,k)+  &
-                  0.5*Grav*(Ein_X0(j)*Ein_X0(j)+2.0*Ein_X0(j)*hfx(Ibeg,j))
+                  0.5*Grav*(Ein_X0(j)*Ein_X0(j)+2.0*Ein_X0(j)*hfx0(Ibeg,j))
          Gx(Ibeg,j,k) = Din_X0(j)*Uin_X0(j,k)*Vin_X0(j,k)
          Hx(Ibeg,j,k) = Din_X0(j)*Uin_X0(j,k)*Win_X0(j,k)
        endif
@@ -2244,13 +2405,13 @@
        if(Bc_Xn==1.or.Bc_Xn==2.or.Bc_Xn==5) then ! added by Cheng for wall friction
          Ex(Iend1,j,k) = Zero
          Fx(Iend1,j,k) = 0.5*Grav*(EtaxL(Iend1,j)*EtaxL(Iend1,j)+  &
-                  2.0*EtaxL(Iend1,j)*hfx(Iend1,j))
+                  2.0*EtaxL(Iend1,j)*hfx0(Iend1,j))
          Gx(Iend1,j,k) = Zero
          Hx(Iend1,j,k) = Zero
        elseif(Bc_Xn==3) then
          Ex(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)
          Fx(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)*Uin_Xn(j,k)+  &
-                 0.5*Grav*(Ein_Xn(j)*Ein_Xn(j)+2.0*Ein_Xn(j)*hfx(Iend1,j)) 
+                 0.5*Grav*(Ein_Xn(j)*Ein_Xn(j)+2.0*Ein_Xn(j)*hfx0(Iend1,j)) 
          Gx(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)*Vin_Xn(j,k)
          Hx(Iend1,j,k) = Din_Xn(j)*Uin_Xn(j,k)*Win_Xn(j,k)
        endif
@@ -2276,7 +2437,7 @@
          Ey(i,Jbeg,k) = Zero
          Fy(i,Jbeg,k) = Zero
          Gy(i,Jbeg,k) = 0.5*Grav*(EtayR(i,Jbeg)*EtayR(i,Jbeg)+  &
-                2.0*EtayR(i,Jbeg)*hfy(i,Jbeg))
+                2.0*EtayR(i,Jbeg)*hfy0(i,Jbeg))
          Hy(i,Jbeg,k) = Zero
        endif
      enddo
@@ -2300,7 +2461,7 @@
          Ey(i,Jend1,k) = Zero
          Fy(i,Jend1,k) = Zero
          Gy(i,Jend1,k) = 0.5*Grav*(EtayL(i,Jend1)*EtayL(i,Jend1)+  &
-                 2.0*EtayL(i,Jend1)*hfy(i,Jend1))
+                 2.0*EtayL(i,Jend1)*hfy0(i,Jend1))
          Hy(i,Jend1,k) = Zero
        endif
      enddo
@@ -2337,7 +2498,7 @@
            Fx(i,j,k) = Zero
          else
            Fx(i,j,k) = 0.5*Grav*(EtaxL(i,j)*EtaxL(i,j)+  &
-                2.0*EtaxL(i,j)*hfx(i,j))*Mask(i-1,j)
+                2.0*EtaxL(i,j)*hfx0(i,j))*Mask(i-1,j)
          endif
          Gx(i,j,k) = Zero
          Hx(i,j,k) = Zero
@@ -2351,7 +2512,7 @@
            Fx(i+1,j,k) = Zero
          else
            Fx(i+1,j,k) = 0.5*Grav*(EtaxR(i+1,j)*EtaxR(i+1,j)+  &
-                  2.0*EtaxR(i+1,j)*hfx(i+1,j))*Mask(i+1,j)
+                  2.0*EtaxR(i+1,j)*hfx0(i+1,j))*Mask(i+1,j)
          endif
          Gx(i+1,j,k) = Zero
          Hx(i+1,j,k) = Zero
@@ -2366,7 +2527,7 @@
            Gy(i,j,k) = Zero
          else
            Gy(i,j,k) = 0.5*Grav*(EtayL(i,j)*EtayL(i,j)+  &
-                2.0*EtayL(i,j)*hfy(i,j))*Mask(i,j-1)
+                2.0*EtayL(i,j)*hfy0(i,j))*Mask(i,j-1)
          endif
          Hy(i,j,k) = Zero
 
@@ -2380,7 +2541,7 @@
            Gy(i,j+1,k) = Zero
          else
            Gy(i,j+1,k) = 0.5*Grav*(EtayR(i,j+1)*EtayR(i,j+1)+  &
-                2.0*EtayR(i,j+1)*hfy(i,j+1))*Mask(i,j+1)
+                2.0*EtayR(i,j+1)*hfy0(i,j+1))*Mask(i,j+1)
          endif
          Hy(i,j+1,k) = Zero
        endif
@@ -2527,8 +2688,8 @@
      do k = 1,Kloc
      do j = 1,Nloc
      do i = 1,Mloc1
-       D3xL(i,j,k) = EtaxL(i,j)
-       D3xR(i,j,k) = EtaxR(i,j)
+       D3xL(i,j,k) = DxL(i,j) !revised the flux by Cheng
+       D3xR(i,j,k) = DxR(i,j)
      enddo
      enddo
      enddo
@@ -2538,8 +2699,8 @@
      do k = 1,Kloc
      do j = 1,Nloc1
      do i = 1,Mloc
-       D3yL(i,j,k) = EtayL(i,j)
-       D3yR(i,j,k) = EtayR(i,j)
+       D3yL(i,j,k) = DyL(i,j)
+       D3yR(i,j,k) = DyR(i,j)
      enddo
      enddo
      enddo
@@ -3331,6 +3492,20 @@
      call putfile2D(file,Vvs)
 # endif
 
+# if defined (DEFORMABLESLIDE)
+     !added by Cheng for recording slide information
+     file=TRIM(FDIR)//'Us_'//TRIM(FILE_NAME)
+     call putfile2D(file,Ugs)
+     file=TRIM(FDIR)//'Vs_'//TRIM(FILE_NAME)
+     call putfile2D(file,Vgs)
+     file=TRIM(FDIR)//'Ws_'//TRIM(FILE_NAME)
+     call putfile2D(file,Wgs)
+	 if(NON_HYDRO_SLD) then
+       file=TRIM(FDIR)//'Ps_'//TRIM(FILE_NAME)
+       call putfile2D(file,Qbgs)
+	 endif
+# endif
+
      end subroutine preview
 
 
@@ -3531,7 +3706,7 @@
      real(SP) :: myvar
 # endif
      ! added by Cheng for fluid slide
-# if defined (FLUIDSLIDE)
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
      real(SP) :: dt_landslide
 # endif
 
@@ -3608,6 +3783,32 @@
      dt_landslide = CFL*tmp2
 # endif
 
+	 ! added by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+     ! time step limit due to the landslide 
+     tmp2 = Large
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       tmp1 = abs(SLIDE_GAMMA*Ugs(i,j)) &
+	         +sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.)*Ugs(i,j)**2+Cxgs(i,j)*abs(Dgs(i,j)))
+       tmp1 = max(tmp1,Small)
+       dxonu = dx/tmp1
+       if(dxonu<tmp2) tmp2=dxonu
+
+       tmp1 = abs(SLIDE_GAMMA*Vgs(i,j)) &
+	         +sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.)*Vgs(i,j)**2+Cygs(i,j)*abs(Dgs(i,j)));
+       tmp1 = max(tmp1,Small)
+       dyonv = dy/tmp1
+       if(dyonv<tmp2) tmp2=dyonv
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call MPI_ALLREDUCE(tmp2,myvar,1,MPI_SP,MPI_MIN,MPI_COMM_WORLD,ier)
+     tmp2 = myvar
+# endif
+     dt_landslide = CFL*tmp2
+# endif
+
      ! time step limit due to explicit viscous stress terms
      dt_viscous = Large
      if(VISCOUS_FLOW) then
@@ -3630,7 +3831,7 @@
        dt_viscous = VISCOUS_NUMBER*tmp2
      endif 
 
-# if defined (FLUIDSLIDE)
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
      ! get dt    
      dt = min(dt_growth,dt_courant,dt_viscous,dt_max,dt_landslide)
 # else
@@ -3663,8 +3864,8 @@
        dt_constraint = 'VISCOUS'
      elseif(dt==dt_max) then
        dt_constraint = 'MAXIMUM'
-	 ! added by Cheng for fluid slide
-# if defined (FLUIDSLIDE)
+	 ! added by Cheng for fluid slide and deformable slide
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
      elseif(dt==dt_landslide) then
        dt_constraint = 'LANDSLD'	
 # endif
@@ -4056,8 +4257,7 @@
        Phi = dmin1(Phi,2.0)
 
        if(Bc_Z0==1) then  ! free-slip
-         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)*Mask9(i,j)  &   ! modified by Cheng to use MASK9 for delxH delyH
-         !       -V(i,j,Kbeg)*DelyH(i,j)*Mask9(i,j)  
+         !Wbot = -DeltH(i,j)-U(i,j,Kbeg)*DelxH(i,j)-V(i,j,Kbeg)*DelyH(i,j)
          do k = 1,Nghost
            U(i,j,Kbeg-k) = U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = V(i,j,Kbeg+k-1)
@@ -4080,8 +4280,8 @@
          do k = 1,Nghost
            U(i,j,Kbeg-k) = (1.0-Phi)*U(i,j,Kbeg+k-1)
            V(i,j,Kbeg-k) = (1.0-Phi)*V(i,j,Kbeg+k-1)
-           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)*Mask9(i,j)-  &  ! modified by Cheng to use MASK9 for delxH delyH
-           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)*Mask9(i,j)
+           !Wbot = -DeltH(i,j)-0.5*(U(i,j,Kbeg)+U(i,j,Kbeg-1))*DelxH(i,j)- &
+           !         0.5*(V(i,j,Kbeg)+V(i,j,Kbeg-1))*DelyH(i,j)
            W(i,j,Kbeg-k) = 2.0*WzR(i,j,Kbeg)-W(i,j,Kbeg+k-1)
            DU(i,j,Kbeg-k) = D(i,j)*U(i,j,Kbeg-k)
            DV(i,j,Kbeg-k) = D(i,j)*V(i,j,Kbeg-k)
@@ -4103,99 +4303,99 @@
      enddo
 
      ! fyshi added boundary conditions at masks 02/15/2013
-     DO K=Kbeg,Kend
-     DO J=Jbeg,Jend
-     DO I=Ibeg,Iend
-       IF(Mask(i,j)==0) THEN
-         ! south boundary 
-         IF(Mask(i,j+1)==1)then
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(i,j-imask+1,k) = U(i,j+imask,k)
-               V(i,j-imask+1,k) = -V(i,j+imask,k)
-               W(i,j-imask+1,k) = W(i,j+imask,k)
-               DU(i,j-imask+1,k) = DU(i,j+imask,k)
-               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
-               DW(i,j-imask+1,k) = DW(i,j+imask,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i,j-imask+1,k) = -U(i,j+imask,k)
-               V(i,j-imask+1,k) = -V(i,j+imask,k)
-               W(i,j-imask+1,k) = -W(i,j+imask,k)
-               DU(i,j-imask+1,k) = -DU(i,j+imask,k)
-               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
-               DW(i,j-imask+1,k) = -DW(i,j+imask,k)
-             enddo
-           endif
-         ! north  
-         ELSEIF(Mask(i,j-1)==1)then
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(i,j+imask-1,k) = U(i,j-imask,k)
-               V(i,j+imask-1,k) = -V(i,j-imask,k)
-               W(i,j+imask-1,k) = W(i,j-imask,k)
-               DU(i,j+imask-1,k) = DU(i,j-imask,k)
-               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
-               DW(i,j+imask-1,k) = DW(i,j-imask,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i,j+imask-1,k) = -U(i,j-imask,k)
-               V(i,j+imask-1,k) = -V(i,j-imask,k)
-               W(i,j+imask-1,k) = -W(i,j-imask,k)
-               DU(i,j+imask-1,k) = -DU(i,j-imask,k)
-               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
-               DW(i,j+imask-1,k) = -DW(i,j-imask,k)
-             enddo
-           endif
-         ! west
-         ELSEIF(Mask(i+1,j)==1)THEN
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(I-imask+1,j,k) = -U(I+imask,j,k)
-               V(I-imask+1,j,k) = V(I+imask,j,k)
-               W(I-imask+1,j,k) = W(I+imask,j,k)
-               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
-               DV(I-imask+1,j,k) = DV(I+imask,j,k)
-               DW(I-imask+1,j,k) = DW(I+imask,j,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall
-             do imask =1,Nghost
-               U(I-imask+1,j,k) = -U(I+imask,j,k)
-               V(I-imask+1,j,k) = -V(I+imask,j,k)
-               W(I-imask+1,j,k) = -W(I+imask,j,k)
-               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
-               DV(I-imask+1,j,k) = -DV(I+imask,j,k)
-               DW(I-imask+1,j,k) = -DW(I+imask,j,k)
-             enddo
-           endif
-         ! east 
-         ELSEIF(Mask(i-1,j)==1)THEN
-           if(Bc_X0==1) then  ! free-slip wall  
-             do imask = 1,Nghost
-               U(i+imask-1,j,k) = -U(i-imask,j,k)
-               V(i+imask-1,j,k) = V(i-imask,j,k)
-               W(i+imask-1,j,k) = W(i-imask,j,k)
-               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
-               DV(i+imask-1,j,k) = DV(i-imask,j,k)
-               DW(i+imask-1,j,k) = DW(i-imask,j,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i+imask-1,j,k) = -U(i-imask,j,k)
-               V(i+imask-1,j,k) = -V(i-imask,j,k)
-               W(i+imask-1,j,k) = -W(i-imask,j,k)
-               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
-               DV(i+imask-1,j,k) = -DV(i-imask,j,k)
-               DW(i+imask-1,j,k) = -DW(i-imask,j,k)
-             enddo
-           endif
-         ENDIF ! end mask+1=1 
-       ENDIF ! end mask=0 
-     ENDDO
-     ENDDO
-     ENDDO
+!     DO K=Kbeg,Kend
+!     DO J=Jbeg,Jend
+!     DO I=Ibeg,Iend
+!       IF(Mask(i,j)==0) THEN
+!         ! south boundary 
+!         IF(Mask(i,j+1)==1)then
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(i,j-imask+1,k) = U(i,j+imask,k)
+!               V(i,j-imask+1,k) = -V(i,j+imask,k)
+!               W(i,j-imask+1,k) = W(i,j+imask,k)
+!               DU(i,j-imask+1,k) = DU(i,j+imask,k)
+!               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
+!               DW(i,j-imask+1,k) = DW(i,j+imask,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i,j-imask+1,k) = -U(i,j+imask,k)
+!               V(i,j-imask+1,k) = -V(i,j+imask,k)
+!               W(i,j-imask+1,k) = -W(i,j+imask,k)
+!               DU(i,j-imask+1,k) = -DU(i,j+imask,k)
+!               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
+!               DW(i,j-imask+1,k) = -DW(i,j+imask,k)
+!             enddo
+!           endif
+!         ! north  
+!         ELSEIF(Mask(i,j-1)==1)then
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(i,j+imask-1,k) = U(i,j-imask,k)
+!               V(i,j+imask-1,k) = -V(i,j-imask,k)
+!               W(i,j+imask-1,k) = W(i,j-imask,k)
+!               DU(i,j+imask-1,k) = DU(i,j-imask,k)
+!               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
+!               DW(i,j+imask-1,k) = DW(i,j-imask,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i,j+imask-1,k) = -U(i,j-imask,k)
+!               V(i,j+imask-1,k) = -V(i,j-imask,k)
+!               W(i,j+imask-1,k) = -W(i,j-imask,k)
+!               DU(i,j+imask-1,k) = -DU(i,j-imask,k)
+!               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
+!               DW(i,j+imask-1,k) = -DW(i,j-imask,k)
+!             enddo
+!           endif
+!         ! west
+!         ELSEIF(Mask(i+1,j)==1)THEN
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(I-imask+1,j,k) = -U(I+imask,j,k)
+!               V(I-imask+1,j,k) = V(I+imask,j,k)
+!               W(I-imask+1,j,k) = W(I+imask,j,k)
+!               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
+!               DV(I-imask+1,j,k) = DV(I+imask,j,k)
+!               DW(I-imask+1,j,k) = DW(I+imask,j,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall
+!             do imask =1,Nghost
+!               U(I-imask+1,j,k) = -U(I+imask,j,k)
+!               V(I-imask+1,j,k) = -V(I+imask,j,k)
+!               W(I-imask+1,j,k) = -W(I+imask,j,k)
+!               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
+!               DV(I-imask+1,j,k) = -DV(I+imask,j,k)
+!               DW(I-imask+1,j,k) = -DW(I+imask,j,k)
+!             enddo
+!           endif
+!         ! east 
+!         ELSEIF(Mask(i-1,j)==1)THEN
+!           if(Bc_X0==1) then  ! free-slip wall  
+!             do imask = 1,Nghost
+!               U(i+imask-1,j,k) = -U(i-imask,j,k)
+!               V(i+imask-1,j,k) = V(i-imask,j,k)
+!               W(i+imask-1,j,k) = W(i-imask,j,k)
+!               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
+!               DV(i+imask-1,j,k) = DV(i-imask,j,k)
+!               DW(i+imask-1,j,k) = DW(i-imask,j,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i+imask-1,j,k) = -U(i-imask,j,k)
+!               V(i+imask-1,j,k) = -V(i-imask,j,k)
+!               W(i+imask-1,j,k) = -W(i-imask,j,k)
+!               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
+!               DV(i+imask-1,j,k) = -DV(i-imask,j,k)
+!               DW(i+imask-1,j,k) = -DW(i-imask,j,k)
+!             enddo
+!           endif
+!         ENDIF ! end mask+1=1 
+!       ENDIF ! end mask=0 
+!     ENDDO
+!     ENDDO
+!     ENDDO
 
      Deallocate(DelxUzL)
      Deallocate(DelxVzL)
@@ -4598,20 +4798,20 @@
      call delyFun1_3d(VzR,DelyVzR)
      call delyFun1_3d(WzR,DelyWzR)
 
-     ! top and bottom (modified by Cheng to use MASK9 for delxH delyH,search for Mask9)
+     ! top and bottom
      ! rewritten by M.Derakhti as in derakhti etal 2015a
      do j = Jbeg,Jend
      do i = Ibeg,Iend
        !these are added to calculate the tangential external stress parallel to the surface and bed
        Atop = dsqrt(1.0+DelxEta(i,j)**2+DelyEta(i,j)**2)
        Btop = dsqrt(1.0+DelxEta(i,j)**2)
-       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))
-       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
+       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
+       Bbot = dsqrt(1.0+DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)  &
-                  +(1.0+Mask9(i,j)*DelxH(i,j)**2)*DV(i,j,Kbeg)  &
-                  -DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*  &
+                  +(1.0+DelxH(i,j)**2)*DV(i,j,Kbeg)  &
+                  -DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
        !the distance of the first grid point from the bed
        Dz1 = 0.5*D(i,j)*dsig(Kbeg)/Abot
@@ -4644,7 +4844,7 @@
 
        !equation (46)
        Fext_Bot1 = Bbot * TauBot1
-       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1*Mask9(i,j)+Abot*TauBot2)/Bbot
+       Fext_Bot2 = (DelxH(i,j)*DelyH(i,j)*TauBot1+Abot*TauBot2)/Bbot
        !Wind stress paralle to the free surface WS/rho (equation 49)
        Fext_Wind1 = 1.0/Atop*((1-DelxEta(i,j)**2)*Wsx(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsy(i,j))
        Fext_Wind2 = 1.0/Atop*((1-DelyEta(i,j)**2)*Wsy(i,j)-DelxEta(i,j)*DelyEta(i,j)*Wsx(i,j))
@@ -4668,11 +4868,11 @@
           else
           DU(i,j,Kbeg-k) = DU(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot1*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) &
-              + Mask9(i,j)*DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              + DelxH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               + D(i,j)**2/Abot**2 &
-              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg)*Mask9(i,j) &
-              -(1.0-Mask9(i,j)*DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
-              -Mask9(i,j)*DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg)*Mask9(i,j))))
+              *(-2.0*DelxH(i,j)*DelxUzR(i,j,Kbeg) &
+              -(1.0-DelxH(i,j)**2)* DelxWzR(i,j,Kbeg) &
+              -DelyH(i,j)*( DelyUzR(i,j,Kbeg)+DelxVzR(i,j,Kbeg)-DelxH(i,j)* DelyWzR(i,j,Kbeg))))
           DUbot_old = 2.0*D(i,j)*UzR(i,j,Kbeg)-DU(i,j,Kbeg+k-1)
           if (DUbot_old>0.)then
              DU(i,j,Kbeg-k) = dmin1(3.0*DUbot_old,dmax1(-1.0*DUbot_old,DU(i,j,Kbeg-k)))
@@ -4686,11 +4886,11 @@
           ! y-dir
           DV(i,j,Kbeg-k) = DV(i,j,Kbeg+k-1) - (sigc(Kbeg+k-1)-sigc(Kbeg-k)) &
               *(Fext_Bot2*(D(i,j)**2/Abot/(Small+Cmu(i,j,Kbeg)+CmuR(i,j,Kbeg)+CmuVt(i,j,Kbeg))) & 
-              +Mask9(i,j)*DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
+              +DelyH(i,j)*(DW(i,j,Kbeg+k-1)-D(i,j)*WzR(i,j,Kbeg))/((sigc(Kbeg+k-1)-sigc(Kbeg-k))/2.0) &
               +D(i,j)**2/Abot**2 &
-              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg)*Mask9(i,j) &
-              -(1.0-Mask9(i,j)*DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
-              -Mask9(i,j)*DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg)*Mask9(i,j))))
+              *(-2.0*DelyH(i,j)*DelyVzR(i,j,Kbeg) &
+              -(1.0-DelyH(i,j)**2)*DelyWzR(i,j,Kbeg) &
+              -DelxH(i,j)*( DelxVzR(i,j,Kbeg)+DelyUzR(i,j,Kbeg)-DelyH(i,j)*DelxWzR(i,j,Kbeg))))
           DVbot_old = 2.0*D(i,j)*VzR(i,j,Kbeg)-DV(i,j,Kbeg+k-1)
           if (DVbot_old>0.)then
              DV(i,j,Kbeg-k) = dmin1(3.0*DVbot_old,dmax1(-1.0*DVbot_old,DV(i,j,Kbeg-k)))
@@ -4756,99 +4956,99 @@
      enddo
 
      ! fyshi added boundary conditions at masks 02/15/2013
-     DO K=Kbeg,Kend
-     DO J=Jbeg,Jend
-     DO I=Ibeg,Iend
-       IF(Mask(i,j)==0) THEN
-         ! south boundary 
-         IF(Mask(i,j+1)==1)then
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(i,j-imask+1,k) = U(i,j+imask,k)
-               V(i,j-imask+1,k) = -V(i,j+imask,k)
-               W(i,j-imask+1,k) = W(i,j+imask,k)
-               DU(i,j-imask+1,k) = DU(i,j+imask,k)
-               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
-               DW(i,j-imask+1,k) = DW(i,j+imask,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i,j-imask+1,k) = -U(i,j+imask,k)
-               V(i,j-imask+1,k) = -V(i,j+imask,k)
-               W(i,j-imask+1,k) = -W(i,j+imask,k)
-               DU(i,j-imask+1,k) = -DU(i,j+imask,k)
-               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
-               DW(i,j-imask+1,k) = -DW(i,j+imask,k)
-             enddo
-           endif
-         ! north  
-         ELSEIF(Mask(i,j-1)==1)then
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(i,j+imask-1,k) = U(i,j-imask,k)
-               V(i,j+imask-1,k) = -V(i,j-imask,k)
-               W(i,j+imask-1,k) = W(i,j-imask,k)
-               DU(i,j+imask-1,k) = DU(i,j-imask,k)
-               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
-               DW(i,j+imask-1,k) = DW(i,j-imask,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i,j+imask-1,k) = -U(i,j-imask,k)
-               V(i,j+imask-1,k) = -V(i,j-imask,k)
-               W(i,j+imask-1,k) = -W(i,j-imask,k)
-               DU(i,j+imask-1,k) = -DU(i,j-imask,k)
-               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
-               DW(i,j+imask-1,k) = -DW(i,j-imask,k)
-             enddo
-           endif
-         ! west
-         ELSEIF(Mask(i+1,j)==1)THEN
-           if(Bc_X0==1) then  ! free-slip wall 
-             do imask = 1,Nghost
-               U(I-imask+1,j,k) = -U(I+imask,j,k)
-               V(I-imask+1,j,k) = V(I+imask,j,k)
-               W(I-imask+1,j,k) = W(I+imask,j,k)
-               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
-               DV(I-imask+1,j,k) = DV(I+imask,j,k)
-               DW(I-imask+1,j,k) = DW(I+imask,j,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall
-             do imask =1,Nghost
-               U(I-imask+1,j,k) = -U(I+imask,j,k)
-               V(I-imask+1,j,k) = -V(I+imask,j,k)
-               W(I-imask+1,j,k) = -W(I+imask,j,k)
-               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
-               DV(I-imask+1,j,k) = -DV(I+imask,j,k)
-               DW(I-imask+1,j,k) = -DW(I+imask,j,k)
-             enddo
-           endif
-         ! east 
-         ELSEIF(Mask(i-1,j)==1)THEN
-           if(Bc_X0==1) then  ! free-slip wall  
-             do imask = 1,Nghost
-               U(i+imask-1,j,k) = -U(i-imask,j,k)
-               V(i+imask-1,j,k) = V(i-imask,j,k)
-               W(i+imask-1,j,k) = W(i-imask,j,k)
-               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
-               DV(i+imask-1,j,k) = DV(i-imask,j,k)
-               DW(i+imask-1,j,k) = DW(i-imask,j,k)
-             enddo
-           elseif(Bc_X0==2) then ! no-slip wall 
-             do imask =1,Nghost
-               U(i+imask-1,j,k) = -U(i-imask,j,k)
-               V(i+imask-1,j,k) = -V(i-imask,j,k)
-               W(i+imask-1,j,k) = -W(i-imask,j,k)
-               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
-               DV(i+imask-1,j,k) = -DV(i-imask,j,k)
-               DW(i+imask-1,j,k) = -DW(i-imask,j,k)
-             enddo
-           endif
-         ENDIF ! end mask+1=1 
-       ENDIF ! end mask=0 
-     ENDDO
-     ENDDO
-     ENDDO
+!     DO K=Kbeg,Kend
+!     DO J=Jbeg,Jend
+!     DO I=Ibeg,Iend
+!       IF(Mask(i,j)==0) THEN
+!         ! south boundary 
+!         IF(Mask(i,j+1)==1)then
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(i,j-imask+1,k) = U(i,j+imask,k)
+!               V(i,j-imask+1,k) = -V(i,j+imask,k)
+!               W(i,j-imask+1,k) = W(i,j+imask,k)
+!               DU(i,j-imask+1,k) = DU(i,j+imask,k)
+!               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
+!               DW(i,j-imask+1,k) = DW(i,j+imask,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i,j-imask+1,k) = -U(i,j+imask,k)
+!               V(i,j-imask+1,k) = -V(i,j+imask,k)
+!               W(i,j-imask+1,k) = -W(i,j+imask,k)
+!               DU(i,j-imask+1,k) = -DU(i,j+imask,k)
+!               DV(i,j-imask+1,k) = -DV(i,j+imask,k)
+!               DW(i,j-imask+1,k) = -DW(i,j+imask,k)
+!             enddo
+!           endif
+!         ! north  
+!         ELSEIF(Mask(i,j-1)==1)then
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(i,j+imask-1,k) = U(i,j-imask,k)
+!               V(i,j+imask-1,k) = -V(i,j-imask,k)
+!               W(i,j+imask-1,k) = W(i,j-imask,k)
+!               DU(i,j+imask-1,k) = DU(i,j-imask,k)
+!               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
+!               DW(i,j+imask-1,k) = DW(i,j-imask,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i,j+imask-1,k) = -U(i,j-imask,k)
+!               V(i,j+imask-1,k) = -V(i,j-imask,k)
+!               W(i,j+imask-1,k) = -W(i,j-imask,k)
+!               DU(i,j+imask-1,k) = -DU(i,j-imask,k)
+!               DV(i,j+imask-1,k) = -DV(i,j-imask,k)
+!               DW(i,j+imask-1,k) = -DW(i,j-imask,k)
+!             enddo
+!           endif
+!         ! west
+!         ELSEIF(Mask(i+1,j)==1)THEN
+!           if(Bc_X0==1) then  ! free-slip wall 
+!             do imask = 1,Nghost
+!               U(I-imask+1,j,k) = -U(I+imask,j,k)
+!               V(I-imask+1,j,k) = V(I+imask,j,k)
+!               W(I-imask+1,j,k) = W(I+imask,j,k)
+!               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
+!               DV(I-imask+1,j,k) = DV(I+imask,j,k)
+!               DW(I-imask+1,j,k) = DW(I+imask,j,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall
+!             do imask =1,Nghost
+!               U(I-imask+1,j,k) = -U(I+imask,j,k)
+!               V(I-imask+1,j,k) = -V(I+imask,j,k)
+!               W(I-imask+1,j,k) = -W(I+imask,j,k)
+!               DU(I-imask+1,j,k) = -DU(I+imask,j,k)
+!               DV(I-imask+1,j,k) = -DV(I+imask,j,k)
+!               DW(I-imask+1,j,k) = -DW(I+imask,j,k)
+!             enddo
+!           endif
+!         ! east 
+!         ELSEIF(Mask(i-1,j)==1)THEN
+!           if(Bc_X0==1) then  ! free-slip wall  
+!             do imask = 1,Nghost
+!               U(i+imask-1,j,k) = -U(i-imask,j,k)
+!               V(i+imask-1,j,k) = V(i-imask,j,k)
+!               W(i+imask-1,j,k) = W(i-imask,j,k)
+!               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
+!               DV(i+imask-1,j,k) = DV(i-imask,j,k)
+!               DW(i+imask-1,j,k) = DW(i-imask,j,k)
+!             enddo
+!           elseif(Bc_X0==2) then ! no-slip wall 
+!             do imask =1,Nghost
+!               U(i+imask-1,j,k) = -U(i-imask,j,k)
+!               V(i+imask-1,j,k) = -V(i-imask,j,k)
+!               W(i+imask-1,j,k) = -W(i-imask,j,k)
+!               DU(i+imask-1,j,k) = -DU(i-imask,j,k)
+!               DV(i+imask-1,j,k) = -DV(i-imask,j,k)
+!               DW(i+imask-1,j,k) = -DW(i-imask,j,k)
+!             enddo
+!           endif
+!         ENDIF ! end mask+1=1 
+!       ENDIF ! end mask=0 
+!     ENDDO
+!     ENDDO
+!     ENDDO
 
      Deallocate(DelxUzL)
      Deallocate(DelxVzL)
@@ -4897,7 +5097,7 @@
 !------------------------------------------------                                                                                 
      use global, only: WzR,UzR,VzR,UzL,VzL, &
                        Ibeg,Iend,Jbeg,Jend,Kbeg,&
-                       DelxH,DelyH,DeltH,Zero,Bc_Z0,Mask9
+                       DelxH,DelyH,DeltH,Zero,Bc_Z0
      implicit none
      integer :: i,j,k
 
@@ -4909,8 +5109,8 @@
          UzL(i,j,Kbeg) = Zero
          VzL(i,j,Kbeg) = Zero
        endif
-       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg)*Mask9(i,j)  &  ! modified by Cheng to use MASK9 for delxH delyH
-                       -DelyH(i,j)*VzR(i,j,Kbeg)*Mask9(i,j)
+       WzR(i,j,Kbeg) = -DeltH(i,j)-DelxH(i,j)*UzR(i,j,Kbeg) &
+                       -DelyH(i,j)*VzR(i,j,Kbeg)
      enddo
      enddo
 
@@ -5222,10 +5422,10 @@
        
        ! flooding (dry->wet)
        if(Mask(i,j)==0) then
-         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j)) Masktmp(i,j)=1
-         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j)) Masktmp(i,j)=1
-         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j)) Masktmp(i,j)=1
-         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j)) Masktmp(i,j)=1
+         if(Mask(i-1,j)==1.and.Eta(i-1,j)>Eta(i,j).and.D(i-1,j)-MinDep>1.e-6) Masktmp(i,j)=1
+         if(Mask(i+1,j)==1.and.Eta(i+1,j)>Eta(i,j).and.D(i+1,j)-MinDep>1.e-6) Masktmp(i,j)=1
+         if(Mask(i,j-1)==1.and.Eta(i,j-1)>Eta(i,j).and.D(i,j-1)-MinDep>1.e-6) Masktmp(i,j)=1
+         if(Mask(i,j+1)==1.and.Eta(i,j+1)>Eta(i,j).and.D(i,j+1)-MinDep>1.e-6) Masktmp(i,j)=1
        else
          ! drying (wet->dry)
          if(abs(D(i,j)-MinDep)<=1.e-6) then
@@ -5550,8 +5750,8 @@
      end subroutine tidal_wave_left_boundary
 
 
-	 ! changed by Cheng for fluid slide
-# if defined (LANDSLIDE) || defined (FLUIDSLIDE)
+	 ! changed by Cheng for fluid slide and deformable slide
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
      subroutine update_bathymetry
 !------------------------------------------------------
 !    This subroutine is used to update time-varying bathymetry 
@@ -5573,6 +5773,10 @@
 ! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
      integer :: Istagevs
+# endif
+! added by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+     integer :: Istagegs
 # endif
      
      ! save old bathymetry
@@ -5771,6 +5975,44 @@
      enddo
 # endif
 
+! added by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+
+     ! update mask for deformable slide
+     call update_maskgs
+
+     ! update vars
+     call update_vars_gs
+
+     ! SSP Runge-Kutta time stepping for deformable slide
+     do Istagegs = 1,It_Order
+
+	   ! coefficients for flux
+	   call flux_coff_gs
+
+	   ! fluxes at cell faces
+       call fluxes_gs
+
+       ! well-balanced source terms
+       call source_terms_gs
+
+       ! update all variables
+       call eval_duv_gs(Istagegs)
+
+     enddo
+	 
+	 ! interpolate into grid center
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Hc(i,j) = Hc0(i,j) 
+	   else
+	     Hc(i,j) = Hc0(i,j)-Dgs(i,j) 
+	   endif
+     enddo
+     enddo
+# endif
+
      ! ghost cells
      call phi_2D_coll(Hc)
 	 ! modified by Cheng for analytical dh/dt
@@ -5785,6 +6027,8 @@
      Hfx(1,j) = Hfx(2,j)
      Hfx(Mloc1,j) = Hfx(Mloc,j)
      enddo
+	 !hfx0 is flux of bed which is different from hfx at wet-dry front
+	 Hfx0 = Hfx
 
      do i = 1,Mloc
      do j = 2,Nloc
@@ -5793,6 +6037,7 @@
      Hfy(i,1) = Hfy(i,2)
      Hfy(i,Nloc1) = Hfy(i,Nloc)
      enddo
+	 Hfy0 = Hfy
 
      ! derivatives of water depth at cell center
      do j = 1,Nloc
@@ -6258,7 +6503,7 @@ endif
 !--------------------------------------------------
      use global, only: Zero,DelxSc,DelySc,D,DelxH,DelyH, &
                        DelxEta,DelyEta,sigc,Mloc,Nloc,Kloc, &
-                       DelxSl,DelySl,Kloc1,sig,Mask9
+                       DelxSl,DelySl,Kloc1,sig
      implicit none
      integer :: i,j,k
 
@@ -6267,8 +6512,8 @@ endif
      do k = 1,Kloc
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH
-       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
+       DelxSc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelxH(i,j)-sigc(k)/D(i,j)*DelxEta(i,j)
+       DelySc(i,j,k) = (1.0-sigc(k))/D(i,j)*DelyH(i,j)-sigc(k)/D(i,j)*DelyEta(i,j)
      enddo
      enddo
      enddo
@@ -6279,8 +6524,8 @@ endif
      do k = 1,Kloc1
      do j = 1,Nloc
      do i = 1,Mloc
-       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j) ! modified by Cheng to use MASK9 for delxH delyH                                
-       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j)                                      
+       DelxSl(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)
+       DelySl(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j)
      enddo
      enddo
      enddo
@@ -10173,8 +10418,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
       if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j) ! modified by Cheng to use MASK9 for delxH delyH
-      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
+      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
            !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -10205,12 +10450,12 @@ endif
 # endif
           if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( & !(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
+             -( & !(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
                   !(Eps_old(i,j,k)-Eps_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
+               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Eps_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Eps_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -10357,8 +10602,8 @@ endif
     do i = Ibeg,Iend
     do j = Jbeg,Jend
      if(D(i,j)<Dmin.and.Mask(i,j)==0) cycle
-      DxD = (DelxH(i,j)*Mask9(i,j)+DelxEta(i,j))/D(i,j)  ! modified by Cheng to use MASK9 for delxH delyH
-      DyD = (DelyH(i,j)*Mask9(i,j)+DelyEta(i,j))/D(i,j)
+      DxD = (DelxH(i,j)+DelxEta(i,j))/D(i,j)
+      DyD = (DelyH(i,j)+DelyEta(i,j))/D(i,j)
       Nlen = 0
       do k = Kbeg,Kend
             !linear interpolation using lagrange polynominal to get values at k+1/2 and k-1/2
@@ -10393,12 +10638,12 @@ endif
 # endif
         if(k==Kbeg) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
-             -( &!(nuH_bot*Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &  ! modified by Cheng to use MASK9 for delxH delyH
+             -( &!(nuH_bot*(DelxH(i,j)**2+DelyH(i,j)**2)+nuV_bot)/D(i,j)**2*  &
                  !(Tke_old(i,j,k)-Tke_old(i,j,k-1))*D(i,j)/dsigck1 &
-               -(nuH_bot*Mask9(i,j)*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
+               -(nuH_bot*(DelxH(i,j)*DxD+DelyH(i,j)*DyD)*Tke_old(i,j,k))&
               )/dsig(k) &
              + (dsig(k)-dsigck)/(dsig(k)**2/2.0*(dsigck+dsig(k)/2.0))&
-              *(nuH_top*Mask9(i,j)*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
+              *(nuH_top*(DelxSl(i,j,k+1)*DelxH(i,j)+DelySl(i,j,k+1)*DelyH(i,j))+nuV_top/D(i,j))&
               *Tke_old(i,j,k)
           elseif (k==Kend) then
            R5(i,j,k) = R5(i,j,k)& ! a plus deleted by cheng
@@ -10520,17 +10765,17 @@ endif
     enddo
     enddo
 
-   ! Modified by M.Derakhti as done in "vel_bc" subroutine (modified by Cheng to use MASK9 for delxH delyH)
+   ! Modified by M.Derakhti as done in "vel_bc" subroutine
     ! at the bottom
     do i = Ibeg,Iend
     do j = Jbeg,Jend
        !these are added to calculate the tangential external stress parallel to the surface and bed
-       Abot = dsqrt(1.0+Mask9(i,j)*(DelxH(i,j)**2+DelyH(i,j)**2))  
-       Bbot = dsqrt(1.0+Mask9(i,j)*DelxH(i,j)**2)
+       Abot = dsqrt(1.0+DelxH(i,j)**2+DelyH(i,j)**2)
+       Bbot = dsqrt(1.0+DelxH(i,j)**2)
        !velocities parallel to the bed
-       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Bbot 
-       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)*Mask9(i,j)+(1.0+Mask9(i,j)*DelxH(i,j)**2)*  &
-                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg)*Mask9(i,j))/Abot/Bbot
+       DUprime = (DU(i,j,Kbeg)-DelxH(i,j)*DW(i,j,Kbeg))/Bbot 
+       DVprime = (-DelxH(i,j)*DelyH(i,j)*DU(i,j,Kbeg)+(1.0+DelxH(i,j)**2)*  &
+                 DV(i,j,Kbeg)-DelyH(i,j)*DW(i,j,Kbeg))/Abot/Bbot
        DUmag = dsqrt(DUprime**2+DVprime**2)
 
       if(D(i,j)<Dmin.or.Mask(i,j)==0) cycle
@@ -13651,19 +13896,19 @@ SUBROUTINE hot_start
 
 # endif
 
-# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE) || defined (DEFORMABLESLIDE)
      file=TRIM(Depth_HotStart_File)
      call read_2d(Hc,file)
 # endif
 
 ! prepare all initials
-# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE) || defined (DEFORMABLESLIDE)
 ! Hc
      call phi_2D_coll(Hc)
 # endif
 
 # if defined (FLUIDSLIDE)
-! slide ! added by Cheng for slide information
+! slide ! added by Cheng for fluid slide information
      file=TRIM(Us_HotStart_File)
      call read_2d(Uvs,file)
 	 
@@ -13706,6 +13951,53 @@ SUBROUTINE hot_start
      enddo
 # if defined (PARALLEL)
      call phi_int_exch(Maskvs)
+# endif
+# endif
+
+# if defined (DEFORMABLESLIDE)
+! slide ! added by Cheng for deformable slide information
+     file=TRIM(Us_HotStart_File)
+     call read_2d(Ugs,file)
+	 
+     file=TRIM(Vs_HotStart_File)
+     call read_2d(Vgs,file)
+	 
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Hc0(i,j)-Hc(i,j)<=1.e-8) then
+         Dgs(i,j) = SLIDE_MINTHICK 
+	   else
+	     Dgs(i,j) = Hc0(i,j)-Hc(i,j)
+	   endif
+     enddo
+     enddo
+	 call wl_bc_gs
+	 Hgs = Hc0-Dgs
+	 
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       DUgs(i,j) = Ugs(i,j)*Dgs(i,j)
+       DVgs(i,j) = Vgs(i,j)*Dgs(i,j)
+     enddo
+     enddo
+     call vel_bc_gs
+# if defined (PARALLEL)
+     call phi_2D_exch(Ugs)
+     call phi_2D_exch(Vgs)
+     call phi_2D_exch(DUgs)
+     call phi_2D_exch(DVgs)
+# endif
+	 
+     Maskgs = 1
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Maskgs(i,j) = 0
+       endif
+     enddo
+     enddo
+# if defined (PARALLEL)
+     call phi_int_exch(Maskgs)
 # endif
 # endif
 

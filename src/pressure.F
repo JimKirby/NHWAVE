@@ -148,37 +148,37 @@
 !   set zero for dry set is inaccurate
 !   dry cells  (so what was actually done??)
 !
-     do k = Kbeg,Kend
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       if(Mask(i,j)==0) then
-         P(i,j,k) = Zero
-         
-         ! south boundary 
-         if(Mask(i,j+1)==1)then
-           do imask=1,Nghost
-             P(i,j-imask+1,k)=P(i,j+imask,k)
-           enddo
-         ! north boundary
-         elseif(Mask(i,j-1)==1)then
-           do imask=1,Nghost
-             P(i,j+imask-1,k)=P(i,j-imask,k)
-           enddo
-         ! west boundary
-         elseif(Mask(i+1,j)==1)then
-           do imask=1,Nghost
-             P(i-imask+1,j,k)=P(i+imask,j,k)
-           enddo
-         ! east boundary
-         elseif(Mask(i-1,j)==1)then
-           do imask=1,Nghost
-             P(i+imask-1,j,k)=P(i-imask,j,k)
-           enddo
-         endif
-       endif 
-     enddo
-     enddo
-     enddo
+!     do k = Kbeg,Kend
+!     do j = Jbeg,Jend
+!     do i = Ibeg,Iend
+!       if(Mask(i,j)==0) then
+!         P(i,j,k) = Zero
+!         
+!         ! south boundary 
+!         if(Mask(i,j+1)==1)then
+!           do imask=1,Nghost
+!             P(i,j-imask+1,k)=P(i,j+imask,k)
+!           enddo
+!         ! north boundary
+!         elseif(Mask(i,j-1)==1)then
+!           do imask=1,Nghost
+!             P(i,j+imask-1,k)=P(i,j-imask,k)
+!           enddo
+!         ! west boundary
+!         elseif(Mask(i+1,j)==1)then
+!           do imask=1,Nghost
+!             P(i-imask+1,j,k)=P(i+imask,j,k)
+!           enddo
+!         ! east boundary
+!         elseif(Mask(i-1,j)==1)then
+!           do imask=1,Nghost
+!             P(i+imask-1,j,k)=P(i-imask,j,k)
+!           enddo
+!         endif
+!       endif 
+!     enddo
+!     enddo
+!     enddo
 
 !   collect into ghost cells
 !
@@ -493,9 +493,8 @@
      do k = Kbeg,Kend1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelxEta(i,j)
-! modified by Cheng to use MASK9 for delxH delyH
-       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)*Mask9(i,j)-sig(k)/D(i,j)*DelyEta(i,j) 
+       DelxS(i,j,k) = (1.-sig(k))/D(i,j)*DelxH(i,j)-sig(k)/D(i,j)*DelxEta(i,j)
+       DelyS(i,j,k) = (1.-sig(k))/D(i,j)*DelyH(i,j)-sig(k)/D(i,j)*DelyEta(i,j) 
        DelzS(i,j,k) = 1./D(i,j)
 
        A1(i,j,k) = DelxS(i,j,k)*DelxS(i,j,k)+DelyS(i,j,k)*DelyS(i,j,k)+  &
@@ -559,51 +558,51 @@
      enddo
 
      ! fyshi added boundary conditions at masks face 02/15/2013
-     do i = Ibeg+1,Iend-1
-     do j = Jbeg+1,Jend-1
-     do k = Kbeg,Kend
-       if(mask(i,j)==0) then
-         ! left 
-         if(mask(i+1,j)==1) then
-           ic = indx(I+1,j,k)
-           Coef(ic,1) = Coef(ic,1)+Coef(ic,9)
-           Coef(ic,6) = Coef(ic,6)+Coef(ic,5)
-           Coef(ic,13) = Coef(ic,13)+Coef(ic,14)
-           Coef(ic,9) = Zero
-           Coef(ic,5) = Zero
-           Coef(ic,14) = Zero
-         ! right 
-         elseif(mask(i-1,j)==1) then
-           ic = indx(I-1,j,k)
-           Coef(ic,1) = Coef(ic,1)+Coef(ic,2)
-           Coef(ic,6) = Coef(ic,6)+Coef(ic,7)
-           Coef(ic,13) = Coef(ic,13)+Coef(ic,12)
-           Coef(ic,2) = Zero
-           Coef(ic,7) = Zero
-           Coef(ic,12) = Zero
-         ! south
-         elseif(mask(i,j+1)==1) then
-           ic = indx(i,J+1,k)
-           Coef(ic,1) = Coef(ic,1)+Coef(ic,10)
-           Coef(ic,6) = Coef(ic,6)+Coef(ic,4)
-           Coef(ic,13) = Coef(ic,13)+Coef(ic,15)
-           Coef(ic,10) = Zero
-           Coef(ic,4) = Zero
-           Coef(ic,15) = Zero
-         ! north
-         elseif(mask(i,j-1)==1) then
-           ic = indx(i,J-1,k)
-           Coef(ic,1) = Coef(ic,1)+Coef(ic,3)
-           Coef(ic,6) = Coef(ic,6)+Coef(ic,8)
-           Coef(ic,13) = Coef(ic,13)+Coef(ic,11)
-           Coef(ic,3) = Zero
-           Coef(ic,8) = Zero
-           Coef(ic,11) = Zero
-         endif ! end mask+1=1 
-       endif ! end mask=0
-     enddo
-     enddo
-     enddo
+!     do i = Ibeg+1,Iend-1
+!     do j = Jbeg+1,Jend-1
+!     do k = Kbeg,Kend
+!       if(mask(i,j)==0) then
+!         ! left 
+!         if(mask(i+1,j)==1) then
+!           ic = indx(I+1,j,k)
+!           Coef(ic,1) = Coef(ic,1)+Coef(ic,9)
+!           Coef(ic,6) = Coef(ic,6)+Coef(ic,5)
+!           Coef(ic,13) = Coef(ic,13)+Coef(ic,14)
+!           Coef(ic,9) = Zero
+!           Coef(ic,5) = Zero
+!           Coef(ic,14) = Zero
+!         ! right 
+!         elseif(mask(i-1,j)==1) then
+!           ic = indx(I-1,j,k)
+!           Coef(ic,1) = Coef(ic,1)+Coef(ic,2)
+!           Coef(ic,6) = Coef(ic,6)+Coef(ic,7)
+!           Coef(ic,13) = Coef(ic,13)+Coef(ic,12)
+!           Coef(ic,2) = Zero
+!           Coef(ic,7) = Zero
+!           Coef(ic,12) = Zero
+!         ! south
+!         elseif(mask(i,j+1)==1) then
+!           ic = indx(i,J+1,k)
+!           Coef(ic,1) = Coef(ic,1)+Coef(ic,10)
+!           Coef(ic,6) = Coef(ic,6)+Coef(ic,4)
+!           Coef(ic,13) = Coef(ic,13)+Coef(ic,15)
+!           Coef(ic,10) = Zero
+!           Coef(ic,4) = Zero
+!           Coef(ic,15) = Zero
+!         ! north
+!         elseif(mask(i,j-1)==1) then
+!           ic = indx(i,J-1,k)
+!           Coef(ic,1) = Coef(ic,1)+Coef(ic,3)
+!           Coef(ic,6) = Coef(ic,6)+Coef(ic,8)
+!           Coef(ic,13) = Coef(ic,13)+Coef(ic,11)
+!           Coef(ic,3) = Zero
+!           Coef(ic,8) = Zero
+!           Coef(ic,11) = Zero
+!         endif ! end mask+1=1 
+!       endif ! end mask=0
+!     enddo
+!     enddo
+!     enddo
 
 # if defined (OBSTACLE)
      do i = Ibeg+1,Iend-1
@@ -766,8 +765,8 @@
        endif
 # endif
 
-!added by Cheng for fluid slide
-# if defined (FLUIDSLIDE)
+!added by Cheng for fluid slide and deformable slide
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
        Rhs(ic) = Rhs(ic)+Rho0*(dsig(Kbeg)+dsig(Kbeg-1))*(Coef(ic,13)*D(i,j)*Delt2H(i,j)+ &
             Coef(ic,12)*D(i+1,j)*Delt2H(i+1,j)+Coef(ic,11)*D(i,j+1)*Delt2H(i,j+1)+ &
             Coef(ic,14)*D(i-1,j)*Delt2H(i-1,j)+Coef(ic,15)*D(i,j-1)*Delt2H(i,j-1))

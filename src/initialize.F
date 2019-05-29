@@ -262,16 +262,67 @@
      CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
      CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
 # if defined (PARALLEL)
-       if(myid.eq.0) WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
-       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
-       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
-       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+       if(myid.eq.0) WRITE(3,'(A12,A20)')'Slide File= ', TRIM(Slide_File)
+       if(myid.eq.0) WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       if(myid.eq.0) WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       if(myid.eq.0) WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
 # else
-       WRITE(3,'(A14,A20)')'Slide File= ', TRIM(Slide_File)
-       WRITE(3,'(A12,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
-       WRITE(3,'(A12,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
-       WRITE(3,'(A12,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+       WRITE(3,'(A12,A20)')'Slide File= ', TRIM(Slide_File)
+       WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
 # endif
+# endif
+
+! added by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+     CALL GET_STRING_VAL(Slide_File,FILE_NAME,'SLIDE_FILE',line,ierr)
+	 CALL GET_STRING_VAL(RHEO_OPT,FILE_NAME,'RHEO_OPT',line,ierr)
+	 CALL GET_LOGICAL_VAL(NON_HYDRO_SLD,FILE_NAME,'NON_HYDRO_SLD',line)
+     CALL GET_Float_VAL(SLIDE_DENSITY ,FILE_NAME,'SLIDE_DENSITY',line)
+     CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
+     CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
+     CALL GET_Float_VAL(SLIDE_GAMMA ,FILE_NAME,'SLIDE_GAMMA',line)
+     CALL GET_Float_VAL(SLIDE_CONC ,FILE_NAME,'SLIDE_CONC',line)
+     CALL GET_Float_VAL(GRAIN_DENSITY ,FILE_NAME,'GRAIN_DENSITY',line)
+     CALL GET_Float_VAL(PhiInt ,FILE_NAME,'PhiInt',line)
+     CALL GET_Float_VAL(PhiBed ,FILE_NAME,'PhiBed',line)
+     CALL GET_Float_VAL(SLIDE_INIU ,FILE_NAME,'SLIDE_INIU',line)
+	 CALL GET_Float_VAL(SLIDE_INIV ,FILE_NAME,'SLIDE_INIV',line)
+	 CALL GET_Float_VAL(SLIDE_INIW ,FILE_NAME,'SLIDE_INIW',line)
+# if defined (PARALLEL)
+       if(myid.eq.0) WRITE(3,'(A12,A15)')'Slide File= ', TRIM(Slide_File)
+	   if(myid.eq.0) WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
+	   if(myid.eq.0) WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
+       if(myid.eq.0) WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       if(myid.eq.0) WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       if(myid.eq.0) WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+       if(myid.eq.0) WRITE(3,'(A13,F8.2)')'SLIDE_GAMMA= ', SLIDE_GAMMA
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_CONC= ', SLIDE_CONC
+       if(myid.eq.0) WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
+       if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
+       if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
+       if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIW= ', SLIDE_INIW
+# else
+       WRITE(3,'(A12,A15)')'Slide File= ', TRIM(Slide_File)
+	   WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
+	   WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
+       WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
+       WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
+       WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
+       WRITE(3,'(A13,F8.2)')'SLIDE_GAMMA= ', SLIDE_GAMMA
+       WRITE(3,'(A12,F8.2)')'SLIDE_CONC= ', SLIDE_CONC
+       WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
+       WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
+       WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+       WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
+       WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
+       WRITE(3,'(A12,F8.2)')'SLIDE_INIW= ', SLIDE_INIW
+# endif
+     PhiInt = PhiInt*pi/180.
+     PhiBed = PhiBed*pi/180.
 # endif
 
      ! courant number
@@ -351,10 +402,10 @@
        CALL GET_STRING_VAL(Sali_HotStart_File,FILE_NAME,'Sali_HotStart_File',line,ierr)
        CALL GET_STRING_VAL(Temp_HotStart_File,FILE_NAME,'Temp_HotStart_File',line,ierr)
 # endif
-# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE)
+# if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE) || defined (DEFORMABLESLIDE)
        CALL GET_STRING_VAL(Depth_HotStart_File,FILE_NAME,'Depth_HotStart_File',line,ierr)
 # endif
-# if defined (FLUIDSLIDE)
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
        CALL GET_STRING_VAL(Us_HotStart_File,FILE_NAME,'Us_HotStart_File',line,ierr)
 	   CALL GET_STRING_VAL(Vs_HotStart_File,FILE_NAME,'Vs_HotStart_File',line,ierr)
 # endif
@@ -1348,7 +1399,7 @@
 
      ! two-dimensional vars
      ALLOCATE(HCG(Mglob,Nglob),Ho(Mloc,Nloc),H(Mloc1,Nloc1),Hc(Mloc,Nloc),Hc0(Mloc,Nloc), &
-              Hfx(Mloc1,Nloc),Hfy(Mloc,Nloc1),D(Mloc,Nloc),Eta0(Mloc,Nloc),Eta00(Mloc,Nloc),  &
+              Hfx(Mloc1,Nloc),Hfy(Mloc,Nloc1),Hfx0(Mloc1,Nloc),Hfy0(Mloc,Nloc1),D(Mloc,Nloc),Eta0(Mloc,Nloc),Eta00(Mloc,Nloc),  &
               D0(Mloc,Nloc),DeltH(Mloc,Nloc),DelxH(Mloc,Nloc),DelyH(Mloc,Nloc),Eta(Mloc,Nloc),Mask(Mloc,Nloc),  &
               Mask_Struct(Mloc,Nloc),Mask9(Mloc,Nloc),SourceC(Mloc,Nloc),SourceX(Mloc,Nloc), &
               SourceY(Mloc,Nloc),DeltHo(Mloc,Nloc),Uin_X0(Nloc,Kloc),Vin_X0(Nloc,Kloc),  &
@@ -1491,6 +1542,38 @@
 			  EvsyL(Mloc,Nloc1),EvsyR(Mloc,Nloc1),FvsyL(Mloc,Nloc1),FvsyR(Mloc,Nloc1),GvsyL(Mloc,Nloc1),GvsyR(Mloc,Nloc1))
 # endif
 
+! added by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+     ALLOCATE(Ugs(Mloc,Nloc),Vgs(Mloc,Nloc),Wgs(Mloc,Nloc),DUgs(Mloc,Nloc),DVgs(Mloc,Nloc),DWgs(Mloc,Nloc), &
+	          Dgs(Mloc,Nloc),Rhogs(Mloc,Nloc),Hgs(Mloc,Nloc),Wtgs(Mloc,Nloc),Qtgs(Mloc,Nloc), &
+	          Ugs0(Mloc,Nloc),Vgs0(Mloc,Nloc),Wgs0(Mloc,Nloc),DUgs0(Mloc,Nloc),DVgs0(Mloc,Nloc),DWgs0(Mloc,Nloc), &
+			  Dgs0(Mloc,Nloc),Rhogs0(Mloc,Nloc),Wgs00(Mloc,Nloc),Wbgs(Mloc,Nloc),Qbgs(Mloc,Nloc), &
+              DelxUgs(Mloc,Nloc),DelxVgs(Mloc,Nloc),DelxDUgs(Mloc,Nloc),DelxDVgs(Mloc,Nloc),DelxDgs(Mloc,Nloc), &
+	          DelyUgs(Mloc,Nloc),DelyVgs(Mloc,Nloc),DelyDUgs(Mloc,Nloc),DelyDVgs(Mloc,Nloc),DelyDgs(Mloc,Nloc), &
+			  DelxHgs(Mloc,Nloc),DelxCxgs(Mloc,Nloc),DelxH0(Mloc,Nloc),Delx2H0(Mloc,Nloc), &
+			  DelyHgs(Mloc,Nloc),DelyCygs(Mloc,Nloc),DelyH0(Mloc,Nloc),Dely2H0(Mloc,Nloc), &
+			  Kx(Mloc,Nloc),Cxgs(Mloc,Nloc),SrcpgsX(Mloc,Nloc),SrctgsX(Mloc,Nloc), &
+			  Ky(Mloc,Nloc),Cygs(Mloc,Nloc),SrcpgsY(Mloc,Nloc),SrctgsY(Mloc,Nloc), &
+			  UgsP(Mloc,Nloc),VgsP(Mloc,Nloc),WgsP(Mloc,Nloc), &
+			  Cxx(Mloc,Nloc),Cxy(Mloc,Nloc),Cxz(Mloc,Nloc),Cyx(Mloc,Nloc),Cyy(Mloc,Nloc), &
+			  Cyz(Mloc,Nloc),Czx(Mloc,Nloc),Czy(Mloc,Nloc),Czz(Mloc,Nloc),Czz0(Mloc,Nloc), &
+			  Taxx(Mloc,Nloc),Taxy(Mloc,Nloc),Tayx(Mloc,Nloc),Tayy(Mloc,Nloc), &
+			  Tbxx(Mloc,Nloc),Tbxy(Mloc,Nloc),Tbxz(Mloc,Nloc),Tbyx(Mloc,Nloc),Tbyy(Mloc,Nloc), &
+			  Tbyz(Mloc,Nloc),Tbzx(Mloc,Nloc),Tbzy(Mloc,Nloc),Tbzz(Mloc,Nloc),Maskgs(Mloc,Nloc))
+     ALLOCATE(DgsxL(Mloc1,Nloc),DgsxR(Mloc1,Nloc),UgsxL(Mloc1,Nloc),UgsxR(Mloc1,Nloc),VgsxL(Mloc1,Nloc),VgsxR(Mloc1,Nloc), &
+              H0fx(Mloc1,Nloc),DUgsxL(Mloc1,Nloc),DUgsxR(Mloc1,Nloc),DVgsxL(Mloc1,Nloc),DVgsxR(Mloc1,Nloc), &
+			  CxgsxL(Mloc1,Nloc),CxgsxR(Mloc1,Nloc),SgsxL(Mloc1,Nloc),SgsxR(Mloc1,Nloc),Egsx(Mloc1,Nloc),Fgsx(Mloc1,Nloc),Ggsx(Mloc1,Nloc), &
+			  EgsxL(Mloc1,Nloc),EgsxR(Mloc1,Nloc),FgsxL(Mloc1,Nloc),FgsxR(Mloc1,Nloc),GgsxL(Mloc1,Nloc),GgsxR(Mloc1,Nloc))
+     ALLOCATE(DgsyL(Mloc,Nloc1),DgsyR(Mloc,Nloc1),UgsyL(Mloc,Nloc1),UgsyR(Mloc,Nloc1),VgsyL(Mloc,Nloc1),VgsyR(Mloc,Nloc1), &
+              H0fy(Mloc,Nloc1),DUgsyL(Mloc,Nloc1),DUgsyR(Mloc,Nloc1),DVgsyL(Mloc,Nloc1),DVgsyR(Mloc,Nloc1), &
+			  CygsyL(Mloc,Nloc1),CygsyR(Mloc,Nloc1),SgsyL(Mloc,Nloc1),SgsyR(Mloc,Nloc1),Egsy(Mloc,Nloc1),Fgsy(Mloc,Nloc1),Ggsy(Mloc,Nloc1), &
+			  EgsyL(Mloc,Nloc1),EgsyR(Mloc,Nloc1),FgsyL(Mloc,Nloc1),FgsyR(Mloc,Nloc1),GgsyL(Mloc,Nloc1),GgsyR(Mloc,Nloc1))
+! poisson solver (for NSPCG use)
+     neqnsgs = (Iend-Ibeg+1)*(Jend-Jbeg+1)
+     ALLOCATE(Coefgs(neqnsgs,5),JCoefgs(5),Rhsgs(neqnsgs))
+!
+# endif
+
 ! poisson solver (for NSPCG use)
      neqns = (Iend-Ibeg+1)*(Jend-Jbeg+1)*(Kend-Kbeg+1)
      ALLOCATE(Coef(5*neqns,5*15),JCoef(5*15),Rhs(neqns))
@@ -1610,6 +1693,9 @@
 ! added by Cheng for fluid slide
 # if defined (FLUIDSLIDE)
      real(SP), dimension(Mglob,Nglob) :: Dvstmp
+# endif
+# if defined (DEFORMABLESLIDE)
+     real(SP), dimension(Mglob,Nglob) :: Dgstmp
 # endif
 # if defined (LANDSLIDE)
      real(SP) :: alpha0,L0,T,bl,wl,e,kb,kw,x0,xr,xt,yt,zt,alpha1, &
@@ -1816,7 +1902,8 @@
      endif
 # endif
 
-     ! added by Cheng for fluid slide
+     ! added by Cheng for fluid slide and deformable slide
+# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
 # if defined (FLUIDSLIDE)
      Dvs = zero
      Hvs  = zero
@@ -1872,6 +1959,64 @@
      call phi_2D_coll(Hc)
      call phi_2D_coll(Dvs) 
      call phi_2D_coll(Hvs)  
+# endif
+
+# if defined (DEFORMABLESLIDE)
+     Dgs = zero
+     Hgs  = zero
+     open(5001,file=TRIM(Slide_File),status='old')
+     do j = 1,Nglob
+       read(5001,*) (Dgstmp(i,j),i=1,Mglob) !slide shape
+     enddo
+     close(5001)
+
+     do i = Ibeg,Iend
+     do j = Jbeg,Jend
+# if defined (PARALLEL)
+       iglob = npx*(Mloc-2*Nghost)+i-Nghost
+       jglob = npy*(Nloc-2*Nghost)+j-Nghost
+# else
+       iglob = i-Nghost
+       jglob = j-Nghost
+# endif
+
+       Dgs(i,j) = Dgstmp(iglob,jglob) !slide shape
+       if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Dgs(i,j) = SLIDE_MINTHICK
+	   endif
+       Hgs(i,j) = Hc0(i,j)-Dgs(i,j) !chi
+     enddo
+     enddo
+	 
+     ! wetting-drying mask for fluid slide
+     Maskgs = 1
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Maskgs(i,j) = 0
+       endif
+     enddo
+     enddo
+
+! interpolate into grid center
+     do j=Jbeg,Jend
+     do i=Ibeg,Iend
+	   if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+         Hc(i,j) = Hc0(i,j) 
+	   else
+	     Hc(i,j) = Hc0(i,j)-Dgs(i,j) 
+	   endif
+     enddo
+     enddo
+
+     ! collect data into ghost cells
+# if defined (PARALLEL)
+     call phi_int_exch(Maskgs)
+# endif
+     call phi_2D_coll(Hc)
+     call phi_2D_coll(Dgs) 
+     call phi_2D_coll(Hgs)  
+# endif
 	 
      ! reconstruct base depth below the fluid slide at x-y faces
      do j = 1,Nloc
@@ -1897,6 +2042,10 @@
        DelyH0(i,j) = (H0fy(i,j+1)-H0fy(i,j))/dy
      enddo
      enddo
+# if defined (PARALLEL)
+	call phi_2D_exch(DelxH0)
+	call phi_2D_exch(DelyH0)
+# endif
 
 # endif
 
@@ -1904,7 +2053,7 @@
      Mask_Struct = 1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Hc(i,j)<-100.0) then
+       if(Hc(i,j)<-1000.0) then
          Mask_Struct(i,j) = 0
        endif
      enddo
@@ -1918,6 +2067,8 @@
      Hfx(1,j) = Hc(1,j)
      Hfx(Mloc1,j) = Hc(Mloc,j)
      enddo
+	 !hfx0 is flux of bed, which is different from hfx at wet-dry front (Cheng)
+	 Hfx0 = Hfx	
 
      do i = 1,Mloc
      do j = 2,Nloc
@@ -1926,6 +2077,7 @@
      Hfy(i,1) = Hc(i,1)
      Hfy(i,Nloc1) = Hc(i,Nloc)
      enddo
+     Hfy0 = Hfy
 
      ! derivatives of water depth at cell center
      do j = 1,Nloc
@@ -2019,7 +2171,7 @@
        Maskp = 1
        do j = 1,Nglob+1
        do i = 1,Mglob+1
-         if(HG(i,j)<-10.0) Maskp(i,j) = 0
+         if(HG(i,j)<-1000.0) Maskp(i,j) = 0
        enddo
        enddo
  
@@ -2217,7 +2369,7 @@
      Mask_Struct = 1
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Hc(i,j)<-10.0) then
+       if(Hc(i,j)<-1000.0) then
          Mask_Struct(i,j) = 0
        endif
      enddo
@@ -2617,6 +2769,46 @@
 	 EvsyL = Zero;EvsyR = Zero;FvsyL = Zero;FvsyR = Zero;GvsyL = Zero;GvsyR = Zero
 # endif
 
+! add by Cheng for deformable slide
+# if defined (DEFORMABLESLIDE)
+     Ugs=SLIDE_INIU;Vgs=SLIDE_INIV;Wgs=SLIDE_INIW;DUgs=Dgs*Ugs;DVgs=Dgs*Vgs;DWgs=Dgs*Wgs;
+     Ugs0=Ugs;Vgs0=Vgs;Wgs0=Wgs;DUgs0=DUgs;DVgs0=DVgs;DWgs0=DWgs;Wgs00=Wgs0
+	 Wtgs=Zero;Wbgs=Zero;Qtgs=Zero;Qbgs=Zero
+     DelxUgs=Zero;DelxVgs=Zero;DelxDUgs=Zero;DelxDVgs=Zero;DelxDgs=Zero;DelxHgs=Zero
+	 DelyUgs=Zero;DelyVgs=Zero;DelyDUgs=Zero;DelyDVgs=Zero;DelyDgs=Zero;DelyHgs=Zero
+     DelxCxgs=Zero;Delx2H0=Zero;Kx=Zero;SrcpgsX=Zero;SrctgsX=Zero
+     DelyCygs=Zero;Dely2H0=Zero;Ky=Zero;SrcpgsY=Zero;SrctgsY=Zero
+	 UgsP=Zero;VgsP=Zero;WgsP=Zero
+     Cxx=Zero;Cxy=Zero;Cxz=Zero;Cyx=Zero;Cyy=Zero;Cyz=Zero;Czx=Zero;Czy=Zero;Czz=Zero;Czz0=Zero
+	 Taxx=Zero;Taxy=Zero;Tayx=Zero;Tayy=Zero
+	 Tbxx=Zero;Tbxy=Zero;Tbxz=Zero;Tbyx=Zero;Tbyy=Zero;Tbyz=Zero;Tbzx=Zero;Tbzy=Zero;Tbzz=Zero
+     DgsxL=Zero;DgsxR=Zero;UgsxL=Zero;UgsxR=Zero;VgsxL=Zero;VgsxR=Zero
+	 DUgsxL=Zero;DUgsxR=Zero;DVgsxL=Zero;DVgsxR=Zero
+	 CxgsxL=Zero;CxgsxR=Zero;SgsxL=Zero;SgsxR=Zero;Egsx=Zero;Fgsx=Zero;Ggsx=Zero
+	 EgsxL=Zero;EgsxR=Zero;FgsxL=Zero;FgsxR=Zero;GgsxL=Zero;GgsxR=Zero
+     DgsyL=Zero;DgsyR=Zero;UgsyL=Zero;UgsyR=Zero;VgsyL=Zero;VgsyR=Zero
+	 DUgsyL=Zero;DUgsyR=Zero;DVgsyL=Zero;DVgsyR=Zero
+	 CygsyL=Zero;CygsyR=Zero;SgsyL=Zero;SgsyR=Zero;Egsy=Zero;Fgsy=Zero;Ggsy=Zero
+	 EgsyL=Zero;EgsyR=Zero;FgsyL=Zero;FgsyR=Zero;GgsyL=Zero;GgsyR=Zero
+	 if(trim(RHEO_OPT)=='VISCOUS') then
+	    Rhogs = SLIDE_DENSITY
+	 elseif(trim(RHEO_OPT)=='GRANULAR') then
+	    Rhogs=Zero
+	    do j = Jbeg,Jend
+        do i = Ibeg,Iend
+!		  if(Mask(i,j)==1) then
+	        Rhogs(i,j) = GRAIN_DENSITY*SLIDE_CONC + Rho0*(1.0-SLIDE_CONC)
+!		  else
+!		    Rhogs(i,j) = GRAIN_DENSITY*SLIDE_CONC
+!		  endif
+		enddo
+		enddo
+		call phi_2D_coll(Rhogs)
+	 endif
+	 Rhogs0=Rhogs
+	 call flux_coff_gs
+# endif
+
      Tke = Zero
      Eps = Zero
      DTke = Zero
@@ -2789,10 +2981,6 @@
 ! 100   continue
      endif    
 
-     ! collect data into ghost cells
-     call phi_2D_coll(Eta)
-     Eta0 = Eta
-
      ! wetting-drying mask
      ! Mask: 1 - wet; 0 - dry
      ! Mask_Struct: 0 - permanent dry point
@@ -2809,6 +2997,10 @@
      enddo
      enddo
      Mask = Mask*Mask_Struct
+	 
+     ! collect data into ghost cells (move from before above loop to after it by Cheng)
+     call phi_2D_coll(Eta)
+     Eta0 = Eta
 
 # if defined (PARALLEL)
      ! collect mask into ghost cells
