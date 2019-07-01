@@ -13962,6 +13962,9 @@ SUBROUTINE hot_start
      file=TRIM(Vs_HotStart_File)
      call read_2d(Vgs,file)
 	 
+     file=TRIM(Ws_HotStart_File)
+     call read_2d(Wgs,file)
+	 
      do j=Jbeg,Jend
      do i=Ibeg,Iend
 	   if(Hc0(i,j)-Hc(i,j)<=1.e-8) then
@@ -13978,14 +13981,17 @@ SUBROUTINE hot_start
      do i = Ibeg,Iend
        DUgs(i,j) = Ugs(i,j)*Dgs(i,j)
        DVgs(i,j) = Vgs(i,j)*Dgs(i,j)
+	   DWgs(i,j) = Wgs(i,j)*Dgs(i,j)
      enddo
      enddo
      call vel_bc_gs
 # if defined (PARALLEL)
      call phi_2D_exch(Ugs)
      call phi_2D_exch(Vgs)
+	 call phi_2D_exch(Wgs)
      call phi_2D_exch(DUgs)
      call phi_2D_exch(DVgs)
+	 call phi_2D_exch(DWgs)
 # endif
 	 
      Maskgs = 1

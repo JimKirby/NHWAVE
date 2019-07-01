@@ -296,7 +296,7 @@
 # if defined (LANDSLIDE) || defined (FLUIDSLIDE) || defined (TWOLAYERSLIDE) || defined (LANDSLIDE_COMPREHENSIVE) || defined (DEFORMABLESLIDE)
      CHARACTER(LEN=80) :: Depth_HotStart_File
 # endif
-# if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
+# if defined (FLUIDSLIDE)
      CHARACTER(LEN=80) :: Us_HotStart_File,Vs_HotStart_File
 # endif
 
@@ -327,31 +327,36 @@
 # endif
 
 # if defined (DEFORMABLESLIDE)
-     CHARACTER(LEN=80) :: Slide_File	
+     CHARACTER(LEN=80) :: Slide_File
+     CHARACTER(LEN=80) :: Us_HotStart_File,Vs_HotStart_File,Ws_HotStart_File
 	 CHARACTER(LEN=80) :: RHEO_OPT
      real(SP), dimension(:,:), allocatable :: Ugs ,Vgs ,Wgs ,DUgs ,DVgs ,DWgs ,Dgs ,Rhogs ,Hgs  ,Wtgs,Qtgs, &
 	                                          Ugs0,Vgs0,Wgs0,DUgs0,DVgs0,DWgs0,Dgs0,Rhogs0,Wgs00,Wbgs,Qbgs, &
-                                              DelxUgs,DelxVgs,DelxDUgs,DelxDVgs,DelxDgs,DelxHgs,DelxCxgs, &
-	                                          DelyUgs,DelyVgs,DelyDUgs,DelyDVgs,DelyDgs,DelyHgs,DelyCygs, &
-											  DelxH0,Delx2H0,Kx,Cxgs,SrcpgsX,SrctgsX,UgsP,VgsP,WgsP, &
-											  DelyH0,Dely2H0,Ky,Cygs,SrcpgsY,SrctgsY, &
-											  Cxx,Cxy,Cxz,Cyx,Cyy,Cyz,Czx,Czy,Czz,Czz0,Taxx,Taxy,Tayx,Tayy, &
+                                              DelxUgs,DelxVgs,DelxWgs,DelxDUgs,DelxDVgs,DelxDWgs,DelxDgs,DelxHgs, &
+	                                          DelyUgs,DelyVgs,DelyWgs,DelyDUgs,DelyDVgs,DelyDWgs,DelyDgs,DelyHgs, &
+											  DelxH0,Delx2H0,Kx,Cxgs,SrcmgsX,SrcpgsX,SrctgsX,UgsP,VgsP,WgsP, &
+											  DelyH0,Dely2H0,Ky,Cygs,SrcmgsY,SrcpgsY,SrctgsY,SrctgsZ,DwDt, &
+											  Cxx,Cxy,Cxz,Cyx,Cyy,Cyz,Czx,Czy,Czz,Czz0, &
+											  Taxx,Tayx,Taxy,Tayy,Taxz,Tayz,Tezz,Pss, &
 											  Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz
-     real(SP), dimension(:,:), allocatable :: DgsxL,DgsxR,UgsxL,UgsxR,VgsxL,VgsxR, &
-											  H0fx,DUgsxL,DUgsxR,DVgsxL,DVgsxR, &
-											  CxgsxL,CxgsxR,SgsxL,SgsxR,Egsx,Fgsx,Ggsx, &
-											  EgsxL,EgsxR,FgsxL,FgsxR,GgsxL,GgsxR
-     real(SP), dimension(:,:), allocatable :: DgsyL,DgsyR,UgsyL,UgsyR,VgsyL,VgsyR, &
-	                                          H0fy,DUgsyL,DUgsyR,DVgsyL,DVgsyR, &
-											  CygsyL,CygsyR,SgsyL,SgsyR,Egsy,Fgsy,Ggsy, &
-											  EgsyL,EgsyR,FgsyL,FgsyR,GgsyL,GgsyR
+     real(SP), dimension(:,:), allocatable :: DgsxL,DgsxR,HSgsxL,HSgsxR,UgsxL,UgsxR,VgsxL,VgsxR,WgsxL,WgsxR, &
+											  H0fx,DUgsxL,DUgsxR,DVgsxL,DVgsxR,DWgsxL,DWgsxR, &
+											  Cxgsx,SgsxL,SgsxR,Egsx,Fgsx,Ggsx,Hgsx, &
+											  EgsxL,EgsxR,FgsxL,FgsxR,GgsxL,GgsxR,HgsxL,HgsxR, &
+											  SrcmgsxL,SrcmgsxR,SrcpgsxL,SrcpgsxR
+     real(SP), dimension(:,:), allocatable :: DgsyL,DgsyR,HSgsyL,HSgsyR,UgsyL,UgsyR,VgsyL,VgsyR,WgsyL,WgsyR, &
+	                                          H0fy,DUgsyL,DUgsyR,DVgsyL,DVgsyR,DWgsyL,DWgsyR, &
+											  Cygsy,SgsyL,SgsyR,Egsy,Fgsy,Ggsy,Hgsy, &
+											  EgsyL,EgsyR,FgsyL,FgsyR,GgsyL,GgsyR,HgsyL,HgsyR, &
+											  SrcmgsyL,SrcmgsyR,SrcpgsyL,SrcpgsyR
+     real(SP), dimension(:,:), allocatable :: QbgsC,WgsC
      integer,  dimension(:,:), allocatable :: Maskgs
-	 logical :: NON_HYDRO_SLD
+	 logical :: NON_HYDRO_SLD,DISP_CORR_SLD
      real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK,SLIDE_GAMMA, &
 	             SLIDE_CONC,GRAIN_DENSITY,PhiInt,PhiBed, &
 				 SLIDE_INIU,SLIDE_INIV,SLIDE_INIW
      ! poisson solvers
-     integer  :: neqnsgs
+     integer  :: neqnsgs,IendC,JendC,MlocC,NlocC
      real(SP), dimension(:),   allocatable :: Rhsgs
      integer,  dimension(:),   allocatable :: JCoefgs
      real(SP), dimension(:,:), allocatable :: Coefgs

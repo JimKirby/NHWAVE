@@ -279,6 +279,7 @@
      CALL GET_STRING_VAL(Slide_File,FILE_NAME,'SLIDE_FILE',line,ierr)
 	 CALL GET_STRING_VAL(RHEO_OPT,FILE_NAME,'RHEO_OPT',line,ierr)
 	 CALL GET_LOGICAL_VAL(NON_HYDRO_SLD,FILE_NAME,'NON_HYDRO_SLD',line)
+	 CALL GET_LOGICAL_VAL(DISP_CORR_SLD,FILE_NAME,'DISP_CORR_SLD',line)
      CALL GET_Float_VAL(SLIDE_DENSITY ,FILE_NAME,'SLIDE_DENSITY',line)
      CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
      CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
@@ -294,6 +295,7 @@
        if(myid.eq.0) WRITE(3,'(A12,A15)')'Slide File= ', TRIM(Slide_File)
 	   if(myid.eq.0) WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
 	   if(myid.eq.0) WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
+	   if(myid.eq.0) WRITE(3,'(A15,L4)')'DISP_CORR_SLD= ',DISP_CORR_SLD
        if(myid.eq.0) WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        if(myid.eq.0) WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
        if(myid.eq.0) WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
@@ -309,6 +311,7 @@
        WRITE(3,'(A12,A15)')'Slide File= ', TRIM(Slide_File)
 	   WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
 	   WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
+	   WRITE(3,'(A15,L4)')'DISP_CORR_SLD= ',DISP_CORR_SLD
        WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
        WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
@@ -408,6 +411,9 @@
 # if defined (FLUIDSLIDE) || defined (DEFORMABLESLIDE)
        CALL GET_STRING_VAL(Us_HotStart_File,FILE_NAME,'Us_HotStart_File',line,ierr)
 	   CALL GET_STRING_VAL(Vs_HotStart_File,FILE_NAME,'Vs_HotStart_File',line,ierr)
+# endif
+# if defined (DEFORMABLESLIDE)
+       CALL GET_STRING_VAL(Ws_HotStart_File,FILE_NAME,'Ws_HotStart_File',line,ierr)
 # endif
       IF(VISCOUS_FLOW)THEN
        ! CALL GET_STRING_VAL(Rho_HotStart_File,FILE_NAME,'Rho_HotStart_File',line,ierr)
@@ -1371,6 +1377,27 @@
      Kbeg = Nghost+1
      Kend = Kloc-Nghost
      Kend1 = Kloc1-Nghost
+
+# if defined (DEFORMABLESLIDE)
+# if defined (PARALLEL)
+	 if (npx<PX.and.npy<PY) then
+	   IendC=Iend;JendC=Jend
+	   MlocC=Mloc;NlocC=Nloc
+	 elseif (npx==PX.and.npy<PY) then
+	   IendC=Iend1;JendC=Jend
+       MlocC=Mloc1;NlocC=Nloc
+	 elseif (npx<PX.and.npy==PY) then
+	   IendC=Iend;JendC=Jend1
+       MlocC=Mloc;NlocC=Nloc1
+	 elseif (npx==PX.and.npy==PY) then
+	   IendC=Iend1;JendC=Jend1
+       MlocC=Mloc1;NlocC=Nloc1
+	 endif
+# else
+	 IendC=Iend1;JendC=Jend1
+     MlocC=Mloc1;NlocC=Nloc1
+# endif
+# endif
 !
      end subroutine index
 !
@@ -1548,28 +1575,40 @@
 	          Dgs(Mloc,Nloc),Rhogs(Mloc,Nloc),Hgs(Mloc,Nloc),Wtgs(Mloc,Nloc),Qtgs(Mloc,Nloc), &
 	          Ugs0(Mloc,Nloc),Vgs0(Mloc,Nloc),Wgs0(Mloc,Nloc),DUgs0(Mloc,Nloc),DVgs0(Mloc,Nloc),DWgs0(Mloc,Nloc), &
 			  Dgs0(Mloc,Nloc),Rhogs0(Mloc,Nloc),Wgs00(Mloc,Nloc),Wbgs(Mloc,Nloc),Qbgs(Mloc,Nloc), &
-              DelxUgs(Mloc,Nloc),DelxVgs(Mloc,Nloc),DelxDUgs(Mloc,Nloc),DelxDVgs(Mloc,Nloc),DelxDgs(Mloc,Nloc), &
-	          DelyUgs(Mloc,Nloc),DelyVgs(Mloc,Nloc),DelyDUgs(Mloc,Nloc),DelyDVgs(Mloc,Nloc),DelyDgs(Mloc,Nloc), &
-			  DelxHgs(Mloc,Nloc),DelxCxgs(Mloc,Nloc),DelxH0(Mloc,Nloc),Delx2H0(Mloc,Nloc), &
-			  DelyHgs(Mloc,Nloc),DelyCygs(Mloc,Nloc),DelyH0(Mloc,Nloc),Dely2H0(Mloc,Nloc), &
-			  Kx(Mloc,Nloc),Cxgs(Mloc,Nloc),SrcpgsX(Mloc,Nloc),SrctgsX(Mloc,Nloc), &
-			  Ky(Mloc,Nloc),Cygs(Mloc,Nloc),SrcpgsY(Mloc,Nloc),SrctgsY(Mloc,Nloc), &
-			  UgsP(Mloc,Nloc),VgsP(Mloc,Nloc),WgsP(Mloc,Nloc), &
+              DelxUgs(Mloc,Nloc),DelxVgs(Mloc,Nloc),DelxWgs(Mloc,Nloc), &
+			  DelyUgs(Mloc,Nloc),DelyVgs(Mloc,Nloc),DelyWgs(Mloc,Nloc), &
+			  DelxDUgs(Mloc,Nloc),DelxDVgs(Mloc,Nloc),DelxDWgs(Mloc,Nloc),DelxDgs(Mloc,Nloc), &
+			  DelyDUgs(Mloc,Nloc),DelyDVgs(Mloc,Nloc),DelyDWgs(Mloc,Nloc),DelyDgs(Mloc,Nloc), &
+			  DelxHgs(Mloc,Nloc),DelxH0(Mloc,Nloc),Delx2H0(Mloc,Nloc),Kx(Mloc,Nloc),Cxgs(Mloc,Nloc), &
+			  DelyHgs(Mloc,Nloc),DelyH0(Mloc,Nloc),Dely2H0(Mloc,Nloc),Ky(Mloc,Nloc),Cygs(Mloc,Nloc), &
+			  SrcmgsX(Mloc,Nloc),SrcpgsX(Mloc,Nloc),SrctgsX(Mloc,Nloc), &
+			  SrcmgsY(Mloc,Nloc),SrcpgsY(Mloc,Nloc),SrctgsY(Mloc,Nloc), &
+			  SrctgsZ(Mloc,Nloc),UgsP(Mloc,Nloc),VgsP(Mloc,Nloc),WgsP(Mloc,Nloc),DwDt(Mloc,Nloc), &
 			  Cxx(Mloc,Nloc),Cxy(Mloc,Nloc),Cxz(Mloc,Nloc),Cyx(Mloc,Nloc),Cyy(Mloc,Nloc), &
 			  Cyz(Mloc,Nloc),Czx(Mloc,Nloc),Czy(Mloc,Nloc),Czz(Mloc,Nloc),Czz0(Mloc,Nloc), &
-			  Taxx(Mloc,Nloc),Taxy(Mloc,Nloc),Tayx(Mloc,Nloc),Tayy(Mloc,Nloc), &
+			  Taxx(Mloc,Nloc),Tayx(Mloc,Nloc),Taxy(Mloc,Nloc),Tayy(Mloc,Nloc),Taxz(Mloc,Nloc),Tayz(Mloc,Nloc), &
+			  Tezz(Mloc,Nloc),Pss(Mloc,Nloc), &
 			  Tbxx(Mloc,Nloc),Tbxy(Mloc,Nloc),Tbxz(Mloc,Nloc),Tbyx(Mloc,Nloc),Tbyy(Mloc,Nloc), &
 			  Tbyz(Mloc,Nloc),Tbzx(Mloc,Nloc),Tbzy(Mloc,Nloc),Tbzz(Mloc,Nloc),Maskgs(Mloc,Nloc))
-     ALLOCATE(DgsxL(Mloc1,Nloc),DgsxR(Mloc1,Nloc),UgsxL(Mloc1,Nloc),UgsxR(Mloc1,Nloc),VgsxL(Mloc1,Nloc),VgsxR(Mloc1,Nloc), &
-              H0fx(Mloc1,Nloc),DUgsxL(Mloc1,Nloc),DUgsxR(Mloc1,Nloc),DVgsxL(Mloc1,Nloc),DVgsxR(Mloc1,Nloc), &
-			  CxgsxL(Mloc1,Nloc),CxgsxR(Mloc1,Nloc),SgsxL(Mloc1,Nloc),SgsxR(Mloc1,Nloc),Egsx(Mloc1,Nloc),Fgsx(Mloc1,Nloc),Ggsx(Mloc1,Nloc), &
-			  EgsxL(Mloc1,Nloc),EgsxR(Mloc1,Nloc),FgsxL(Mloc1,Nloc),FgsxR(Mloc1,Nloc),GgsxL(Mloc1,Nloc),GgsxR(Mloc1,Nloc))
-     ALLOCATE(DgsyL(Mloc,Nloc1),DgsyR(Mloc,Nloc1),UgsyL(Mloc,Nloc1),UgsyR(Mloc,Nloc1),VgsyL(Mloc,Nloc1),VgsyR(Mloc,Nloc1), &
-              H0fy(Mloc,Nloc1),DUgsyL(Mloc,Nloc1),DUgsyR(Mloc,Nloc1),DVgsyL(Mloc,Nloc1),DVgsyR(Mloc,Nloc1), &
-			  CygsyL(Mloc,Nloc1),CygsyR(Mloc,Nloc1),SgsyL(Mloc,Nloc1),SgsyR(Mloc,Nloc1),Egsy(Mloc,Nloc1),Fgsy(Mloc,Nloc1),Ggsy(Mloc,Nloc1), &
-			  EgsyL(Mloc,Nloc1),EgsyR(Mloc,Nloc1),FgsyL(Mloc,Nloc1),FgsyR(Mloc,Nloc1),GgsyL(Mloc,Nloc1),GgsyR(Mloc,Nloc1))
+     ALLOCATE(DgsxL(Mloc1,Nloc),DgsxR(Mloc1,Nloc),HSgsxL(Mloc1,Nloc),HSgsxR(Mloc1,Nloc),H0fx(Mloc1,Nloc), &
+	          UgsxL(Mloc1,Nloc),UgsxR(Mloc1,Nloc),VgsxL(Mloc1,Nloc),VgsxR(Mloc1,Nloc),WgsxL(Mloc1,Nloc),WgsxR(Mloc1,Nloc), &
+              DUgsxL(Mloc1,Nloc),DUgsxR(Mloc1,Nloc),DVgsxL(Mloc1,Nloc),DVgsxR(Mloc1,Nloc),DWgsxL(Mloc1,Nloc),DWgsxR(Mloc1,Nloc), &
+			  Cxgsx(Mloc1,Nloc),SgsxL(Mloc1,Nloc),SgsxR(Mloc1,Nloc), &
+			  Egsx(Mloc1,Nloc),Fgsx(Mloc1,Nloc),Ggsx(Mloc1,Nloc),Hgsx(Mloc1,Nloc), &
+			  EgsxL(Mloc1,Nloc),EgsxR(Mloc1,Nloc),FgsxL(Mloc1,Nloc),FgsxR(Mloc1,Nloc), &
+			  GgsxL(Mloc1,Nloc),GgsxR(Mloc1,Nloc),HgsxL(Mloc1,Nloc),HgsxR(Mloc1,Nloc), &
+			  SrcmgsxL(Mloc1,Nloc),SrcmgsxR(Mloc1,Nloc),SrcpgsxL(Mloc1,Nloc),SrcpgsxR(Mloc1,Nloc))
+     ALLOCATE(DgsyL(Mloc,Nloc1),DgsyR(Mloc,Nloc1),HSgsyL(Mloc,Nloc1),HSgsyR(Mloc,Nloc1),H0fy(Mloc,Nloc1), &
+	          UgsyL(Mloc,Nloc1),UgsyR(Mloc,Nloc1),VgsyL(Mloc,Nloc1),VgsyR(Mloc,Nloc1),WgsyL(Mloc,Nloc1),WgsyR(Mloc,Nloc1), &
+              DUgsyL(Mloc,Nloc1),DUgsyR(Mloc,Nloc1),DVgsyL(Mloc,Nloc1),DVgsyR(Mloc,Nloc1),DWgsyL(Mloc,Nloc1),DWgsyR(Mloc,Nloc1), &
+			  Cygsy(Mloc,Nloc1),SgsyL(Mloc,Nloc1),SgsyR(Mloc,Nloc1), &
+			  Egsy(Mloc,Nloc1),Fgsy(Mloc,Nloc1),Ggsy(Mloc,Nloc1),Hgsy(Mloc,Nloc1), &
+			  EgsyL(Mloc,Nloc1),EgsyR(Mloc,Nloc1),FgsyL(Mloc,Nloc1),FgsyR(Mloc,Nloc1), &
+			  GgsyL(Mloc,Nloc1),GgsyR(Mloc,Nloc1),HgsyL(Mloc,Nloc1),HgsyR(Mloc,Nloc1), &
+			  SrcmgsyL(Mloc,Nloc1),SrcmgsyR(Mloc,Nloc1),SrcpgsyL(Mloc,Nloc1),SrcpgsyR(Mloc,Nloc1))
+     ALLOCATE(QbgsC(MlocC,NlocC),WgsC(MlocC,NlocC))
 ! poisson solver (for NSPCG use)
-     neqnsgs = (Iend-Ibeg+1)*(Jend-Jbeg+1)
+     neqnsgs = (IendC-Ibeg+1)*(JendC-Jbeg+1)
      ALLOCATE(Coefgs(neqnsgs,5),JCoefgs(5),Rhsgs(neqnsgs))
 !
 # endif
@@ -2008,10 +2047,33 @@
 	   endif
      enddo
      enddo
+	 
+! second derivatives of depth at cell center
+     do j = 1,Nloc
+     do i = 2,Mloc-1
+       Delx2H0(i,j)=((Hc0(i+1,j)-Hc0(i,j))/dx-(Hc0(i,j)-Hc0(i-1,j))/dx)/dx;
+     enddo
+     enddo
+     do j = 1,Nloc
+       Delx2H0(1,j) = Delx2H0(2,j)
+       Delx2H0(Mloc,j) = Delx2H0(Mloc-1,j)
+     enddo
+	 
+     do j = 2,Nloc-1
+     do i = 1,Mloc
+        Dely2H0(i,j) = ((Hc0(i,j+1)-Hc0(i,j))/dy-(Hc0(i,j)-Hc0(i,j-1))/dy)/dy;
+     enddo
+     enddo
+     do i = 1,Mloc
+       Dely2H0(i,1) = Dely2H0(i,2)
+       Dely2H0(i,Nloc) = Dely2H0(i,Nloc-1)
+     enddo
 
      ! collect data into ghost cells
 # if defined (PARALLEL)
      call phi_int_exch(Maskgs)
+	 call phi_2D_exch(Delx2H0)
+	 call phi_2D_exch(Dely2H0)
 # endif
      call phi_2D_coll(Hc)
      call phi_2D_coll(Dgs) 
@@ -2771,25 +2833,36 @@
 
 ! add by Cheng for deformable slide
 # if defined (DEFORMABLESLIDE)
-     Ugs=SLIDE_INIU;Vgs=SLIDE_INIV;Wgs=SLIDE_INIW;DUgs=Dgs*Ugs;DVgs=Dgs*Vgs;DWgs=Dgs*Wgs;
+     Ugs=SLIDE_INIU;Vgs=SLIDE_INIV;Wgs=SLIDE_INIW;DUgs=Dgs*Ugs;DVgs=Dgs*Vgs;DWgs=Dgs*Wgs
      Ugs0=Ugs;Vgs0=Vgs;Wgs0=Wgs;DUgs0=DUgs;DVgs0=DVgs;DWgs0=DWgs;Wgs00=Wgs0
 	 Wtgs=Zero;Wbgs=Zero;Qtgs=Zero;Qbgs=Zero
-     DelxUgs=Zero;DelxVgs=Zero;DelxDUgs=Zero;DelxDVgs=Zero;DelxDgs=Zero;DelxHgs=Zero
-	 DelyUgs=Zero;DelyVgs=Zero;DelyDUgs=Zero;DelyDVgs=Zero;DelyDgs=Zero;DelyHgs=Zero
-     DelxCxgs=Zero;Delx2H0=Zero;Kx=Zero;SrcpgsX=Zero;SrctgsX=Zero
-     DelyCygs=Zero;Dely2H0=Zero;Ky=Zero;SrcpgsY=Zero;SrctgsY=Zero
-	 UgsP=Zero;VgsP=Zero;WgsP=Zero
+     DelxUgs=Zero;DelxVgs=Zero;DelxWgs=Zero
+	 DelxDUgs=Zero;DelxDVgs=Zero;DelxDWgs=Zero
+	 DelxDgs=Zero;DelxHgs=Zero
+	 DelyUgs=Zero;DelyVgs=Zero;DelyWgs=Zero
+	 DelyDUgs=Zero;DelyDVgs=Zero;DelyDWgs=Zero
+	 DelyDgs=Zero;DelyHgs=Zero
+     Kx=Zero;SrcmgsX=Zero;SrcpgsX=Zero;SrctgsX=Zero
+     Ky=Zero;SrcmgsY=Zero;SrcpgsY=Zero;SrctgsY=Zero;SrctgsZ=Zero
+	 UgsP=Zero;VgsP=Zero;WgsP=Zero;DwDt=Zero
      Cxx=Zero;Cxy=Zero;Cxz=Zero;Cyx=Zero;Cyy=Zero;Cyz=Zero;Czx=Zero;Czy=Zero;Czz=Zero;Czz0=Zero
-	 Taxx=Zero;Taxy=Zero;Tayx=Zero;Tayy=Zero
+	 Taxx=Zero;Tayx=Zero;Taxy=Zero;Tayy=Zero;Taxz=Zero;Tayz=Zero;
 	 Tbxx=Zero;Tbxy=Zero;Tbxz=Zero;Tbyx=Zero;Tbyy=Zero;Tbyz=Zero;Tbzx=Zero;Tbzy=Zero;Tbzz=Zero
-     DgsxL=Zero;DgsxR=Zero;UgsxL=Zero;UgsxR=Zero;VgsxL=Zero;VgsxR=Zero
-	 DUgsxL=Zero;DUgsxR=Zero;DVgsxL=Zero;DVgsxR=Zero
-	 CxgsxL=Zero;CxgsxR=Zero;SgsxL=Zero;SgsxR=Zero;Egsx=Zero;Fgsx=Zero;Ggsx=Zero
-	 EgsxL=Zero;EgsxR=Zero;FgsxL=Zero;FgsxR=Zero;GgsxL=Zero;GgsxR=Zero
-     DgsyL=Zero;DgsyR=Zero;UgsyL=Zero;UgsyR=Zero;VgsyL=Zero;VgsyR=Zero
-	 DUgsyL=Zero;DUgsyR=Zero;DVgsyL=Zero;DVgsyR=Zero
-	 CygsyL=Zero;CygsyR=Zero;SgsyL=Zero;SgsyR=Zero;Egsy=Zero;Fgsy=Zero;Ggsy=Zero
-	 EgsyL=Zero;EgsyR=Zero;FgsyL=Zero;FgsyR=Zero;GgsyL=Zero;GgsyR=Zero
+     DgsxL=Zero;DgsxR=Zero;HSgsxL=Zero;HSgsxR=Zero
+	 UgsxL=Zero;UgsxR=Zero;VgsxL=Zero;VgsxR=Zero;WgsxL=Zero;WgsxR=Zero
+	 DUgsxL=Zero;DUgsxR=Zero;DVgsxL=Zero;DVgsxR=Zero;DWgsxL=Zero;DWgsxR=Zero
+	 Cxgsx=Zero;SgsxL=Zero;SgsxR=Zero;Egsx=Zero;Fgsx=Zero;Ggsx=Zero;Hgsx=Zero
+	 EgsxL=Zero;EgsxR=Zero;FgsxL=Zero;FgsxR=Zero
+	 GgsxL=Zero;GgsxR=Zero;HgsxL=Zero;HgsxR=Zero
+	 SrcmgsxL=Zero;SrcmgsxR=Zero;SrcpgsxL=Zero;SrcpgsxR=Zero
+     DgsyL=Zero;DgsyR=Zero;HSgsyL=Zero;HSgsyR=Zero
+	 UgsyL=Zero;UgsyR=Zero;VgsyL=Zero;VgsyR=Zero;WgsyL=Zero;WgsyR=Zero
+	 DUgsyL=Zero;DUgsyR=Zero;DVgsyL=Zero;DVgsyR=Zero;DWgsyL=Zero;DWgsyR=Zero
+	 Cygsy=Zero;SgsyL=Zero;SgsyR=Zero;Egsy=Zero;Fgsy=Zero;Ggsy=Zero;Hgsy=Zero
+	 EgsyL=Zero;EgsyR=Zero;FgsyL=Zero;FgsyR=Zero
+	 GgsyL=Zero;GgsyR=Zero;HgsyL=Zero;HgsyR=Zero
+	 SrcmgsyL=Zero;SrcmgsyR=Zero;SrcpgsyL=Zero;SrcpgsyR=Zero
+	 QbgsC=Zero;WgsC=Zero
 	 if(trim(RHEO_OPT)=='VISCOUS') then
 	    Rhogs = SLIDE_DENSITY
 	 elseif(trim(RHEO_OPT)=='GRANULAR') then

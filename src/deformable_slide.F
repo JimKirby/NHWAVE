@@ -18,16 +18,16 @@
     do i = Ibeg,Iend
       if(Maskgs(i,j)==0) then
         if(Maskgs(i-1,j)==1.and.Hgs(i-1,j)<Hgs(i,j).and. &
-		          Dgs(i-1,j)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
+		          Dgs(i-1,j)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
         if(Maskgs(i+1,j)==1.and.Hgs(i+1,j)<Hgs(i,j).and. &
-		          Dgs(i+1,j)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
+		          Dgs(i+1,j)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
         if(Maskgs(i,j-1)==1.and.Hgs(i,j-1)<Hgs(i,j).and. &
-		          Dgs(i,j-1)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
+		          Dgs(i,j-1)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
         if(Maskgs(i,j+1)==1.and.Hgs(i,j+1)<Hgs(i,j).and. &
-		          Dgs(i,j+1)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
+		          Dgs(i,j+1)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
       else
         ! drying (wet->dry)               
-        if(Dgs(i,j)-SLIDE_MINTHICK<=1.e-8) then
+        if(Dgs(i,j)-SLIDE_MINTHICK<=Small) then
           Masktmp(i,j) = 0
           Dgs(i,j) = SLIDE_MINTHICK
         endif
@@ -36,6 +36,56 @@
     enddo
     enddo
 	Maskgs = Masktmp
+	
+	!boundary conditions
+# if defined (PARALLEL)
+     if(n_west.eq.MPI_PROC_NULL) then
+# endif
+       do j = Jbeg,Jend
+       do i = 1,Nghost
+         Maskgs(i,j) = Maskgs(Ibeg+Nghost-i,j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+
+# if defined (PARALLEL)
+     if(n_east.eq.MPI_PROC_NULL) then
+# endif
+       do j = Jbeg,Jend
+       do i = 1,Nghost
+         Maskgs(Iend+i,j) = Maskgs(Iend-i+1,j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+ 
+     ! y-direction and corners
+# if defined (PARALLEL)
+     if(n_suth.eq.MPI_PROC_NULL) then
+# endif     
+       do i = 1,Mloc
+       do j = 1,Nghost
+         Maskgs(i,j) = Maskgs(i,Jbeg+Nghost-j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+
+# if defined (PARALLEL)
+     if(n_nrth.eq.MPI_PROC_NULL) then
+# endif
+       do i = 1,Mloc
+       do j = 1,Nghost
+         Maskgs(i,Jend+j) = Maskgs(i,Jend-j+1)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
 
 # if defined (PARALLEL)
      ! collect maskgs into ghost cells  
@@ -94,11 +144,8 @@
     use global
     implicit none
     integer :: i,j
-	real(SP),dimension(:,:),allocatable :: DwDt
-	real(SP) :: TMP1,TMP2
+	real(SP) :: TMP1,TMP2,DispT
 	 
-    allocate(DwDt(Mloc,Nloc))
-	DwDt=Zero
     if(trim(RHEO_OPT)=='VISCOUS') then
 	  Cxgs = Grav
       Cygs = Grav
@@ -106,22 +153,50 @@
 	  call transform_gs
       do j = Jbeg,Jend
       do i = Ibeg,Iend
-	    TMP1=SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j)*Grav
-		TMP2=(1.0-SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j))*Grav
 	    ! DwDt(i,j)=(Wgs0(i,j)-Wgs00(i,j))/dt
+	    TMP1=DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j)*Grav
+		TMP2=(1.0-SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j))*Grav
 		! DwDt(i,j)=max(DwDt(i,j),-TMP1)
 		! DwDt(i,j)=min(DwDt(i,j),TMP1)
-		Cxgs(i,j)=(Cxx(i,j)/max(Czz(i,j),Small)*(   TMP1)+TMP2)*Maskgs(i,j)
-		Cygs(i,j)=(Cyy(i,j)/max(Czz(i,j),Small)*(   TMP1)+TMP2)*Maskgs(i,j)
+		Cxgs(i,j)=(Cxx(i,j)/max(Czz(i,j),Small)*TMP1+TMP2)*Maskgs(i,j)
+		Cygs(i,j)=(Cyy(i,j)/max(Czz(i,j),Small)*TMP1+TMP2)*Maskgs(i,j)
       enddo
       enddo
 	endif
-# if defined (PARALLEL)
-	call phi_2D_exch(Cxgs)
-	call phi_2D_exch(Cygs)
-# endif
 	
-	deallocate(DwDt)
+    if (NON_HYDRO_SLD.and.DISP_CORR_SLD) then
+	  Call DelxH_gs
+	  call delxFun_gs_2D(Hgs,DelxHgs)
+	  call delyFun_gs_2D(Hgs,DelyHgs)
+      do j = Jbeg,Jend
+      do i = Ibeg,Iend
+        DispT=DelxH0(i,j)*DelxHgs(i,j)/3.0*Grav+DelyH0(i,j)*DelyHgs(i,j)/3.0*Grav;
+        if (DispT<=-Cxgs(i,j)) then
+          DispT=-Cxgs(i,j)
+        elseif (DispT>=Cxgs(i,j)) then
+          DispT=Cxgs(i,j)
+        endif
+        Cxgs(i,j)=Cxgs(i,j)+DispT
+      enddo
+      enddo
+      do j = Jbeg,Jend
+      do i = Ibeg,Iend
+        DispT=DelxH0(i,j)*DelxHgs(i,j)/3.0*Grav+DelyH0(i,j)*DelyHgs(i,j)/3.0*Grav;
+        if (DispT<=-Cygs(i,j)) then
+          DispT=-Cygs(i,j)
+        elseif (DispT>=Cygs(i,j)) then
+          DispT=Cygs(i,j)
+        endif
+        Cygs(i,j)=Cygs(i,j)+DispT
+      enddo
+      enddo
+    endif
+
+# if defined (PARALLEL)
+	call phi_2D_coll(Cxgs)
+	call phi_2D_coll(Cygs)
+	call phi_2D_coll(DwDt)
+# endif
 
     end subroutine flux_coff_gs
 	
@@ -289,9 +364,9 @@
                Kx(i,j)=1.0
              endif
            endif
-           if(DvgsDy>1.e-8) then
+           if(DvgsDy>crit) then
              Ky(i,j)=0.5*(Kx(i,j)+1.0-sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2))
-           elseif(DvgsDy<-1.e-8) then
+           elseif(DvgsDy<-crit) then
              Ky(i,j)=0.5*(Kx(i,j)+1.0+sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2))
            else
              Int_factor = (crit-abs(DvgsDy))/(crit-1.e-8)
@@ -370,7 +445,7 @@
      implicit none
      real(SP),intent(in),dimension(3) :: UvecPC,UvecPL,UvecPR,UvecPF,UvecPB
      real(SP),intent(out) :: DXUP,DYUP,DXVP,DYVP,DXWP,DYWP
-     real(SP) :: TMP1,TMP2,LIMITER
+     real(SP) :: TMP1,TMP2,LIMITER_GS
     
      ! pu'/px'
      TMP1 = (UvecPR(1)-UvecPC(1))/dx
@@ -378,7 +453,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DXUP = Zero
      else
-       DXUP = LIMITER(TMP1,TMP2)
+       DXUP = LIMITER_GS(TMP1,TMP2)
      endif
      ! pu'/py'
      TMP1 = (UvecPB(1)-UvecPC(1))/dy
@@ -386,7 +461,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DYUP = Zero
      else
-       DYUP = LIMITER(TMP1,TMP2)
+       DYUP = LIMITER_GS(TMP1,TMP2)
      endif
      ! pv'/px'
      TMP1 = (UvecPR(2)-UvecPC(2))/dx
@@ -394,7 +469,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DXVP = Zero
      else
-       DXVP = LIMITER(TMP1,TMP2)
+       DXVP = LIMITER_GS(TMP1,TMP2)
      endif
      ! pv'/py'
      TMP1 = (UvecPB(2)-UvecPC(2))/dy
@@ -402,7 +477,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DYVP = Zero
      else
-       DYVP = LIMITER(TMP1,TMP2)
+       DYVP = LIMITER_GS(TMP1,TMP2)
      endif
      !pw'/px'
      TMP1 = (UvecPR(3)-UvecPC(3))/dx
@@ -410,7 +485,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DXWP = Zero
      else
-       DXWP = LIMITER(TMP1,TMP2)
+       DXWP = LIMITER_GS(TMP1,TMP2)
      endif
      !pw'/py'
      TMP1 = (UvecPB(3)-UvecPC(3))/dy
@@ -418,7 +493,7 @@
      if((abs(TMP1)+abs(TMP2))<Small) then
        DYWP = Zero
      else
-       DYWP = LIMITER(TMP1,TMP2)
+       DYWP = LIMITER_GS(TMP1,TMP2)
      endif
 
      return
@@ -532,18 +607,22 @@
      implicit none
      
 	 call delxFun_gs_2D(Dgs,DelxDgs)
+	 call delxFun_gs_2D(Hgs,DelxHgs)
      call delxFun_gs_2D(Ugs,DelxUgs)
      call delxFun_gs_2D(Vgs,DelxVgs)
+	 call delxFun_gs_2D(Wgs,DelxWgs)
      call delxFun_gs_2D(DUgs,DelxDUgs)
      call delxFun_gs_2D(DVgs,DelxDVgs)
-	 call delxFun_gs_2D(Cxgs,DelxCxgs)
+	 call delxFun_gs_2D(DWgs,DelxDWgs)
 
 	 call delyFun_gs_2D(Dgs,DelyDgs)
+	 call delyFun_gs_2D(Hgs,DelyHgs)
      call delyFun_gs_2D(Ugs,DelyUgs)
      call delyFun_gs_2D(Vgs,DelyVgs)
+	 call delyFun_gs_2D(Wgs,DelyWgs)
      call delyFun_gs_2D(DUgs,DelyDUgs)
      call delyFun_gs_2D(DVgs,DelyDVgs)
-	 call delyFun_gs_2D(Cygs,DelyCygs)
+	 call delyFun_gs_2D(DWgs,DelyDWgs)
 
      end subroutine delxyzFun_gs
 	 
@@ -558,7 +637,7 @@
      implicit none
      real(SP),intent(in),dimension(Mloc,Nloc)  :: Din
      real(SP),intent(out),dimension(Mloc,Nloc) :: Dout
-     real(SP) :: TMP1,TMP2,LIMITER
+     real(SP) :: TMP1,TMP2,LIMITER_GS
      integer :: i,j
     
      do i = 2,Mloc-1
@@ -572,7 +651,7 @@
          if((abs(TMP1)+abs(TMP2))<Small) then
            Dout(i,j) = Zero
          else
-           Dout(i,j) = LIMITER(TMP1,TMP2)
+           Dout(i,j) = LIMITER_GS(TMP1,TMP2)
          endif
        endif
      enddo
@@ -597,7 +676,7 @@
      implicit none
      real(SP),intent(in),dimension(Mloc,Nloc)  :: Din
      real(SP),intent(out),dimension(Mloc,Nloc) :: Dout
-     real(SP) :: TMP1,TMP2,LIMITER
+     real(SP) :: TMP1,TMP2,LIMITER_GS
      integer :: i,j
 
      do i = 1,Mloc
@@ -611,7 +690,7 @@
          if((abs(TMP1)+abs(TMP2))<Small) then
            Dout(i,j) = Zero
          else
-           Dout(i,j) = LIMITER(TMP1,TMP2)
+           Dout(i,j) = LIMITER_GS(TMP1,TMP2)
          endif
        endif
      enddo
@@ -625,6 +704,33 @@
      return
      end subroutine delyFun_gs_2D
 	 
+!------------------------------------------
+!    Slope limiter used in landslide model
+!    Called by 
+!       delxFun_gs_2D,delyFun_gs_2D
+!    Last update: 26/06/2019, Cheng Zhang
+!-----------------------------------------
+     FUNCTION LIMITER_GS(A,B)
+     use global, only: SP,Zero,One,Small
+     IMPLICIT NONE
+     REAL(SP),INTENT(IN) :: A,B
+     REAL(SP) :: LIMITER_GS
+
+!     ! minmod limiter
+      if (abs(A)<=abs(B).and.A*B>Zero) then
+        LIMITER_GS=A
+      elseif (abs(A)>abs(B).and.A*B>Zero) then
+        LIMITER_GS=B
+      else
+        LIMITER_GS=Zero
+      endif
+
+!     ! van Leer limiter
+!     LIMITER_GS=(A*ABS(B)+ABS(A)*B)/(ABS(A)+ABS(B))
+
+     RETURN
+     END FUNCTION LIMITER_GS
+	 
 	 subroutine construction_gs
 !------------------------------------------
 !    Second-order construction
@@ -637,38 +743,276 @@
      integer :: i,j
 
 	 call construct_2D_x(Dgs,DelxDgs,DgsxL,DgsxR)
+	 call construct_2D_x(Hgs,DelxHgs,HSgsxL,HSgsxR)
      call construct_2D_x(Ugs,DelxUgs,UgsxL,UgsxR)
      call construct_2D_x(Vgs,DelxVgs,VgsxL,VgsxR)
+	 call construct_2D_x(Wgs,DelxWgs,WgsxL,WgsxR)
      call construct_2D_x(DUgs,DelxDUgs,DUgsxL,DUgsxR)
      call construct_2D_x(DVgs,DelxDVgs,DVgsxL,DVgsxR)
-	 call construct_2D_x(Cxgs,DelxCxgs,CxgsxL,CxgsxR)
+	 call construct_2D_x(DWgs,DelxDWgs,DWgsxL,DWgsxR)
+
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend1
+       Cxgsx(i,j)=0.5*(Cxgs(i,j)+Cxgs(i-1,j))
+     enddo
+     enddo
+	 
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if (Maskgs(i,j)==1) then
+	     if (Maskgs(i+1,j)==0.and.Maskgs(i-1,j)==1) then
+           DgsxL(i+1,j)=Dgs(i,j)
+           HSgsxL(i+1,j)=Hgs(i,j)
+           DUgsxL(i+1,j)=Zero
+           DVgsxL(i+1,j)=Zero
+           DWgsxL(i+1,j)=Zero
+           UgsxL(i+1,j)=Zero
+           VgsxL(i+1,j)=Zero
+           WgsxL(i+1,j)=Zero
+           Cxgsx(i+1,j)=Cxgs(i,j)
+		 elseif (Maskgs(i+1,j)==1.and.Maskgs(i-1,j)==0) then
+           DgsxR(i,j)=Dgs(i,j)
+           HSgsxR(i,j)=Hgs(i,j)
+           DUgsxR(i,j)=Zero
+           DVgsxR(i,j)=Zero
+           DWgsxR(i,j)=Zero
+           UgsxR(i,j)=Zero
+           VgsxR(i,j)=Zero
+           WgsxR(i,j)=Zero
+           Cxgsx(i,j)=Cxgs(i,j)
+		 elseif (Maskgs(i+1,j)==0.and.Maskgs(i-1,j)==0) then
+           DgsxL(i+1,j)=Dgs(i,j)
+           HSgsxL(i+1,j)=Hgs(i,j)
+           DUgsxL(i+1,j)=Zero
+           DVgsxL(i+1,j)=Zero
+           DWgsxL(i+1,j)=Zero
+           UgsxL(i+1,j)=Zero
+           VgsxL(i+1,j)=Zero
+           WgsxL(i+1,j)=Zero
+           Cxgsx(i+1,j)=Cxgs(i,j)
+           DgsxR(i,j)=Dgs(i,j)
+           HSgsxR(i,j)=Hgs(i,j)
+           DUgsxR(i,j)=Zero
+           DVgsxR(i,j)=Zero
+           DWgsxR(i,j)=Zero
+           UgsxR(i,j)=Zero
+           VgsxR(i,j)=Zero
+           WgsxR(i,j)=Zero
+           Cxgsx(i,j)=Cxgs(i,j)
+		 endif
+	   elseif (Maskgs(i,j)==0) then
+	     if (Maskgs(i-1,j)==0.and.Maskgs(i+1,j)==1) then
+           DgsxL(i+1,j)=Dgs(i+1,j)
+           HSgsxL(i+1,j)=Hgs(i+1,j)
+           DUgsxL(i+1,j)=Zero
+           DVgsxL(i+1,j)=Zero
+           DWgsxL(i+1,j)=Zero
+           UgsxL(i+1,j)=Zero
+           VgsxL(i+1,j)=Zero
+           WgsxL(i+1,j)=Zero
+           Cxgsx(i+1,j)=Cxgs(i+1,j)
+           DgsxR(i,j)=Dgs(i,j)
+           HSgsxR(i,j)=Hgs(i,j)
+           DUgsxR(i,j)=Zero
+           DVgsxR(i,j)=Zero
+           DWgsxR(i,j)=Zero
+           UgsxR(i,j)=Zero
+           VgsxR(i,j)=Zero
+           WgsxR(i,j)=Zero
+           Cxgsx(i,j)=Cxgs(i,j)
+		 elseif (Maskgs(i-1,j)==1.and.Maskgs(i+1,j)==0) then
+           DgsxL(i+1,j)=Dgs(i,j)
+           HSgsxL(i+1,j)=Hgs(i,j)
+           DUgsxL(i+1,j)=Zero
+           DVgsxL(i+1,j)=Zero
+           DWgsxL(i+1,j)=Zero
+           UgsxL(i+1,j)=Zero
+           VgsxL(i+1,j)=Zero
+           WgsxL(i+1,j)=Zero
+           Cxgsx(i+1,j)=Cxgs(i,j)
+           DgsxR(i,j)=Dgs(i-1,j)
+           HSgsxR(i,j)=Hgs(i-1,j)
+           DUgsxR(i,j)=Zero
+           DVgsxR(i,j)=Zero
+           DWgsxR(i,j)=Zero
+           UgsxR(i,j)=Zero
+           VgsxR(i,j)=Zero
+           WgsxR(i,j)=Zero
+           Cxgsx(i,j)=Cxgs(i-1,j)
+		 elseif (Maskgs(i-1,j)==0.and.Maskgs(i+1,j)==0) then
+           DgsxL(i+1,j)=Dgs(i,j)
+           HSgsxL(i+1,j)=Hgs(i,j)
+           DUgsxL(i+1,j)=Zero
+           DVgsxL(i+1,j)=Zero
+           DWgsxL(i+1,j)=Zero
+           UgsxL(i+1,j)=Zero
+           VgsxL(i+1,j)=Zero
+           WgsxL(i+1,j)=Zero
+           Cxgsx(i+1,j)=Cxgs(i,j)
+           DgsxR(i,j)=Dgs(i,j)
+           HSgsxR(i,j)=Hgs(i,j)
+           DUgsxR(i,j)=Zero
+           DVgsxR(i,j)=Zero
+           DWgsxR(i,j)=Zero
+           UgsxR(i,j)=Zero
+           VgsxR(i,j)=Zero
+           WgsxR(i,j)=Zero
+           Cxgsx(i,j)=Cxgs(i,j)
+		 endif
+	   endif
+     enddo
+     enddo
+
+	 DgsxL = max(DgsxL,Small)
+	 DgsxR = max(DgsxR,Small)
 
      do j = Jbeg,Jend
      do i = Ibeg,Iend1
        EgsxL(i,j) = DUgsxL(i,j)
        EgsxR(i,j) = DUgsxR(i,j)
-       FgsxL(i,j) = SLIDE_GAMMA*DUgsxL(i,j)*UgsxL(i,j)+0.5*CxgsxL(i,j)*DgsxL(i,j)*DgsxL(i,j)
-       FgsxR(i,j) = SLIDE_GAMMA*DUgsxR(i,j)*UgsxR(i,j)+0.5*CxgsxR(i,j)*DgsxR(i,j)*DgsxR(i,j)
-       GgsxL(i,j) = SLIDE_GAMMA*DUgsxL(i,j)*VgsxL(i,j)
-       GgsxR(i,j) = SLIDE_GAMMA*DUgsxR(i,j)*VgsxR(i,j)
+       FgsxL(i,j) = SLIDE_GAMMA*DUgsxL(i,j)*DUgsxL(i,j)/DgsxL(i,j)+0.5*Cxgsx(i,j)*DgsxL(i,j)*DgsxL(i,j)
+       FgsxR(i,j) = SLIDE_GAMMA*DUgsxR(i,j)*DUgsxR(i,j)/DgsxR(i,j)+0.5*Cxgsx(i,j)*DgsxR(i,j)*DgsxR(i,j)
+       GgsxL(i,j) = SLIDE_GAMMA*DUgsxL(i,j)*DVgsxL(i,j)/DgsxL(i,j)
+       GgsxR(i,j) = SLIDE_GAMMA*DUgsxR(i,j)*DVgsxR(i,j)/DgsxR(i,j)
+       HgsxL(i,j) = SLIDE_GAMMA*DUgsxL(i,j)*DWgsxL(i,j)/DgsxL(i,j)
+       HgsxR(i,j) = SLIDE_GAMMA*DUgsxR(i,j)*DWgsxR(i,j)/DgsxR(i,j)
      enddo
      enddo
 
 	 call construct_2D_y(Dgs,DelyDgs,DgsyL,DgsyR)
+	 call construct_2D_y(Hgs,DelyHgs,HSgsyL,HSgsyR)
      call construct_2D_y(Ugs,DelyUgs,UgsyL,UgsyR)
      call construct_2D_y(Vgs,DelyVgs,VgsyL,VgsyR)
+	 call construct_2D_y(Wgs,DelyWgs,WgsyL,WgsyR)
      call construct_2D_y(DUgs,DelyDUgs,DUgsyL,DUgsyR)
      call construct_2D_y(DVgs,DelyDVgs,DVgsyL,DVgsyR)
-	 call construct_2D_y(Cygs,DelyCygs,CygsyL,CygsyR)
+	 call construct_2D_y(DWgs,DelyDWgs,DWgsyL,DWgsyR)
+
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
+       Cygsy(i,j)=0.5*(Cygs(i,j)+Cygs(i,j-1));
+     enddo
+     enddo
+	 
+     do j = Jbeg,Jend1
+     do i = Ibeg,Iend
+       if (Maskgs(i,j)==1) then
+	     if (Maskgs(i,j+1)==0.and.Maskgs(i,j-1)==1) then
+           DgsyL(i,j+1)=Dgs(i,j)
+           HSgsyL(i,j+1)=Hgs(i,j)
+           DUgsyL(i,j+1)=Zero
+           DVgsyL(i,j+1)=Zero
+           DWgsyL(i,j+1)=Zero
+           UgsyL(i,j+1)=Zero
+           VgsyL(i,j+1)=Zero
+           WgsyL(i,j+1)=Zero
+           Cygsy(i,j+1)=Cygs(i,j)
+		 elseif (Maskgs(i,j+1)==1.and.Maskgs(i,j-1)==0) then
+           DgsyR(i,j)=Dgs(i,j)
+           HSgsyR(i,j)=Hgs(i,j)
+           DUgsyR(i,j)=Zero
+           DVgsyR(i,j)=Zero
+           DWgsyR(i,j)=Zero
+           UgsyR(i,j)=Zero
+           VgsyR(i,j)=Zero
+           WgsyR(i,j)=Zero
+           Cygsy(i,j)=Cygs(i,j)
+		 elseif (Maskgs(i,j+1)==0.and.Maskgs(i,j-1)==0) then
+           DgsyL(i,j+1)=Dgs(i,j)
+           HSgsyL(i,j+1)=Hgs(i,j)
+           DUgsyL(i,j+1)=Zero
+           DVgsyL(i,j+1)=Zero
+           DWgsyL(i,j+1)=Zero
+           UgsyL(i,j+1)=Zero
+           VgsyL(i,j+1)=Zero
+           WgsyL(i,j+1)=Zero
+           Cygsy(i,j+1)=Cygs(i,j)
+           DgsyR(i,j)=Dgs(i,j)
+           HSgsyR(i,j)=Hgs(i,j)
+           DUgsyR(i,j)=Zero
+           DVgsyR(i,j)=Zero
+           DWgsyR(i,j)=Zero
+           UgsyR(i,j)=Zero
+           VgsyR(i,j)=Zero
+           WgsyR(i,j)=Zero
+           Cygsy(i,j)=Cygs(i,j)
+		 endif
+	   elseif (Maskgs(i,j)==0) then
+	     if (Maskgs(i,j-1)==0.and.Maskgs(i,j+1)==1) then
+           DgsyL(i,j+1)=Dgs(i,j+1)
+           HSgsyL(i,j+1)=Hgs(i,j+1)
+           DUgsyL(i,j+1)=Zero
+           DVgsyL(i,j+1)=Zero
+           DWgsyL(i,j+1)=Zero
+           UgsyL(i,j+1)=Zero
+           VgsyL(i,j+1)=Zero
+           WgsyL(i,j+1)=Zero
+           Cygsy(i,j+1)=Cygs(i,j+1)
+           DgsyR(i,j)=Dgs(i,j)
+           HSgsyR(i,j)=Hgs(i,j)
+           DUgsyR(i,j)=Zero
+           DVgsyR(i,j)=Zero
+           DWgsyR(i,j)=Zero
+           UgsyR(i,j)=Zero
+           VgsyR(i,j)=Zero
+           WgsyR(i,j)=Zero
+           Cygsy(i,j)=Cygs(i,j)
+		 elseif (Maskgs(i,j-1)==1.and.Maskgs(i,j+1)==0) then
+           DgsyL(i,j+1)=Dgs(i,j)
+           HSgsyL(i,j+1)=Hgs(i,j)
+           DUgsyL(i,j+1)=Zero
+           DVgsyL(i,j+1)=Zero
+           DWgsyL(i,j+1)=Zero
+           UgsyL(i,j+1)=Zero
+           VgsyL(i,j+1)=Zero
+           WgsyL(i,j+1)=Zero
+           Cygsy(i,j+1)=Cygs(i,j)
+           DgsyR(i,j)=Dgs(i,j-1)
+           HSgsyR(i,j)=Hgs(i,j-1)
+           DUgsyR(i,j)=Zero
+           DVgsyR(i,j)=Zero
+           DWgsyR(i,j)=Zero
+           UgsyR(i,j)=Zero
+           VgsyR(i,j)=Zero
+           WgsyR(i,j)=Zero
+           Cygsy(i,j)=Cygs(i,j-1)
+		 elseif (Maskgs(i,j-1)==0.and.Maskgs(i,j+1)==0) then
+           DgsyL(i,j+1)=Dgs(i,j)
+           HSgsyL(i,j+1)=Hgs(i,j)
+           DUgsyL(i,j+1)=Zero
+           DVgsyL(i,j+1)=Zero
+           DWgsyL(i,j+1)=Zero
+           UgsyL(i,j+1)=Zero
+           VgsyL(i,j+1)=Zero
+           WgsyL(i,j+1)=Zero
+           Cygsy(i,j+1)=Cygs(i,j)
+           DgsyR(i,j)=Dgs(i,j)
+           HSgsyR(i,j)=Hgs(i,j)
+           DUgsyR(i,j)=Zero
+           DVgsyR(i,j)=Zero
+           DWgsyR(i,j)=Zero
+           UgsyR(i,j)=Zero
+           VgsyR(i,j)=Zero
+           WgsyR(i,j)=Zero
+           Cygsy(i,j)=Cygs(i,j)
+		 endif
+	   endif
+     enddo
+     enddo
+
+	 DgsyL = max(DgsyL,Small)
+	 DgsyR = max(DgsyR,Small)
 
      do j = Jbeg,Jend1
      do i = Ibeg,Iend
        EgsyL(i,j) = DVgsyL(i,j)
        EgsyR(i,j) = DVgsyR(i,j)
-       FgsyL(i,j) = SLIDE_GAMMA*DVgsyL(i,j)*UgsyL(i,j)
-       FgsyR(i,j) = SLIDE_GAMMA*DVgsyR(i,j)*UgsyR(i,j)
-       GgsyL(i,j) = SLIDE_GAMMA*DVgsyL(i,j)*VgsyL(i,j)+0.5*CygsyL(i,j)*DgsyL(i,j)*DgsyL(i,j)
-       GgsyR(i,j) = SLIDE_GAMMA*DVgsyR(i,j)*VgsyR(i,j)+0.5*CygsyR(i,j)*DgsyR(i,j)*DgsyR(i,j)
+       FgsyL(i,j) = SLIDE_GAMMA*DVgsyL(i,j)*DUgsyL(i,j)/DgsyL(i,j)
+       FgsyR(i,j) = SLIDE_GAMMA*DVgsyR(i,j)*DUgsyR(i,j)/DgsyR(i,j)
+       GgsyL(i,j) = SLIDE_GAMMA*DVgsyL(i,j)*DVgsyL(i,j)/DgsyL(i,j)+0.5*Cygsy(i,j)*DgsyL(i,j)*DgsyL(i,j)
+       GgsyR(i,j) = SLIDE_GAMMA*DVgsyR(i,j)*DVgsyR(i,j)/DgsyR(i,j)+0.5*Cygsy(i,j)*DgsyR(i,j)*DgsyR(i,j)
+       HgsyL(i,j) = SLIDE_GAMMA*DVgsyL(i,j)*DWgsyL(i,j)/DgsyL(i,j)
+       HgsyR(i,j) = SLIDE_GAMMA*DVgsyR(i,j)*DWgsyR(i,j)/DgsyR(i,j)
      enddo
      enddo
 
@@ -692,9 +1036,9 @@
      do i = Ibeg,Iend1
        if(Maskgs(i-1,j)==1.and.Maskgs(i,j)==1) then
          SQR_PHI_L = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*UgsxL(i,j)**2 &
-		                  +CxgsxL(i,j)*abs(DgsxL(i,j)))
+		                  +Cxgsx(i,j)*abs(DgsxL(i,j)))
          SQR_PHI_R = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*UgsxR(i,j)**2 &
-		                  +CxgsxR(i,j)*abs(DgsxR(i,j)))
+		                  +Cxgsx(i,j)*abs(DgsxR(i,j)))
 		 UL = SLIDE_GAMMA*UgsxL(i,j)
 		 UR = SLIDE_GAMMA*UgsxR(i,j)
          SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(UL-UR)
@@ -704,14 +1048,14 @@
        elseif(Maskgs(i-1,j)==0.and.Maskgs(i,j)==1) then
          ! left-side dry case
          SQR_PHI_R = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*UgsxR(i,j)**2 &
-		                  +CxgsxR(i,j)*abs(DgsxR(i,j)))
+		                  +Cxgsx(i,j)*abs(DgsxR(i,j)))
 		 UR = SLIDE_GAMMA*UgsxR(i,j)
          SgsxL(i,j) = UR-2.0*SQR_PHI_R
          SgsxR(i,j) = UR+SQR_PHI_R
        elseif(Maskgs(i-1,j)==1.and.Maskgs(i,j)==0) then
          ! right-side dry case
          SQR_PHI_L = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*UgsxL(i,j)**2 &
-		                  +CxgsxL(i,j)*abs(DgsxL(i,j)))
+		                  +Cxgsx(i,j)*abs(DgsxL(i,j)))
 		 UL = SLIDE_GAMMA*UgsxL(i,j)
          SgsxL(i,j) = UL-SQR_PHI_L
          SgsxR(i,j) = UL+2.0*SQR_PHI_L
@@ -724,9 +1068,9 @@
      do i = Ibeg,Iend
        if(Maskgs(i,j-1)==1.and.Maskgs(i,j)==1) then
          SQR_PHI_L = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*VgsyL(i,j)**2 &
-		                  +CygsyL(i,j)*abs(DgsyL(i,j)))
+		                  +Cygsy(i,j)*abs(DgsyL(i,j)))
          SQR_PHI_R = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*VgsyR(i,j)**2 &
-		                  +CygsyR(i,j)*abs(DgsyR(i,j)))
+		                  +Cygsy(i,j)*abs(DgsyR(i,j)))
 		 VL = SLIDE_GAMMA*VgsyL(i,j)
 		 VR = SLIDE_GAMMA*VgsyR(i,j)
          SQR_PHI_S = 0.5*(SQR_PHI_L+SQR_PHI_R)+0.25*(VL-VR)
@@ -736,14 +1080,14 @@
        elseif(Maskgs(i,j-1)==0.and.Maskgs(i,j)==1) then
          ! left-side dry case
          SQR_PHI_R = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*VgsyR(i,j)**2 &
-		                  +CygsyR(i,j)*abs(DgsyR(i,j)))
+		                  +Cygsy(i,j)*abs(DgsyR(i,j)))
 		 VR = SLIDE_GAMMA*VgsyR(i,j)
          SgsyL(i,j) = VR-2.0*SQR_PHI_R
          SgsyR(i,j) = VR+SQR_PHI_R
        elseif(Maskgs(i,j-1)==1.and.Maskgs(i,j)==0) then
          ! right-side dry case
          SQR_PHI_L = sqrt(SLIDE_GAMMA*(SLIDE_GAMMA-1.0)*VgsyL(i,j)**2 &
-		                  +CygsyL(i,j)*abs(DgsyL(i,j)))
+		                  +Cygsy(i,j)*abs(DgsyL(i,j)))
 		 VL = SLIDE_GAMMA*VgsyL(i,j)
          SgsyL(i,j) = VL-SQR_PHI_L
          SgsyR(i,j) = VL+2.0*SQR_PHI_L
@@ -769,7 +1113,9 @@
      call HLL_2D(Mloc1,Nloc,SgsxL,SgsxR,FgsxL,FgsxR,DUgsxL,DUgsxR,Fgsx)
      call HLL_2D(Mloc,Nloc1,SgsyL,SgsyR,FgsyL,FgsyR,DUgsyL,DUgsyR,Fgsy)
      call HLL_2D(Mloc1,Nloc,SgsxL,SgsxR,GgsxL,GgsxR,DVgsxL,DVgsxR,Ggsx)
-     call HLL_2D(Mloc,Nloc1,SgsyL,SgsyR,GgsyL,GgsyR,DVgsyL,DVgsyR,Ggsy)   
+     call HLL_2D(Mloc,Nloc1,SgsyL,SgsyR,GgsyL,GgsyR,DVgsyL,DVgsyR,Ggsy)  
+     call HLL_2D(Mloc1,Nloc,SgsxL,SgsxR,HgsxL,HgsxR,DWgsxL,DWgsxR,Hgsx)
+     call HLL_2D(Mloc,Nloc1,SgsyL,SgsyR,HgsyL,HgsyR,DWgsyL,DWgsyR,Hgsy) 	 
 
      return
      end subroutine fluxes_at_faces_HLL_gs
@@ -825,8 +1171,9 @@
 # endif
 	 do j = Jbeg,Jend
        Egsx(Ibeg,j) = Zero
-	   Fgsx(Ibeg,j) = 0.5*CxgsxR(Ibeg,j)*DgsxR(Ibeg,j)*DgsxR(Ibeg,j)
+	   Fgsx(Ibeg,j) = 0.5*Cxgsx(Ibeg,j)*DgsxR(Ibeg,j)*DgsxR(Ibeg,j)
        Ggsx(Ibeg,j) = Zero
+	   Hgsx(Ibeg,j) = Zero
      enddo
 # if defined (PARALLEL)
      endif
@@ -837,8 +1184,9 @@
 # endif
      do j = Jbeg,Jend
        Egsx(Iend1,j) = Zero
-       Fgsx(Iend1,j) = 0.5*CxgsxL(Iend1,j)*DgsxL(Iend1,j)*DgsxL(Iend1,j)
+       Fgsx(Iend1,j) = 0.5*Cxgsx(Iend1,j)*DgsxL(Iend1,j)*DgsxL(Iend1,j)
        Ggsx(Iend1,j) = Zero
+	   Hgsx(Iend1,j) = Zero
      enddo
 # if defined (PARALLEL)
      endif
@@ -851,7 +1199,8 @@
      do i = Ibeg,Iend
        Egsy(i,Jbeg) = Zero
        Fgsy(i,Jbeg) = Zero
-       Ggsy(i,Jbeg) = 0.5*CygsyR(i,Jbeg)*DgsyR(i,Jbeg)*DgsyR(i,Jbeg)
+       Ggsy(i,Jbeg) = 0.5*Cygsy(i,Jbeg)*DgsyR(i,Jbeg)*DgsyR(i,Jbeg)
+	   Hgsy(i,Jbeg) = Zero
      enddo
 # if defined (PARALLEL)
      endif
@@ -863,7 +1212,8 @@
      do i = Ibeg,Iend
        Egsy(i,Jend1) = Zero
        Fgsy(i,Jend1) = Zero
-	   Ggsy(i,Jend1) = 0.5*CygsyL(i,Jend1)*DgsyL(i,Jend1)*DgsyL(i,Jend1)
+	   Ggsy(i,Jend1) = 0.5*Cygsy(i,Jend1)*DgsyL(i,Jend1)*DgsyL(i,Jend1)
+	   Hgsy(i,Jend1) = Zero
      enddo
 # if defined (PARALLEL)
      endif
@@ -876,18 +1226,22 @@
           Egsx(i,j) = Zero
           Fgsx(i,j) = 0.5*Cxgs(i-1,j)*DgsxL(i,j)*DgsxL(i,j)
           Ggsx(i,j) = Zero
+		  Hgsx(i,j) = Zero
         elseif(Maskgs(i+1,j)==1) then !left boundary
           Egsx(i+1,j) = Zero
           Fgsx(i+1,j) = 0.5*Cxgs(i+1,j)*DgsxR(i+1,j)*DgsxR(i+1,j)
           Ggsx(i+1,j) = Zero
+		  Hgsx(i+1,j) = Zero
         elseif(Maskgs(i,j-1)==1) then !back boundary
           Egsy(i,j) = Zero
           Fgsy(i,j) = Zero
           Ggsy(i,j) = 0.5*Cygs(i,j-1)*DgsyL(i,j)*DgsyL(i,j)
+		  Hgsx(i,j) = Zero
         elseif(Maskgs(i,j+1)==1) then !front boundary
           Egsy(i,j+1) = Zero
           Fgsy(i,j+1) = Zero
           Ggsy(i,j+1) = 0.5*Cygs(i,j+1)*DgsyR(i,j+1)*DgsyR(i,j+1)
+		  Hgsx(i,j+1) = Zero
         endif
       endif
     enddo
@@ -908,15 +1262,59 @@
      implicit none
      integer :: i,j
 	 real(SP), dimension(:,:),allocatable :: PH,DelxPH,DelyPH,  &
-	                                         Taxxd,Tayxd,Taxyd,Tayyd, &
-											 DelxTaxxd,DelyTayxd,DelxTaxyd,DelyTayyd
+	                                         Taxxd,Tayxd,Taxyd,Tayyd,Taxzd,Tayzd, &
+											 DelxTaxxd,DelyTayxd,DelxTaxyd,DelyTayyd,DelxTaxzd,DelyTayzd
+     real(SP) :: alpha0,alpha1,Hc0L,Hc0R
 	 
-	 call DelxH_gs
 	 ! source terms for hydrostatic pressure
+	 ! well-balanced upwind scheme 
+	   !x direction
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend1
+         if ((abs(SgsxR(i,j)-SgsxL(i,j)))<Small) then
+           alpha0=(SgsxR(i,j)*abs(SgsxL(i,j))-SgsxL(i,j)*abs(SgsxR(i,j)))/Small
+           alpha1=(abs(SgsxR(i,j))-abs(SgsxL(i,j)))/Small
+         else
+           alpha0=(SgsxR(i,j)*abs(SgsxL(i,j))-SgsxL(i,j)*abs(SgsxR(i,j)))/(SgsxR(i,j)-SgsxL(i,j))
+           alpha1=(abs(SgsxR(i,j))-abs(SgsxL(i,j)))/(SgsxR(i,j)-SgsxL(i,j))
+         endif
+         Hc0L=DgsxL(i,j)+HSgsxL(i,j)
+         Hc0R=DgsxR(i,j)+HSgsxR(i,j)
+         SrcmgsxL(i,j)= 0.5*alpha0*(Hc0R-Hc0L)
+         SrcmgsxR(i,j)=-0.5*alpha0*(Hc0R-Hc0L)
+         SrcpgsxL(i,j)= 0.5*(alpha1-1.)*Grav*(DgsxR(i,j)+DgsxL(i,j))/2.0*(Hc0R-Hc0L) &
+		               -Grav*(DgsxL(i,j)+DgsxR(i-1,j))/2.*Hc0L
+         SrcpgsxR(i,j)=-0.5*(alpha1+1.)*Grav*(DgsxR(i,j)+DgsxL(i,j))/2.0*(Hc0R-Hc0L) &
+		               +Grav*(DgsxL(i+1,j)+DgsxR(i,j))/2.*Hc0R
+       enddo
+       enddo
+	   !y direction
+       do j = Jbeg,Jend1
+       do i = Ibeg,Iend
+         if ((abs(SgsyR(i,j)-SgsyL(i,j)))<Small) then
+           alpha0=(SgsyR(i,j)*abs(SgsyL(i,j))-SgsyL(i,j)*abs(SgsyR(i,j)))/Small
+           alpha1=(abs(SgsyR(i,j))-abs(SgsyL(i,j)))/Small
+         else
+           alpha0=(SgsyR(i,j)*abs(SgsyL(i,j))-SgsyL(i,j)*abs(SgsyR(i,j)))/(SgsyR(i,j)-SgsyL(i,j))
+           alpha1=(abs(SgsyR(i,j))-abs(SgsyL(i,j)))/(SgsyR(i,j)-SgsyL(i,j))
+         endif
+         Hc0L=DgsyL(i,j)+HSgsyL(i,j)
+         Hc0R=DgsyR(i,j)+HSgsyR(i,j)
+         SrcmgsyL(i,j)= 0.5*alpha0*(Hc0R-Hc0L)
+         SrcmgsyR(i,j)=-0.5*alpha0*(Hc0R-Hc0L)
+         SrcpgsyL(i,j)= 0.5*(alpha1-1.)*Grav*(DgsyR(i,j)+DgsyL(i,j))/2.0*(Hc0R-Hc0L) &
+		               -Grav*(DgsyL(i,j)+DgsyR(i,j-1))/2.*Hc0L
+         SrcpgsyR(i,j)=-0.5*(alpha1+1.)*Grav*(DgsyR(i,j)+DgsyL(i,j))/2.0*(Hc0R-Hc0L) &
+		               +Grav*(DgsyL(i,j+1)+DgsyR(i,j))/2.*Hc0R
+       enddo
+       enddo
+
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       SrcpgsX(i,j) = (Grav*Dgs(i,j)*DelxH0(i,j))*Maskgs(i,j);
-       SrcpgsY(i,j) = (Grav*Dgs(i,j)*DelyH0(i,j))*Maskgs(i,j);
+       SrcmgsX(i,j) = -(SrcmgsxL(i+1,j)+SrcmgsxR(i,j))/dx*Maskgs(i,j)
+       SrcmgsY(i,j) = -(SrcmgsyL(i,j+1)+SrcmgsyR(i,j))/dy*Maskgs(i,j)
+       SrcpgsX(i,j) = -(SrcpgsxL(i+1,j)+SrcpgsxR(i,j))/dx*Maskgs(i,j)
+       SrcpgsY(i,j) = -(SrcpgsyL(i,j+1)+SrcpgsyR(i,j))/dy*Maskgs(i,j)
      enddo
      enddo
 	 
@@ -944,28 +1342,36 @@
      allocate(Tayxd(Mloc,Nloc))
 	 allocate(Taxyd(Mloc,Nloc))
 	 allocate(Tayyd(Mloc,Nloc))
+	 allocate(Taxzd(Mloc,Nloc))
+	 allocate(Tayzd(Mloc,Nloc))
      allocate(DelxTaxxd(Mloc,Nloc))
      allocate(DelyTayxd(Mloc,Nloc))
 	 allocate(DelxTaxyd(Mloc,Nloc))
 	 allocate(DelyTayyd(Mloc,Nloc))
+	 allocate(DelxTaxzd(Mloc,Nloc))
+	 allocate(DelyTayzd(Mloc,Nloc))
      if(trim(RHEO_OPT)=='VISCOUS') then
 	   call laminar(SLIDE_VISCOSITY,Rhogs,Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz)
-	   Taxx=0.5*Tbxx;Tayx=0.5*Tbyx;Taxy=0.5*Tbxy;Tayy=0.5*Tbyy
+	   Taxx=0.5*Tbxx;Tayx=0.5*Tbyx;Taxy=0.5*Tbxy;Tayy=0.5*Tbyy;Taxz=0.5*Tbxz;Tayz=0.5*Tbyz
 	 elseif(trim(RHEO_OPT)=='GRANULAR') then
 	   call coulomb
 	 endif
-	 Taxxd=Taxx*Dgs;Tayxd=Tayx*Dgs;Taxyd=Taxy*Dgs;Tayyd=Tayy*Dgs
-	 DelxTaxxd=zero;DelyTayxd=zero;DelxTaxyd=zero;DelyTayyd=zero
+	 Taxxd=Taxx*Dgs;Tayxd=Tayx*Dgs;Taxyd=Taxy*Dgs;Tayyd=Tayy*Dgs;Taxzd=Taxz*Dgs;Tayzd=Tayz*Dgs
+	 DelxTaxxd=zero;DelyTayxd=zero;DelxTaxyd=zero;DelyTayyd=zero;DelxTaxzd=zero;DelyTayzd=zero
 	 call delxFun_gs_2D(Taxxd,DelxTaxxd)
 	 call delyFun_gs_2D(Tayxd,DelyTayxd)
-	 call delxFun_gs_2D(Taxyd,DelxTaxxd)
-	 call delyFun_gs_2D(Tayyd,DelyTayxd)
+	 call delxFun_gs_2D(Taxyd,DelxTaxyd)
+	 call delyFun_gs_2D(Tayyd,DelyTayyd)
+	 call delxFun_gs_2D(Taxzd,DelxTaxzd)
+	 call delyFun_gs_2D(Tayzd,DelyTayzd)
      do j = Jbeg,Jend
      do i = Ibeg,Iend
        SrctgsX(i,j) = 1.0/Rhogs(i,j)*(DelxTaxxd(i,j)+DelyTayxd(i,j) &
 	                 -Tbxx(i,j)*DelxH0(i,j)-Tbyx(i,j)*DelyH0(i,j)-Tbzx(i,j))*Maskgs(i,j)
        SrctgsY(i,j) = 1.0/Rhogs(i,j)*(DelxTaxyd(i,j)+DelyTayyd(i,j) &
 	                 -Tbxy(i,j)*DelxH0(i,j)-Tbyy(i,j)*DelyH0(i,j)-Tbzy(i,j))*Maskgs(i,j)
+       SrctgsZ(i,j) = 1.0/Rhogs(i,j)*(DelxTaxzd(i,j)+DelyTayzd(i,j) &
+	                 -Tbxz(i,j)*DelxH0(i,j)-Tbyz(i,j)*DelyH0(i,j)-Tbzz(i,j))*Maskgs(i,j)
      enddo
      enddo
 	 
@@ -976,10 +1382,14 @@
      deallocate(Tayxd)
 	 deallocate(Taxyd)
 	 deallocate(Tayyd)
+	 deallocate(Taxzd)
+	 deallocate(Tayzd)
      deallocate(DelxTaxxd)
      deallocate(DelyTayxd)
 	 deallocate(DelxTaxyd)
 	 deallocate(DelyTayyd)
+	 deallocate(DelxTaxzd)
+	 deallocate(DelyTayzd)
 
      end subroutine source_terms_gs
 	 
@@ -1034,7 +1444,7 @@
      implicit none
      integer :: i,j
 	 real(SP), dimension(:,:),allocatable :: Tbfxx,Tbfxy,Tbfxz,Tbfyx,Tbfyy, &
-	                                         Tbfyz,Tbfzx,Tbfzy,Tbfzz,Tezz, &
+	                                         Tbfyz,Tbfzx,Tbfzy,Tbfzz, &
 											 Rhof
 	 real(SP) :: Nugse
 	 
@@ -1047,7 +1457,6 @@
 	 allocate(Tbfzx(Mloc,Nloc))
      allocate(Tbfzy(Mloc,Nloc))
 	 allocate(Tbfzz(Mloc,Nloc))
-	 allocate(Tezz(Mloc,Nloc))
 	 allocate(Rhof(Mloc,Nloc))
 	 Tbfxx = Zero;Tbfxy = Zero;Tbfxz = Zero;Tbfyx = Zero;Tbfyy = Zero;Tbfyz = Zero
 	 Tbfzx = Zero;Tbfzy = Zero;Tbfzz = Zero;Tezz = Zero
@@ -1057,33 +1466,48 @@
 	 Rhof=Rho0
      call laminar(Nugse,Rhof,Tbfxx,Tbfxy,Tbfxz,Tbfyx,Tbfyy,Tbfyz,Tbfzx,Tbfzy,Tbfzz)
 	 
-	 ! solid stress
+	 ! solid stress+fluid stress
      do j = 1,Nloc
      do i = 1,Mloc
-	   Tezz(i,j) = (    SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j))
-	   Taxx(i,j) = 0.5*Tbfxx(i,j)*Maskgs(i,j)
-	   Tbxx(i,j) = (Tbfxx(i,j)-Cxx(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Tezz(i,j))*Maskgs(i,j)
-	   Tayy(i,j) = 0.5*Tbfyy(i,j)*Maskgs(i,j)
-	   Tbyy(i,j) = (Tbfyy(i,j)-Cyy(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Tezz(i,j))*Maskgs(i,j)
-	   Tbxy(i,j) = (Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
-	   Tbyx(i,j) = (Tbfyx(i,j)-Cyx(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
-	   Taxy(i,j) = 0.5*(Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tezz(i,j) = (Rhogs(i,j)*DwDt(i,j)*Dgs(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j))
+	   Pss(i,j) = SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j)
+	   !x momentum
+	   Taxx(i,j) = 0.5*Tbfxx(i,j)*Maskgs(i,j)!soil stress is in Cx_gs
 	   Tayx(i,j) = 0.5*(Tbfyx(i,j)-Cyx(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
-	   Tbzz(i,j) = Tbfzz(i,j)-Tezz(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j) !Ts=-Te+Ps
+	   Tbxx(i,j) = (Tbfxx(i,j)-Cxx(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Pss(i,j))*Maskgs(i,j)
+	   Tbyx(i,j) = (Tbfyx(i,j)-Cyx(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tbzx(i,j) = Tbfzx(i,j)*Maskgs(i,j)
+	   !y momentum
+	   Taxy(i,j) = 0.5*(Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tayy(i,j) = 0.5*Tbfyy(i,j)*Maskgs(i,j)!soil stress is in Cx_gs
+	   Tbxy(i,j) = (Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tbyy(i,j) = (Tbfyy(i,j)-Cyy(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Pss(i,j))*Maskgs(i,j)
+	   Tbzy(i,j) = Tbfzy(i,j)*Maskgs(i,j)
+	   !z momentum
+	   Taxz(i,j) = 0.5*(Tbfxz(i,j)-Cxz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tayz(i,j) = 0.5*(Tbfyz(i,j)-Cyz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tbxz(i,j) = (Tbfxz(i,j)-Cxz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tbyz(i,j) = (Tbfyz(i,j)-Cyz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
+	   Tbzz(i,j) = (Tbfzz(i,j)-Tezz(i,j)+Pss(i,j))*Maskgs(i,j) !Ts=-Te+Ps
      enddo
      enddo
-     Tbzx=Tbfzx
-     Tbzy=Tbfzy
+	 
+	 call phi_2D_coll(Tezz)
+	 call phi_2D_coll(Pss)
      call phi_2D_coll(Taxx)
-	 call phi_2D_coll(Tbxx)
-     call phi_2D_coll(Tayy)
-	 call phi_2D_coll(Tbyy)
-     call phi_2D_coll(Tbxy)
-	 call phi_2D_coll(Tbyx)
-     call phi_2D_coll(Taxy)
 	 call phi_2D_coll(Tayx)
-     call phi_2D_coll(Tbzx)
-	 call phi_2D_coll(Tbzy)
+	 call phi_2D_coll(Tbxx)
+	 call phi_2D_coll(Tbyx)
+	 call phi_2D_coll(Tbzx)
+	 call phi_2D_coll(Taxy)
+     call phi_2D_coll(Tayy)
+	 call phi_2D_coll(Tbxy)
+	 call phi_2D_coll(Tbyy)
+     call phi_2D_coll(Tbzy)
+	 call phi_2D_coll(Taxz)
+     call phi_2D_coll(Tayz)
+	 call phi_2D_coll(Tbxz)
+	 call phi_2D_coll(Tbyz)
      call phi_2D_coll(Tbzz)
 	 
 	 deallocate(Tbfxx)
@@ -1095,7 +1519,6 @@
 	 deallocate(Tbfzx)
      deallocate(Tbfzy)
 	 deallocate(Tbfzz)
-	 deallocate(Tezz)
 	 deallocate(Rhof)
 
      end subroutine coulomb
@@ -1111,13 +1534,14 @@
      use global
      implicit none
      integer,intent(in) :: ISTEP
-     real(SP),dimension(:,:),allocatable :: R1,R2,R3,Thetax,Thetay,DelxTheta,DelyTheta
+     real(SP),dimension(:,:),allocatable :: R1,R2,R3,R4,Thetax,Thetay,DelxTheta,DelyTheta
      integer :: i,j
      REAL(SP) :: FROUDECAP_gs,FroudeU,DUU,Dangle,TauC
 
      allocate(R1(Mloc,Nloc))
      allocate(R2(Mloc,Nloc))
      allocate(R3(Mloc,Nloc))
+     allocate(R4(Mloc,Nloc))
      allocate(Thetax(Mloc,Nloc))
 	 allocate(Thetay(Mloc,Nloc))
      allocate(DelxTheta(Mloc,Nloc))
@@ -1128,7 +1552,8 @@
      do j = Jbeg,Jend
      do i = Ibeg,Iend
        if(Maskgs(i,j)==0) cycle
-       R1(i,j) = -1.0/dx*(Egsx(i+1,j)-Egsx(i,j))-1.0/dy*(Egsy(i,j+1)-Egsy(i,j)) 
+       R1(i,j) = -1.0/dx*(Egsx(i+1,j)-Egsx(i,j))-1.0/dy*(Egsy(i,j+1)-Egsy(i,j)) &
+	             +SrcmgsX(i,j)+SrcmgsY(i,j)
        Dgs(i,j) = Dgs(i,j)+dt*R1(i,j) 
      enddo
      enddo
@@ -1159,6 +1584,17 @@
      enddo
      enddo
 	 
+	 ! solve DWgs
+     R4 = Zero
+     do i = Ibeg,Iend
+     do j = Jbeg,Jend
+       if(Maskgs(i,j)==0) cycle  
+       R4(i,j) = -1.0/dx*(Hgsx(i+1,j)-Hgsx(i,j))-1.0/dy*(Hgsy(i,j+1)-Hgsy(i,j)) &
+                 +SrctgsZ(i,j)
+	   DWgs(i,j) = DWgs(i,j)+dt*R4(i,j)
+     enddo
+     enddo
+	 
      ! bottom shear stress
      if(trim(RHEO_OPT)=='GRANULAR') then
         call delxFun_gs_2D(Dgs,DelxDgs)
@@ -1179,19 +1615,22 @@
         do i = Ibeg,Iend
           if(Maskgs(i,j)==1) then
 		    TauC=tan(PhiBed)/max(Czz0(i,j),Small) &
-			     *(   SLIDE_CONC*GRAIN_DENSITY*Grav*((DgsxL(i,j)+DgsxR(i+1,j))/2. &
-                                                    +(DgsyL(i,j)+DgsyR(i,j+1))/2.)/2.)
+			     *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+				   *((DgsxL(i,j)+DgsxR(i+1,j))/2.+(DgsyL(i,j)+DgsyR(i,j+1))/2.)/2.)
             if(sqrt(DUgs(i,j)**2+DVgs(i,j)**2)>dt/Rhogs(i,j)*TauC) then
               Tbzx(i,j) = -Czx(i,j)/max(Czz(i,j),Small) &
-			             *(   SLIDE_CONC*GRAIN_DENSITY*Grav*(DgsxL(i,j)+DgsxR(i+1,j))/2.) &
+			             *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+						   *(DgsxL(i,j)+DgsxR(i+1,j))/2.) &
 						 *(1.-(DUgs(i,j)/Dgs(i,j))**2*DelxTheta(i,j)/Grav)
               Tbzy(i,j) = -Czy(i,j)/max(Czz(i,j),Small) &
-			             *(   SLIDE_CONC*GRAIN_DENSITY*Grav*(DgsyL(i,j)+DgsyR(i,j+1))/2.) &
+			             *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+						   *(DgsyL(i,j)+DgsyR(i,j+1))/2.) &
 						 *(1.-(DVgs(i,j)/Dgs(i,j))**2*DelyTheta(i,j)/Grav)
             else
               Dgs(i,j) = Dgs(i,j)-dt*R1(i,j)
               Tbzx(i,j) = Rhogs(i,j)/dt*DUgs(i,j)
               Tbzy(i,j) = Rhogs(i,j)/dt*DVgs(i,j)
+			  DWgs(i,j) = DWgs(i,j)-dt*R4(i,j)
             endif
           endif
         enddo
@@ -1209,28 +1648,13 @@
        enddo
      endif
 	 
-	 ! run non-hydrostatic simulation
-	 if(NON_HYDRO_SLD) then
-	   ! obtain hydrostatic velocity
-	   call get_UV_gs
-	   
-       ! solve dynamic pressure 
-       call poisson_solver_gs
-
-       ! correct velocity field  
-       call projection_corrector_gs
-	 endif
-	 
      ! SSP Runge-Kutta time stepping
      do j = Jbeg,Jend
      do i = Ibeg,Iend
 	   Dgs(i,j) = ALPHA(ISTEP)*Dgs0(i,j)+BETA(ISTEP)*Dgs(i,j)
        DUgs(i,j) = ALPHA(ISTEP)*DUgs0(i,j)+BETA(ISTEP)*DUgs(i,j)
        DVgs(i,j) = ALPHA(ISTEP)*DVgs0(i,j)+BETA(ISTEP)*DVgs(i,j)
-	   if(NON_HYDRO_SLD) then
-         Wgs(i,j) = ALPHA(ISTEP)*Wgs0(i,j)+BETA(ISTEP)*Wgs(i,j);
-         DWgs(i,j) = Wgs(i,j)*Dgs(i,j);
-	   endif
+       DWgs(i,j) = ALPHA(ISTEP)*DWgs0(i,j)+BETA(ISTEP)*DWgs(i,j)
      enddo
      enddo
 	 
@@ -1240,7 +1664,7 @@
      Hgs = Hc0-Dgs
 	 
      ! limit the maximum Froude number
-     FROUDECAP_gs=50.0
+     FROUDECAP_gs=100.0
      DO J=Jbeg,Jend
      DO I=Ibeg,Iend
        IF(Maskgs(I,J)>0)THEN
@@ -1254,17 +1678,33 @@
        ENDIF
      ENDDO
      ENDDO
+
+	   ! obtain hydrostatic velocity
+	   call get_UVW_gs
 	 
+	 ! vertical velocity in hydrostatic model
 	 if(.not.NON_HYDRO_SLD) then
 	   ! solve Wgs
 	   call Kbc_Surface_gs
        call Kbc_Bottom_gs
 	   do j = Jbeg,Jend
        do i = Ibeg,Iend
-         Wgs(i,j) = 0.5*(Wtgs(i,j)+Wbgs(i,j))
-         DWgs(i,j) = Wgs(i,j)*Dgs(i,j)
+	     if (Maskgs(i,j)==1) then 
+           Wgs(i,j) = 0.5*(Wtgs(i,j)+Wbgs(i,j))
+           DWgs(i,j) = Wgs(i,j)*Dgs(i,j)
+		 endif
 	   enddo
 	   enddo
+	 
+	 ! run non-hydrostatic simulation
+	 elseif(NON_HYDRO_SLD.and.ISTEP==It_Order) then
+	   
+       ! solve dynamic pressure 
+       call poisson_solver_gs
+
+       ! correct velocity field  
+       call projection_corrector_gs
+	   
 	 endif
 
      ! update maskgs for deformable slide
@@ -1276,6 +1716,7 @@
 	 deallocate(R1)
      deallocate(R2)
      deallocate(R3)
+     deallocate(R4)
      deallocate(Thetax)
 	 deallocate(Thetay)
      deallocate(DelxTheta)
@@ -1362,17 +1803,40 @@
      use global
      implicit none
      integer :: i,j
+     real(SP),dimension(:,:),allocatable :: Ugstmp,Vgstmp
+
+     allocate(Ugstmp(Mloc,Nloc))
+	 allocate(Vgstmp(Mloc,Nloc))
 
 	 Wtgs=Zero
-	 call delxFun_gs_2D(Hgs,DelxHgs)
-	 call delyFun_gs_2D(Hgs,DelyHgs)
+!	 call delxFun_gs_2D(Hgs,DelxHgs)
+!	 call delyFun_gs_2D(Hgs,DelyHgs)
+!	 do j = Jbeg,Jend
+!     do i = Ibeg,Iend
+!       Wtgs(i,j) = -(Hgs(i,j)-(Hc0(i,j)-Dgs0(i,j)))/dt &
+!	               -DUgs(i,j)/Dgs(i,j)*DelxHgs(i,j) &
+!				   -DVgs(i,j)/Dgs(i,j)*DelyHgs(i,j)                                                     
+!     enddo
+!     enddo
+
+     ! give better results when bed is not moving (no time derivative involved)
+	 Ugstmp=Zero;Vgstmp=Zero
+	 do j = 1,Nloc
+     do i = 1,Mloc
+       Ugstmp(i,j) = DUgs(i,j)/Dgs(i,j)
+	   Vgstmp(i,j) = DVgs(i,j)/Dgs(i,j)
+     enddo
+     enddo
+	 call delxFun_gs_2D(Ugstmp,DelxUgs)
+	 call delyFun_gs_2D(Vgstmp,DelyVgs)
 	 do j = Jbeg,Jend
      do i = Ibeg,Iend
-       Wtgs(i,j) = -(Hgs(i,j)-(Hc0(i,j)-Dgs0(i,j)))/dt &
-	               -DUgs(i,j)/Dgs(i,j)*DelxHgs(i,j) &
-				   -DVgs(i,j)/Dgs(i,j)*DelyHgs(i,j)                                                     
+       Wtgs(i,j) = -Dgs(i,j)*(DelxUgs(i,j)+DelyVgs(i,j)) &
+	               -(Ugstmp(i,j)*DelxH0(i,j)+Vgstmp(i,j)*DelyH0(i,j))                                                     
      enddo
      enddo
+     deallocate(Ugstmp)
+	 deallocate(Vgstmp)
 
      end subroutine KBC_surface_gs
 
@@ -1398,42 +1862,6 @@
      enddo
 
      end subroutine KBC_bottom_gs
-	 
-     subroutine get_UV_gs
-!------------------------------------------------
-!    Obtain Ugs,Vgs for deformable slide
-!    Called by
-!       eval_duv_gs
-!    Last update: 10/07/2018, Cheng Zhang
-!-----------------------------------------------
-     use global
-     implicit none
-     integer :: i,j
-	 
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-	   if(Maskgs(i,j)==1) then
-         Ugs(i,j) = DUgs(i,j)/Dgs(i,j)
-         Vgs(i,j) = DVgs(i,j)/Dgs(i,j)
-	   else
-         Ugs(i,j) = Zero
-         Vgs(i,j) = Zero
-         DUgs(i,j) = Zero
-         DVgs(i,j) = Zero
-	   endif
-     enddo
-     enddo
-
-     ! collect data into ghost cells
-     call vel_bc_gs
-# if defined (PARALLEL)
-     call phi_2D_exch(Ugs)
-     call phi_2D_exch(Vgs)
-     call phi_2D_exch(DUgs)
-     call phi_2D_exch(DVgs)
-# endif
-
-     end subroutine get_UV_gs
 	 
      subroutine get_UVW_gs
 !------------------------------------------------
@@ -1493,10 +1921,10 @@
 # endif
      do j = Jbeg,Jend
      do i = 1,Nghost
-       Ugs(Ibeg-i,j) = Ugs(Ibeg+i-1,j)
+       Ugs(Ibeg-i,j) = -Ugs(Ibeg+i-1,j)
        Vgs(Ibeg-i,j) = Vgs(Ibeg+i-1,j)
 	   Wgs(Ibeg-i,j) = Wgs(Ibeg+i-1,j)
-       DUgs(Ibeg-i,j) = DUgs(Ibeg+i-1,j)
+       DUgs(Ibeg-i,j) = -DUgs(Ibeg+i-1,j)
        DVgs(Ibeg-i,j) = DVgs(Ibeg+i-1,j)
 	   DWgs(Ibeg-i,j) = DWgs(Ibeg+i-1,j)
      enddo
@@ -1510,10 +1938,10 @@
 # endif
      do j = Jbeg,Jend
      do i = 1,Nghost
-       Ugs(Iend+i,j) = Ugs(Iend-i+1,j)
+       Ugs(Iend+i,j) = -Ugs(Iend-i+1,j)
        Vgs(Iend+i,j) = Vgs(Iend-i+1,j)
 	   Wgs(Iend+i,j) = Wgs(Iend-i+1,j)
-       DUgs(Iend+i,j) = DUgs(Iend-i+1,j)
+       DUgs(Iend+i,j) = -DUgs(Iend-i+1,j)
        DVgs(Iend+i,j) = DVgs(Iend-i+1,j)
 	   DWgs(Iend+i,j) = DWgs(Iend-i+1,j)
      enddo
@@ -1528,10 +1956,10 @@
      do i = Ibeg,Iend
      do j = 1,Nghost
        Ugs(i,Jbeg-j) = Ugs(i,Jbeg+j-1)
-       Vgs(i,Jbeg-j) = Vgs(i,Jbeg+j-1)
+       Vgs(i,Jbeg-j) = -Vgs(i,Jbeg+j-1)
 	   Wgs(i,Jbeg-j) = Wgs(i,Jbeg+j-1)
        DUgs(i,Jbeg-j) = DUgs(i,Jbeg+j-1)
-       DVgs(i,Jbeg-j) = DVgs(i,Jbeg+j-1)
+       DVgs(i,Jbeg-j) = -DVgs(i,Jbeg+j-1)
 	   DWgs(i,Jbeg-j) = DWgs(i,Jbeg+j-1)
      enddo
      enddo
@@ -1545,10 +1973,10 @@
      do i = Ibeg,Iend
      do j = 1,Nghost
        Ugs(i,Jend+j) = Ugs(i,Jend-j+1)
-       Vgs(i,Jend+j) = Vgs(i,Jend-j+1)
+       Vgs(i,Jend+j) = -Vgs(i,Jend-j+1)
 	   Wgs(i,Jend+j) = Wgs(i,Jend-j+1)
        DUgs(i,Jend+j) = DUgs(i,Jend-j+1)
-       DVgs(i,Jend+j) = DVgs(i,Jend-j+1)
+       DVgs(i,Jend+j) = -DVgs(i,Jend-j+1)
 	   DWgs(i,Jend+j) = DWgs(i,Jend-j+1)
      enddo
      enddo
@@ -1648,92 +2076,19 @@
 !     deallocate(Wksp)
 !     deallocate(Iwksp)
 # endif
-  
-     ! boundary condition for dry cells
-     ! set zero for dry set is inaccurate
-     ! dry cells
+
+     ! collect into ghost cell corners
+     call phiC_2D_coll(QbgsC)
+
+     ! interpolate cell corner results to cell center
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       if(Maskgs(i,j)==0) then
-         Qbgs(i,j) = Zero
-         
-         ! south boundary 
-         if(Maskgs(i,j+1)==1)then
-           do imask=1,Nghost
-             Qbgs(i,j-imask+1)=Qbgs(i,j+imask)
-           enddo
-         ! north boundary
-         elseif(Maskgs(i,j-1)==1)then
-           do imask=1,Nghost
-             Qbgs(i,j+imask-1)=Qbgs(i,j-imask)
-           enddo
-         ! west boundary
-         elseif(Maskgs(i+1,j)==1)then
-           do imask=1,Nghost
-             Qbgs(i-imask+1,j)=Qbgs(i+imask,j)
-           enddo
-         ! east boundary
-         elseif(Maskgs(i-1,j)==1)then
-           do imask=1,Nghost
-             Qbgs(i+imask-1,j)=Qbgs(i-imask,j)
-           enddo
-         endif
-       endif 
+       Qbgs(i,j)=0.25*(QbgsC(i+1,j+1)+QbgsC(i,j+1)+QbgsC(i+1,j)+QbgsC(i,j))
      enddo
-     enddo
+     enddo 
 
      ! collect into ghost cells
-# if defined (PARALLEL)
-     if(n_west.eq.MPI_PROC_NULL) then
-# endif
-     do j = Jbeg,Jend
-     do i = 1,Nghost
-       Qbgs(Ibeg-i,j) = Qbgs(Ibeg+i-1,j)
-     enddo
-     enddo
-# if defined (PARALLEL)
-     endif
-# endif
-
-# if defined (PARALLEL)
-     if(n_east.eq.MPI_PROC_NULL) then
-# endif
-     do j = Jbeg,Jend 
-     do i = 1,Nghost     
-       Qbgs(Iend+i,j) = Qbgs(Iend-i+1,j)
-     enddo
-     enddo
-# if defined (PARALLEL)
-     endif
-# endif
-
-# if defined (PARALLEL)
-     if(n_suth.eq.MPI_PROC_NULL) then
-# endif
-     do i = Ibeg,Iend
-     do j = 1,Nghost
-       Qbgs(i,Jbeg-j) = Qbgs(i,Jbeg+j-1)
-     enddo
-     enddo
-# if defined (PARALLEL)
-     endif
-# endif
-
-# if defined (PARALLEL)
-     if(n_nrth.eq.MPI_PROC_NULL) then
-# endif
-     do i = Ibeg,Iend
-     do j = 1,Nghost
-       Qbgs(i,Jend+j) = Qbgs(i,Jend-j+1)
-     enddo
-     enddo
-# if defined (PARALLEL)
-     endif
-# endif
-
-# if defined (PARALLEL)
-     call phi_2D_exch(Qbgs)
-# endif
+     call phi_2D_coll(Qbgs)
 
      end subroutine poisson_solver_gs
 	 
@@ -1748,127 +2103,153 @@
      use global
      implicit none
      integer :: i,j,neq,n,ic
-     real(SP), dimension(:,:), allocatable :: Delx2Dgs,Dely2Dgs,Delx2Hgs,Dely2Hgs, &
-	                                          RhoUgs,RhoVgs,DelxRhoUgs,DelyRhoVgs, &
-										      DelxQtgs,DelyQtgs,Delx2Qtgs,Dely2Qtgs
+     real(SP), dimension(:,:), allocatable :: DelxQtgs,DelyQtgs
      integer,  dimension(:,:), allocatable :: indx
-	 REAL(SP) :: R1,R2,R3,R4,R5,R6,R7,R8,R9,L1,L2,L3,L4,L5,L6,L7
+	 REAL(SP) :: DgsC,DelxH0C,DelyH0C,QtgsC,NHC,&
+	             DelxQtgsR,QtgsR,DelxHgsR,DelxDgsR,DgsR,NHR, &
+	             DelxQtgsL,QtgsL,DelxHgsL,DelxDgsL,DgsL,NHL, &
+				 DelyQtgsB,QtgsB,DelyHgsB,DelyDgsB,DgsB,NHB, &
+				 DelyQtgsF,QtgsF,DelyHgsF,DelyDgsF,DgsF,NHF, &
+				 QC,DelxH0R,QR,DelxH0L,QL,DelyH0B,QB,DelyH0F,QF
 
-     allocate(Delx2Dgs(Mloc,Nloc))
-     allocate(Dely2Dgs(Mloc,Nloc))
-     allocate(Delx2Hgs(Mloc,Nloc))
-     allocate(Dely2Hgs(Mloc,Nloc))
-     allocate(RhoUgs(Mloc,Nloc))
-	 allocate(RhoVgs(Mloc,Nloc))
-     allocate(DelxRhoUgs(Mloc,Nloc))
-	 allocate(DelyRhoVgs(Mloc,Nloc))
      allocate(DelxQtgs(Mloc,Nloc))
      allocate(DelyQtgs(Mloc,Nloc))
-     allocate(Delx2Qtgs(Mloc,Nloc))
-     allocate(Dely2Qtgs(Mloc,Nloc))
-	 allocate(indx(Mloc,Nloc))
+	 allocate(indx(MlocC,NlocC))
 	 
-	 Delx2Dgs=Zero;Dely2Dgs=Zero;Delx2Hgs=Zero;Dely2Hgs=Zero
-	 RhoUgs=Zero;RhoVgs=Zero;DelxRhoUgs=Zero;DelyRhoVgs=Zero
-	 DelxQtgs=Zero;DelyQtgs=Zero;Delx2Qtgs=Zero;Dely2Qtgs=Zero
+	 DelxQtgs=Zero;DelyQtgs=Zero
+	 call DelxH_gs
      call delxFun_nl_gs_2D(Dgs,DelxDgs)
 	 call delyFun_nl_gs_2D(Dgs,DelyDgs)
-	 call delx2Fun_gs_2D(Dgs,Delx2Dgs)
-	 call dely2Fun_gs_2D(Dgs,Dely2Dgs)
-     call delxFun_nl_gs_2D(Hgs,DelxHgs)
-	 call delyFun_nl_gs_2D(Hgs,DelyHgs)
-	 call delx2Fun_gs_2D(Hgs,Delx2Hgs)
-	 call dely2Fun_gs_2D(Hgs,Dely2Hgs)
-	 call DelxH_gs
-	 RhoUgs = Rhogs*Ugs
-	 RhoVgs = Rhogs*Vgs
-	 call delxFun_nl_gs_2D(RhoUgs,DelxRhoUgs)
-	 call delyFun_nl_gs_2D(RhoVgs,DelyRhoVgs)
      call delxFun_nl_gs_2D(Qtgs,DelxQtgs)
 	 call delyFun_nl_gs_2D(Qtgs,DelyQtgs)
-	 call delx2Fun_gs_2D(Qtgs,Delx2Qtgs)
-	 call dely2Fun_gs_2D(Qtgs,Dely2Qtgs)
-	 call KBC_bottom_gs
+     call delxFun_nl_gs_2D(Hgs,DelxHgs)
+	 call delyFun_nl_gs_2D(Hgs,DelyHgs)
 	 
      ! generate coefficient matrix
      neq = 0; indx=0
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
        neq = neq+1
        indx(i,j) = neq
      enddo
      enddo 
 
      ! generate source term 
-     Rhsgs = Zero
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       R1=2.*dt/3.
-       R2=dt/Dgs(i,j)*(2./3.*DelxDgs(i,j)+DelxHgs(i,j))
-       R3=dt/Dgs(i,j)*(2./3.*Delx2Dgs(i,j)+Delx2Hgs(i,j) &
-	                  -1./Dgs(i,j)*DelxDgs(i,j)*(2./3.*DelxDgs(i,j)+DelxHgs(i,j)))
-	   R4=2.*dt/3.
-       R5=dt/Dgs(i,j)*(2./3.*DelyDgs(i,j)+DelyHgs(i,j))
-       R6=dt/Dgs(i,j)*(2./3.*Dely2Dgs(i,j)+Dely2Hgs(i,j) &
-	                  -1./Dgs(i,j)*DelyDgs(i,j)*(2./3.*DelyDgs(i,j)+DelyHgs(i,j)))
-	   R7=2.*dt/Dgs(i,j)**2
-       R8=2.*dt/Dgs(i,j)**2*(   Tbzz(i,j))
-       R9=-(DelxRhoUgs(i,j)+DelyRhoVgs(i,j) &
-	       +2.*Rhogs(i,j)*Wgs(i,j)/Dgs(i,j)-2.*Rhogs(i,j)*Wbgs(i,j)/Dgs(i,j))
-       Rhsgs(indx(i,j)) = R1*Delx2Qtgs(i,j)+R4*Dely2Qtgs(i,j) &
-	                     +R2*DelxQtgs(i,j)+R5*DelyQtgs(i,j)+(R3+R6+R7)*Qtgs(i,j)+R8+R9			 
+     Rhsgs = Zero; WgsC = Zero
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
+       DgsC=0.25*(Dgs(i,j)+Dgs(i-1,j)+Dgs(i,j-1)+Dgs(i-1,j-1))
+       DelxH0C=1.0/(2.0*dx)*(Hc0(i,j)-Hc0(i-1,j)+Hc0(i,j-1)-Hc0(i-1,j-1))
+       DelyH0C=1.0/(2.0*dy)*(Hc0(i,j)+Hc0(i-1,j)-Hc0(i,j-1)-Hc0(i-1,j-1))
+	   !NHR
+       DelxQtgsR=0.5*(DelxQtgs(i,j)+DelxQtgs(i,j-1))
+       QtgsR=0.5*(Qtgs(i,j)+Qtgs(i,j-1))
+       DelxHgsR=0.5*(DelxHgs(i,j)+DelxHgs(i,j-1))
+       DelxDgsR=0.5*(DelxDgs(i,j)+DelxDgs(i,j-1))
+       DgsR=0.5*(Dgs(i,j)+Dgs(i,j-1))
+       NHR=-(dt/DgsR)*((1.0/3.0)*DgsR*DelxQtgsR+(1.0/3.0)*QtgsR*DelxDgsR+QtgsR*DelxHgsR)
+	   !NHL
+       DelxQtgsL=0.5*(DelxQtgs(i-1,j)+DelxQtgs(i-1,j-1))
+       QtgsL=0.5*(Qtgs(i-1,j)+Qtgs(i-1,j-1))
+       DelxHgsL=0.5*(DelxHgs(i-1,j)+DelxHgs(i-1,j-1))
+       DelxDgsL=0.5*(DelxDgs(i-1,j)+DelxDgs(i-1,j-1))
+       DgsL=0.5*(Dgs(i-1,j)+Dgs(i-1,j-1))
+       NHL=-(dt/DgsL)*((1.0/3.0)*DgsL*DelxQtgsL+(1.0/3.0)*QtgsL*DelxDgsL+QtgsL*DelxHgsL)
+	   !NHB
+       DelyQtgsB=0.5*(DelyQtgs(i,j)+DelyQtgs(i-1,j))
+       QtgsB=0.5*(Qtgs(i,j)+Qtgs(i-1,j))
+       DelyHgsB=0.5*(DelyHgs(i,j)+DelyHgs(i-1,j))
+       DelyDgsB=0.5*(DelyDgs(i,j)+DelyDgs(i-1,j))
+       DgsB=0.5*(Dgs(i,j)+Dgs(i-1,j))
+       NHB=-(dt/DgsB)*((1.0/3.0)*DgsB*DelyQtgsB+(1.0/3.0)*QtgsB*DelyDgsB+QtgsB*DelyHgsB)
+	   !NHF
+       DelyQtgsF=0.5*(DelyQtgs(i,j-1)+DelyQtgs(i-1,j-1))
+       QtgsF=0.5*(Qtgs(i,j-1)+Qtgs(i-1,j-1))
+       DelyHgsF=0.5*(DelyHgs(i,j-1)+DelyHgs(i-1,j-1))
+       DelyDgsF=0.5*(DelyDgs(i,j-1)+DelyDgs(i-1,j-1))
+       DgsF=0.5*(Dgs(i,j-1)+Dgs(i-1,j-1))
+       NHF=-(dt/DgsF)*((1.0/3.0)*DgsF*DelyQtgsF+(1.0/3.0)*QtgsF*DelyDgsF+QtgsF*DelyHgsF)
+	   !NHC
+       QtgsC=0.25*(Qtgs(i,j)+Qtgs(i-1,j)+Qtgs(i,j-1)+Qtgs(i-1,j-1))
+       NHC=-(2.0*dt/DgsC)*QtgsC
+	   WgsC(i,j)=0.25*(Wgs(i,j)+Wgs(i-1,j)+Wgs(i,j-1)+Wgs(i-1,j-1))
+       Rhsgs(indx(i,j))=(-0.5*(1./dx+DelxH0C/DgsC)*(Rhogs(i,j)*(Ugs(i,j)  +Ugs(i,j-1)  )+2.*NHR) &
+                         +0.5*(1./dx-DelxH0C/DgsC)*(Rhogs(i,j)*(Ugs(i-1,j)+Ugs(i-1,j-1))+2.*NHL) &
+                         -0.5*(1./dy+DelyH0C/DgsC)*(Rhogs(i,j)*(Vgs(i,j)  +Vgs(i-1,j)  )+2.*NHB) &
+                         +0.5*(1./dy-DelyH0C/DgsC)*(Rhogs(i,j)*(Vgs(i,j-1)+Vgs(i-1,j-1))+2.*NHF) &
+                         -1./DgsC*(2.*Rhogs(i,j)*WgsC(i,j)+NHC))*DgsC!multiply DgsC to have better matrix property			 
      enddo
      enddo
 
 	 ! generate coefficient matrix
      Coefgs = Zero
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       L1=-2.*dt/3.
-       L2=-dt/Dgs(i,j)*(2./3.*DelxDgs(i,j)-DelxH0(i,j))
-       L3=-dt/Dgs(i,j)*(2./3.*Delx2Dgs(i,j)-Delx2H0(i,j) &
-	                   -1./Dgs(i,j)*DelxDgs(i,j)*(2./3.*DelxDgs(i,j)-DelxH0(i,j)))
-	   L4=-2.*dt/3.
-       L5=-dt/Dgs(i,j)*(2./3.*DelyDgs(i,j)-DelyH0(i,j))
-       L6=-dt/Dgs(i,j)*(2./3.*Dely2Dgs(i,j)-Dely2H0(i,j) &
-	                   -1./Dgs(i,j)*DelyDgs(i,j)*(2./3.*DelyDgs(i,j)-DelyH0(i,j)));
-	   L7=2.*dt/Dgs(i,j)**2;
-       Coefgs(indx(i,j),1) = (L3+L6+L7)-2.*L1/dx**2-2.*L4/dy**2
-       Coefgs(indx(i,j),2) = L1/dx**2-L2/2./dx
-       Coefgs(indx(i,j),3) = L1/dx**2+L2/2./dx
-       Coefgs(indx(i,j),4) = L4/dy**2-L5/2./dy
-       Coefgs(indx(i,j),5) = L4/dy**2+L5/2./dy
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
+       DgsC=0.25*(Dgs(i,j)+Dgs(i-1,j)+Dgs(i,j-1)+Dgs(i-1,j-1))
+       DelxH0C=1.0/(2.0*dx)*(Hc0(i,j)-Hc0(i-1,j)+Hc0(i,j-1)-Hc0(i-1,j-1))
+       DelyH0C=1.0/(2.0*dy)*(Hc0(i,j)+Hc0(i-1,j)-Hc0(i,j-1)-Hc0(i-1,j-1))
+       !QR
+       DelxDgsR=0.5*(DelxDgs(i,j)+DelxDgs(i,j-1))
+       DelxH0R=0.5*(DelxH0(i,j)+DelxH0(i,j-1))
+       DgsR=0.5*(Dgs(i,j)+Dgs(i,j-1))
+       QR=(-dt*(1./dx+DelxH0C/DgsC)*(2./(3.*dx)+(1./3.)*(DelxDgsR/DgsR)-0.5*(DelxH0R/DgsR)))*DgsC!multiply DgsC to have better matrix property
+       !QL
+       DelxDgsL=0.5*(DelxDgs(i-1,j)+DelxDgs(i-1,j-1))
+       DelxH0L=0.5*(DelxH0(i-1,j)+DelxH0(i-1,j-1))
+       DgsL=0.5*(Dgs(i-1,j)+Dgs(i-1,j-1))
+       QL=(-dt*(1./dx-DelxH0C/DgsC)*(2./(3.*dx)-(1./3.)*(DelxDgsL/DgsL)+0.5*(DelxH0L/DgsL)))*DgsC
+       !QB
+       DelyDgsB=0.5*(DelyDgs(i,j)+DelyDgs(i-1,j))
+       DelyH0B=0.5*(DelyH0(i,j)+DelyH0(i-1,j))
+       DgsB=0.5*(Dgs(i,j)+Dgs(i-1,j))
+       QB=(-dt*(1./dy+DelyH0C/DgsC)*(2./(3.*dy)+(1./3.)*(DelyDgsB/DgsB)-0.5*(DelyH0B/DgsB)))*DgsC
+       !QF
+       DelyDgsF=0.5*(DelyDgs(i,j-1)+DelyDgs(i-1,j-1))
+       DelyH0F=0.5*(DelyH0(i,j-1)+DelyH0(i-1,j-1))
+       DgsF=0.5*(Dgs(i,j-1)+Dgs(i-1,j-1))
+       QF=(-dt*(1./dy-DelyH0C/DgsC)*(2./(3.*dy)-(1./3.)*(DelyDgsF/DgsF)+0.5*(DelyH0F/DgsF)))*DgsC
+	   !QC
+       QC=(dt*(1./dx+DelxH0C/DgsC)*(2./(3.*dx)-(1./3.)*(DelxDgsR/DgsR)+0.5*(DelxH0R/DgsR)) &
+          +dt*(1./dx-DelxH0C/DgsC)*(2./(3.*dx)+(1./3.)*(DelxDgsL/DgsL)-0.5*(DelxH0L/DgsL)) &
+          +dt*(1./dy+DelyH0C/DgsC)*(2./(3.*dy)-(1./3.)*(DelyDgsB/DgsB)+0.5*(DelyH0B/DgsB)) &
+          +dt*(1./dy-DelyH0C/DgsC)*(2./(3.*dy)+(1./3.)*(DelyDgsF/DgsF)-0.5*(DelyH0F/DgsF)) &
+          +2.*dt/DgsC**2)*DgsC
+       Coefgs(indx(i,j),1) = QC    ! (i,j)
+       Coefgs(indx(i,j),2) = QL    ! (i-1,j)
+       Coefgs(indx(i,j),3) = QR    ! (i+1,j)
+       Coefgs(indx(i,j),4) = QF    ! (i,j-1)
+       Coefgs(indx(i,j),5) = QB    ! (i,j+1)
      enddo
      enddo
-	 
-     ! boundary conditions at masks face
-     do i = Ibeg+1,Iend-1
-     do j = Jbeg+1,Jend-1
-       if(Maskgs(i,j)==0) then
-         ! left 
-         if(Maskgs(i+1,j)==1) then
-           ic = indx(i+1,j)
-           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,2)
-           Coefgs(ic,2) = Zero
-         ! right 
-         elseif(Maskgs(i-1,j)==1) then
-           ic = indx(i-1,j)
-           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,3)
-           Coefgs(ic,3) = Zero
-         ! south
-         elseif(Maskgs(i,j+1)==1) then
-           ic = indx(i,j+1)
-           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,4)
-           Coefgs(ic,4) = Zero
-         ! north
-         elseif(Maskgs(i,j-1)==1) then
-           ic = indx(i,j-1)
-           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,5)
-           Coefgs(ic,5) = Zero
-         endif ! end Maskgs+1=1 
-       endif ! end Maskgs=0
-     enddo
-     enddo
+
+!     ! boundary conditions at masks face
+!     do i = Ibeg+1,Iend-1
+!     do j = Jbeg+1,Jend-1
+!       if(Maskgs(i,j)==0) then
+!         ! left 
+!         if(Maskgs(i+1,j)==1) then
+!           ic = indx(i+1,j)
+!           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,2)
+!           Coefgs(ic,2) = Zero
+!         ! right 
+!         elseif(Maskgs(i-1,j)==1) then
+!           ic = indx(i-1,j)
+!           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,3)
+!           Coefgs(ic,3) = Zero
+!         ! south
+!         elseif(Maskgs(i,j+1)==1) then
+!           ic = indx(i,j+1)
+!           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,4)
+!           Coefgs(ic,4) = Zero
+!         ! north
+!         elseif(Maskgs(i,j-1)==1) then
+!           ic = indx(i,j-1)
+!           Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,5)
+!           Coefgs(ic,5) = Zero
+!         endif ! end Maskgs+1=1 
+!       endif ! end Maskgs=0
+!     enddo
+!     enddo
 
      ! boundary conditions
      ! left side
@@ -1876,7 +2257,7 @@
      if(n_west.eq.MPI_PROC_NULL) then
 # endif
      i = Ibeg
-     do j = Jbeg,Jend
+     do j = Jbeg,JendC
        ic = indx(i,j)
        Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,2)
        Coefgs(ic,2) = Zero
@@ -1889,8 +2270,8 @@
 # if defined (PARALLEL)
      if(n_east.eq.MPI_PROC_NULL) then
 # endif
-     i = Iend
-     do j = Jbeg,Jend
+     i = IendC
+     do j = Jbeg,JendC
        ic = indx(i,j)
        Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,3)
        Coefgs(ic,3) = Zero
@@ -1904,7 +2285,7 @@
      if(n_suth.eq.MPI_PROC_NULL) then
 # endif
      j = Jbeg
-     do i = Ibeg,Iend
+     do i = Ibeg,IendC
        ic = indx(i,j)         
        Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,4)
        Coefgs(ic,4) = Zero
@@ -1917,8 +2298,8 @@
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
 # endif
-     j = Jend
-     do i = Ibeg,Iend
+     j = JendC
+     do i = Ibeg,IendC
        ic = indx(i,j)
        Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,5)
        Coefgs(ic,5) = Zero
@@ -1927,25 +2308,71 @@
      endif
 # endif
 
-     ! take (i=2,j=2) to obtain the diagonal information
+     ! left front corner
+# if defined (PARALLEL)
+     if((n_west.eq.MPI_PROC_NULL).and.(n_suth.eq.MPI_PROC_NULL)) then
+# endif
+     i = Ibeg
+     j = Jbeg
+     ic = indx(i,j)
+     Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,2)+Coefgs(ic,4)
+     Coefgs(ic,2) = Zero
+	 Coefgs(ic,4) = Zero
+# if defined (PARALLEL)
+     endif
+# endif
+
+     ! right front corner
+# if defined (PARALLEL)
+     if((n_east.eq.MPI_PROC_NULL).and.(n_suth.eq.MPI_PROC_NULL)) then
+# endif
+     i = IendC
+     j = Jbeg
+     ic = indx(i,j)
+     Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,3)+Coefgs(ic,4)
+     Coefgs(ic,3) = Zero
+	 Coefgs(ic,4) = Zero
+# if defined (PARALLEL)
+     endif
+# endif
+
+     ! left back corner
+# if defined (PARALLEL)
+     if((n_west.eq.MPI_PROC_NULL).and.(n_nrth.eq.MPI_PROC_NULL)) then
+# endif
+     i = Ibeg
+     j = JendC
+     ic = indx(i,j)         
+     Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,2)+Coefgs(ic,5)
+     Coefgs(ic,2) = Zero
+	 Coefgs(ic,5) = Zero
+# if defined (PARALLEL)
+     endif
+# endif
+
+     ! right back side
+# if defined (PARALLEL)
+     if((n_east.eq.MPI_PROC_NULL).and.(n_nrth.eq.MPI_PROC_NULL)) then
+# endif
+     i = IendC
+     j = JendC
+     ic = indx(i,j)
+     Coefgs(ic,1) = Coefgs(ic,1)+Coefgs(ic,3)+Coefgs(ic,5)
+     Coefgs(ic,3) = Zero
+     Coefgs(ic,5) = Zero
+# if defined (PARALLEL)
+     endif
+# endif
+
+     ! take (i=2,j=2) to obtain the diagonal information (Serial Computing used)
      JCoefgs(1) = indx(Ibeg+1,Jbeg+1)-indx(Ibeg+1,Jbeg+1)  ! (i,j)
      JCoefgs(2) = indx(Ibeg  ,Jbeg+1)-indx(Ibeg+1,Jbeg+1)  ! (i-1,j)
      JCoefgs(3) = indx(Ibeg+2,Jbeg+1)-indx(Ibeg+1,Jbeg+1)  ! (i+1,j) 
 	 JCoefgs(4) = indx(Ibeg+1,Jbeg  )-indx(Ibeg+1,Jbeg+1)  ! (i,j-1)
      JCoefgs(5) = indx(Ibeg+1,Jbeg+2)-indx(Ibeg+1,Jbeg+1)  ! (i,j+1)
 
-     deallocate(Delx2Dgs)
-     deallocate(Dely2Dgs)
-     deallocate(Delx2Hgs)
-     deallocate(Dely2Hgs)
-     deallocate(RhoUgs)
-	 deallocate(RhoVgs)
-     deallocate(DelxRhoUgs)
-	 deallocate(DelyRhoVgs)
      deallocate(DelxQtgs)
      deallocate(DelyQtgs)
-     deallocate(Delx2Qtgs)
-     deallocate(Dely2Qtgs)
 	 deallocate(indx)
 
      return
@@ -1967,7 +2394,7 @@
      integer :: i,j,n,ivalues,nvalues,neq,ientry,num_iterations,  &
                 precond_id,n_pre,n_post,ierr
      integer*8 :: grid,stencil,matrix,vec_b,vec_x,solver,precond
-     integer :: i_glob(Mloc),j_glob(Nloc)
+     integer :: i_glob(MlocC),j_glob(NlocC)
      integer :: ilower(ndim),iupper(ndim),offsets(nentries,ndim),stencil_indices(nentries)
      real(SP) :: final_res_norm
      real(SP), dimension(:), allocatable :: values,Phi
@@ -1978,8 +2405,8 @@
      call HYPRE_StructGridCreate(MPI_COMM_WORLD,ndim,grid,ierr)
 
      ! global indices
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
        i_glob(i) = npx*(Iend-Ibeg+1)+i-Nghost
        j_glob(j) = npy*(Jend-Jbeg+1)+j-Nghost
      enddo
@@ -1987,8 +2414,8 @@
 
      ilower(1) = i_glob(Ibeg)
      ilower(2) = j_glob(Jbeg)
-     iupper(1) = i_glob(Iend)
-     iupper(2) = j_glob(Jend)
+     iupper(1) = i_glob(IendC)
+     iupper(2) = j_glob(JendC)
 
      call HYPRE_StructGridSetExtents(grid,ilower,iupper,ierr)
 
@@ -2011,22 +2438,22 @@
        stencil_indices(i) = i-1
      enddo
 
-     allocate(indx(Mloc,Nloc))
+     allocate(indx(MlocC,NlocC))
  
      neq = 0
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
        neq = neq+1
        indx(i,j) = neq
      enddo
      enddo
     
-     nvalues = (Iend-Ibeg+1)*(Jend-Jbeg+1)*nentries
+     nvalues = (IendC-Ibeg+1)*(JendC-Jbeg+1)*nentries !(grid points)*(stencil points)
      allocate(values(nvalues))
 
      ivalues = 0
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
        do n = 1,nentries
          ivalues = ivalues+1
          values(ivalues) = Coefgs(indx(i,j),n)
@@ -2046,16 +2473,16 @@
      call HYPRE_StructVectorInitialize(vec_b,ierr)
      call HYPRE_StructVectorInitialize(vec_x,ierr)
 
-     ! set the vector Coefgsficients
+     ! set the vector Coefficients
      call HYPRE_StructVectorSetBoxValues(vec_b,ilower,iupper,Rhsgs,ierr)   
      call HYPRE_StructVectorAssemble(vec_b,ierr)     
      !call HYPRE_StructVectorPrint(vec_b,zero,ierr)
 
      ! initial guess
      allocate(Phi(neqnsgs))
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       Phi(indx(i,j)) = Qbgs(i,j)
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
+       Phi(indx(i,j)) = QbgsC(i,j)
      enddo
      enddo
      
@@ -2093,9 +2520,9 @@
      ! get results
      call HYPRE_StructVectorGetBoxValues(vec_x,ilower,iupper,Phi,ierr)
 
-     do j = Jbeg,Jend
-     do i = Ibeg,Iend
-       Qbgs(i,j) = Phi(indx(i,j))
+     do j = Jbeg,JendC
+     do i = Ibeg,IendC
+       QbgsC(i,j) = Phi(indx(i,j))
      enddo
      enddo
 
@@ -2135,42 +2562,124 @@
      use global
      implicit none
      integer :: i,j
-     real(SP), dimension(:,:),allocatable :: DelxQtgs,DelyQtgs,DelxQbgs,DelyQbgs
+     real(SP), dimension(:,:),allocatable :: DelxQtgs,DelyQtgs,WtgsC,WbgsC,DIV
+	 REAL(SP) :: DelxQbgs,DelyQbgs,UgsC,VgsC,DelxH0C,DelyH0C,DgsC,QtgsC, &
+	             UgsR,UgsL,VgsB,VgsF,MAXDIV
+# if defined (PARALLEL)
+     real(SP) :: myvar
+# endif
  
      allocate(DelxQtgs(Mloc,Nloc))
      allocate(DelyQtgs(Mloc,Nloc))
-     allocate(DelxQbgs(Mloc,Nloc))
-     allocate(DelyQbgs(Mloc,Nloc))
-
-     DelxQtgs = Zero;DelyQtgs = Zero
-     DelxQbgs = Zero;DelyQbgs = Zero
-	 call delxFun_nl_gs_2D(Dgs,DelxDgs)
+     allocate(WtgsC(MlocC,NlocC))
+     allocate(WbgsC(MlocC,NlocC))
+	 allocate(DIV(MlocC,NlocC))
+	 
+	 DelxQtgs=Zero;DelyQtgs=Zero
+	 call DelxH_gs
+     call delxFun_nl_gs_2D(Dgs,DelxDgs)
 	 call delyFun_nl_gs_2D(Dgs,DelyDgs)
-	 call delxFun_nl_gs_2D(Qtgs,DelxQtgs)
+     call delxFun_nl_gs_2D(Qtgs,DelxQtgs)
 	 call delyFun_nl_gs_2D(Qtgs,DelyQtgs)
-	 call delxFun_nl_gs_2D(Qbgs,DelxQbgs)
-	 call delyFun_nl_gs_2D(Qbgs,DelyQbgs)
+     call delxFun_nl_gs_2D(Hgs,DelxHgs)
+	 call delyFun_nl_gs_2D(Hgs,DelyHgs)
 
+     ! update Ugs and Vgs by non-hydrostatic pressure
      do j = Jbeg,Jend
 	 do i = Ibeg,Iend
-       if(Maskgs(i,j)==0) cycle
+!       if(Maskgs(i,j)==0) cycle
+         DelxQbgs=1./(2.*dx)*(QbgsC(i+1,j+1)-QbgsC(i,j+1)+QbgsC(i+1,j)-QbgsC(i,j))
+         DelyQbgs=1./(2.*dy)*(QbgsC(i+1,j+1)+QbgsC(i,j+1)-QbgsC(i+1,j)-QbgsC(i,j))
          Ugs(i,j)=Ugs(i,j)-dt/Rhogs(i,j)/Dgs(i,j) &
-		 *(2./3.*(Dgs(i,j)*DelxQtgs(i,j)+Qtgs(i,j)*DelxDgs(i,j))+Qtgs(i,j)*DelxHgs(i,j) &
-		  +2./3.*(Dgs(i,j)*DelxQbgs(i,j)+Qbgs(i,j)*DelxDgs(i,j))-Qbgs(i,j)*DelxH0(i,j))
+		 *(1./3.*(Dgs(i,j)*DelxQtgs(i,j)+Qtgs(i,j)*DelxDgs(i,j))+Qtgs(i,j)*DelxHgs(i,j) &
+		  +2./3.*(Dgs(i,j)*DelxQbgs     +Qbgs(i,j)*DelxDgs(i,j))-Qbgs(i,j)*DelxH0(i,j))
          Vgs(i,j)=Vgs(i,j)-dt/Rhogs(i,j)/Dgs(i,j) &
-		 *(2./3.*(Dgs(i,j)*DelyQtgs(i,j)+Qtgs(i,j)*DelyDgs(i,j))+Qtgs(i,j)*DelyHgs(i,j) &
-		  +2./3.*(Dgs(i,j)*DelyQbgs(i,j)+Qbgs(i,j)*DelyDgs(i,j))-Qbgs(i,j)*DelyH0(i,j))
-         Wtgs(i,j)=2.*Wgs(i,j)-Wbgs(i,j)-2.*dt/Rhogs(i,j)/Dgs(i,j)*(Tbzz(i,j)+Qtgs(i,j)-Qbgs(i,j));
-         Wgs(i,j)=0.5*(Wtgs(i,j)+Wbgs(i,j));
-         DUgs(i,j)=Ugs(i,j)*Dgs(i,j);
-         DVgs(i,j)=Vgs(i,j)*Dgs(i,j);
+		 *(1./3.*(Dgs(i,j)*DelyQtgs(i,j)+Qtgs(i,j)*DelyDgs(i,j))+Qtgs(i,j)*DelyHgs(i,j) &
+		  +2./3.*(Dgs(i,j)*DelyQbgs     +Qbgs(i,j)*DelyDgs(i,j))-Qbgs(i,j)*DelyH0(i,j))
+         DUgs(i,j)=Ugs(i,j)*Dgs(i,j)
+         DVgs(i,j)=Vgs(i,j)*Dgs(i,j)
      enddo
      enddo
+	 
+     ! collect data into ghost cells
+     call vel_bc_gs
+# if defined (PARALLEL)
+     call phi_2D_exch(Ugs)
+     call phi_2D_exch(Vgs)
+     call phi_2D_exch(DUgs)
+     call phi_2D_exch(DVgs)
+# endif
+	 
+	 ! update Wgs by non-hydrostatic pressure
+	 WtgsC=Zero;WbgsC=Zero;WgsC=Zero
+     do j = Jbeg,JendC
+	 do i = Ibeg,IendC
+         UgsC=0.25*(Ugs(i,j)+Ugs(i-1,j)+Ugs(i,j-1)+Ugs(i-1,j-1))
+         VgsC=0.25*(Vgs(i,j)+Vgs(i-1,j)+Vgs(i,j-1)+Vgs(i-1,j-1))
+         WgsC(i,j)=0.25*(Wgs(i,j)+Wgs(i-1,j)+Wgs(i,j-1)+Wgs(i-1,j-1))
+         DelxH0C=1./(2.*dx)*(Hc0(i,j)-Hc0(i-1,j)+Hc0(i,j-1)-Hc0(i-1,j-1))
+         DelyH0C=1./(2.*dy)*(Hc0(i,j)+Hc0(i-1,j)-Hc0(i,j-1)-Hc0(i-1,j-1))
+         DgsC=0.25*(Dgs(i,j)+Dgs(i-1,j)+Dgs(i,j-1)+Dgs(i-1,j-1))
+         QtgsC=0.25*(Qtgs(i,j)+Qtgs(i-1,j)+Qtgs(i,j-1)+Qtgs(i-1,j-1))   
+         WbgsC(i,j)=-UgsC*DelxH0C-VgsC*DelyH0C
+         WtgsC(i,j)=2.*WgsC(i,j)-WbgsC(i,j)-2.*dt/SLIDE_DENSITY/DgsC*(QtgsC-QbgsC(i,j))
+         WgsC(i,j)=0.5*(WtgsC(i,j)+WbgsC(i,j))
+     enddo
+     enddo
+	 call phiC_2D_coll(WbgsC)
+	 call phiC_2D_coll(WtgsC)
+	 call phiC_2D_coll(WgsC)
+	 
+	 ! interpolate Wgs from cell corner to cell center
+     do j = Jbeg,Jend
+	 do i = Ibeg,Iend
+	     Wtgs(i,j)=0.25*(WtgsC(i+1,j+1)+WtgsC(i,j+1)+WtgsC(i+1,j)+WtgsC(i,j))
+		 Wbgs(i,j)=0.25*(WbgsC(i+1,j+1)+WbgsC(i,j+1)+WbgsC(i+1,j)+WbgsC(i,j))
+         Wgs(i,j)=0.25*(WgsC(i+1,j+1)+WgsC(i,j+1)+WgsC(i+1,j)+WgsC(i,j))
+         DWgs(i,j) = Wgs(i,j)*Dgs(i,j)
+     enddo
+     enddo
+	 call phi_2D_coll(Wtgs)
+	 call phi_2D_coll(Wbgs)
+	 
+	 ! collect data into ghost cells
+     call vel_bc_gs
+# if defined (PARALLEL)
+	 call phi_2D_exch(Wgs)
+	 call phi_2D_exch(DWgs)
+# endif
+
+     ! check divergence free in cell corner
+	 DIV=Zero
+     do j = Jbeg,JendC
+	 do i = Ibeg,IendC
+            UgsR=0.5*(Ugs(i,j)+Ugs(i,j-1))
+            UgsL=0.5*(Ugs(i-1,j)+Ugs(i-1,j-1))
+            VgsB=0.5*(Vgs(i,j)+Vgs(i-1,j))
+            VgsF=0.5*(Vgs(i,j-1)+Vgs(i-1,j-1))
+            DgsC=0.25*(Dgs(i,j)+Dgs(i-1,j)+Dgs(i,j-1)+Dgs(i-1,j-1))
+            DIV(i,j)=(UgsR-UgsL)/dx+(VgsB-VgsF)/dy+(WtgsC(i,j)-WbgsC(i,j))/DgsC
+     enddo
+     enddo
+	 MAXDIV = MAXVAL(abs(DIV(Ibeg:IendC,Jbeg:JendC)))
+# if defined (PARALLEL)
+     call MPI_ALLREDUCE(MAXDIV,myvar,1,MPI_SP,MPI_MAX,MPI_COMM_WORLD,ier)
+     MAXDIV = myvar
+# endif
+     !print
+# if defined (PARALLEL)
+!     if(myid.eq.0) then
+# endif
+!     WRITE(*,*),'MAXDIV:  ',MAXDIV
+# if defined (PARALLEL)
+!     endif
+# endif
  
      deallocate(DelxQtgs)
      deallocate(DelyQtgs)
-     deallocate(DelxQbgs)
-	 deallocate(DelyQbgs)
+     deallocate(WtgsC)
+	 deallocate(WbgsC)
+	 deallocate(DIV)
 
      return
      end subroutine projection_corrector_gs
@@ -2191,9 +2700,9 @@
     
      do i = 2,Mloc-1
      do j = 1,Nloc
-       if(Maskgs(i,j)==0) then
-         Dout(i,j) = Zero
-       else
+!       if(Maskgs(i,j)==0) then
+!         Dout(i,j) = Zero
+!       else
          TMP1 = (Din(i+1,j)-Din(i,j))/dx
          TMP2 = (Din(i,j)-Din(i-1,j))/dx
 
@@ -2201,7 +2710,7 @@
            Dout(i,j) = Zero
          else
            Dout(i,j) = (TMP1+TMP2)/2.0
-         endif
+!         endif
        endif
      enddo
      enddo
@@ -2230,9 +2739,9 @@
 
      do i = 1,Mloc
      do j = 2,Nloc-1
-       if(Maskgs(i,j)==0) then 
-         Dout(i,j) = Zero
-       else
+!       if(Maskgs(i,j)==0) then 
+!         Dout(i,j) = Zero
+!       else
          TMP1 = (Din(i,j+1)-Din(i,j))/dy
          TMP2 = (Din(i,j)-Din(i,j-1))/dy
 
@@ -2241,7 +2750,7 @@
          else
            Dout(i,j) = (TMP1+TMP2)/2.0
          endif
-       endif
+!       endif
      enddo
      enddo
 
@@ -2408,4 +2917,190 @@
 
      return
      end subroutine dely2Fun_2D
+	 
+     subroutine phiC_2D_coll(phi)
+!-----------------------------------------------------
+!    This subroutine is used to collect data into ghost cell corners
+!    Called by
+!       poisson_solver_gs
+!    Last update: 28/06/2019, Cheng Zhang
+!-----------------------------------------------------
+     use global
+     implicit none
+     real(SP), intent(inout) :: phi(MlocC,NlocC)
+     integer :: i,j
+
+     ! x-direction
+# if defined (PARALLEL)
+     if(n_west.eq.MPI_PROC_NULL) then
+# endif
+       do j = Jbeg,JendC
+       do i = 1,Nghost
+         phi(i,j) = phi(Ibeg+Nghost-i,j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+
+# if defined (PARALLEL)
+     if(n_east.eq.MPI_PROC_NULL) then
+# endif
+       do j = Jbeg,JendC
+       do i = 1,Nghost
+         phi(IendC+i,j) = phi(IendC-i+1,j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+ 
+     ! y-direction and corners
+# if defined (PARALLEL)
+     if(n_suth.eq.MPI_PROC_NULL) then
+# endif     
+       do i = 1,MlocC
+       do j = 1,Nghost
+         phi(i,j) = phi(i,Jbeg+Nghost-j)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+
+# if defined (PARALLEL)
+     if(n_nrth.eq.MPI_PROC_NULL) then
+# endif
+       do i = 1,MlocC
+       do j = 1,Nghost
+         phi(i,JendC+j) = phi(i,JendC-j+1)
+       enddo
+       enddo
+# if defined (PARALLEL)
+     endif
+# endif
+
+# if defined (PARALLEL)
+     call phiC_2D_exch(phi)
+# endif    
+
+     end subroutine phiC_2D_coll
+	 
+# if defined (PARALLEL)
+    subroutine phiC_2D_exch(PHI)
+    USE GLOBAL
+    IMPLICIT NONE
+    REAL(SP),INTENT(INOUT) :: PHI(MlocC,NlocC)
+
+    INTEGER,DIMENSION(MPI_STATUS_SIZE,4) :: status
+    INTEGER,DIMENSION(4) :: req
+    INTEGER :: i,j,nreq,len
+    REAL(SP),DIMENSION(MlocC,Nghost) :: rNmsg, sNmsg,rSmsg,sSmsg
+    REAL(SP),DIMENSION(NlocC,Nghost) :: rWmsg, sWmsg,rEmsg,sEmsg
+
+! for east-west
+
+    len = NlocC * Nghost
+
+    nreq = 0
+    if ( n_west .ne. MPI_PROC_NULL ) then
+       nreq = nreq + 1
+       call MPI_IRECV( rWmsg, len, MPI_SP, &
+            n_west, 0, comm2d, req(nreq), ier )
+       do j = 1, NlocC
+       do i = 1, Nghost
+          sWmsg(j,i) = PHI(Ibeg+i-1,j)
+       enddo
+       enddo
+       nreq = nreq +1
+       call MPI_ISEND( sWmsg, len, MPI_SP, &
+            n_west, 1, comm2d, req(nreq), ier )
+    endif
+
+    if ( n_east .ne. MPI_PROC_NULL ) then
+       nreq = nreq + 1
+       call MPI_IRECV( rEmsg, len, MPI_SP, &
+            n_east, 1, comm2d, req(nreq), ier )
+       do j = 1, NlocC
+       do i = 1, Nghost
+          sEmsg(j,i) = PHI(IendC-i+1,j)
+       enddo
+       enddo
+       nreq = nreq +1
+       call MPI_ISEND( sEmsg, len, MPI_SP, &
+            n_east, 0, comm2d, req(nreq), ier )
+    endif
+
+    call MPI_WAITALL( nreq, req, status, ier )
+
+    if ( n_west .ne. MPI_PROC_NULL ) then
+       do j = 1, NlocC
+       do i = 1, Nghost
+          PHI(Ibeg-i,j) = rWmsg(j,i)
+       enddo
+       enddo
+    endif
+
+    if ( n_east .ne. MPI_PROC_NULL ) then
+       do j = 1, NlocC
+       do i = 1, Nghost
+          PHI(IendC+i,j) = rEmsg(j,i)
+       enddo
+       enddo
+    endif
+
+! for nrth-suth
+
+    len = MlocC * Nghost
+
+    nreq = 0
+    if ( n_suth .ne. MPI_PROC_NULL ) then
+       nreq = nreq + 1
+       call MPI_IRECV( rSmsg, len, MPI_SP, &
+            n_suth, 0, comm2d, req(nreq), ier )
+       do i = 1, MlocC
+       do j = 1, Nghost
+          sSmsg(i,j) = PHI(i,Jbeg+j-1)
+       enddo
+       enddo
+       nreq = nreq +1
+       call MPI_ISEND( sSmsg, len, MPI_SP, &
+            n_suth, 1, comm2d, req(nreq), ier )
+    endif
+
+    if ( n_nrth .ne. MPI_PROC_NULL ) then
+       nreq = nreq + 1
+       call MPI_IRECV( rNmsg, len, MPI_SP, &
+            n_nrth, 1, comm2d, req(nreq), ier )
+       do i = 1, MlocC
+       do j = 1, Nghost
+          sNmsg(i,j) = PHI(i,JendC-j+1)
+       enddo
+       enddo
+       nreq = nreq + 1
+       call MPI_ISEND( sNmsg, len, MPI_SP, &
+            n_nrth, 0, comm2d, req(nreq), ier )
+    endif
+
+    call MPI_WAITALL( nreq, req, status, ier )
+
+    if ( n_suth .ne. MPI_PROC_NULL ) then
+       do i = 1, MlocC
+       do j = 1, Nghost
+          PHI(i,Jbeg-j) = rSmsg(i,j)
+       enddo
+       enddo
+    endif
+
+    if ( n_nrth .ne. MPI_PROC_NULL ) then
+       do i = 1, MlocC
+       do j = 1, Nghost
+          PHI(i,JendC+j) = rNmsg(i,j)
+       enddo
+       enddo
+    endif
+
+    return
+    END SUBROUTINE phiC_2D_exch
+# endif
 # endif
