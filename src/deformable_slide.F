@@ -18,13 +18,13 @@
     do i = Ibeg,Iend
       if(Maskgs(i,j)==0) then
         if(Maskgs(i-1,j)==1.and.Hgs(i-1,j)<Hgs(i,j).and. &
-		          Dgs(i-1,j)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
+		          Dgs(i-1,j)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
         if(Maskgs(i+1,j)==1.and.Hgs(i+1,j)<Hgs(i,j).and. &
-		          Dgs(i+1,j)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
+		          Dgs(i+1,j)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
         if(Maskgs(i,j-1)==1.and.Hgs(i,j-1)<Hgs(i,j).and. &
-		          Dgs(i,j-1)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
+		          Dgs(i,j-1)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
         if(Maskgs(i,j+1)==1.and.Hgs(i,j+1)<Hgs(i,j).and. &
-		          Dgs(i,j+1)-SLIDE_MINTHICK>Small) Masktmp(i,j)=1
+		          Dgs(i,j+1)-SLIDE_MINTHICK>SLIDE_MINTHICK) Masktmp(i,j)=1
       else
         ! drying (wet->dry)               
         if(Dgs(i,j)-SLIDE_MINTHICK<=Small) then
