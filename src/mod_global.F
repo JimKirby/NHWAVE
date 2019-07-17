@@ -337,7 +337,7 @@
 											  DelxH0,Delx2H0,Kx,Cxgs,SrcmgsX,SrcpgsX,SrctgsX,UgsP,VgsP,WgsP, &
 											  DelyH0,Dely2H0,Ky,Cygs,SrcmgsY,SrcpgsY,SrctgsY,SrctgsZ,DwDt, &
 											  Cxx,Cxy,Cxz,Cyx,Cyy,Cyz,Czx,Czy,Czz,Czz0, &
-											  Taxx,Tayx,Taxy,Tayy,Taxz,Tayz,Tezz,Pss, &
+											  Taxx,Tayx,Taxy,Tayy,Taxz,Tayz,Tezz,Pss,Qsgs, &
 											  Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz
      real(SP), dimension(:,:), allocatable :: DgsxL,DgsxR,HSgsxL,HSgsxR,UgsxL,UgsxR,VgsxL,VgsxR,WgsxL,WgsxR, &
 											  H0fx,DUgsxL,DUgsxR,DVgsxL,DVgsxR,DWgsxL,DWgsxR, &
@@ -351,9 +351,9 @@
 											  SrcmgsyL,SrcmgsyR,SrcpgsyL,SrcpgsyR
      real(SP), dimension(:,:), allocatable :: QbgsC,WgsC
      integer,  dimension(:,:), allocatable :: Maskgs
-	 logical :: NON_HYDRO_SLD,DISP_CORR_SLD
+	 logical :: NON_HYDRO_SLD,DISP_CORR_SLD,REDU_GRAV_SLD,NON_HYDRO_UP
      real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK,SLIDE_GAMMA, &
-	             SLIDE_CONC,GRAIN_DENSITY,PhiInt,PhiBed, &
+	             SLIDE_CONC,GRAIN_DENSITY,PhiInt,PhiBed,SLIDE_LAMBDA, &
 				 SLIDE_INIU,SLIDE_INIV,SLIDE_INIW
      ! poisson solvers
      integer  :: neqnsgs,IendC,JendC,MlocC,NlocC

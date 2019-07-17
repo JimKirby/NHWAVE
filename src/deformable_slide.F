@@ -134,7 +134,7 @@
 
      end subroutine update_vars_gs
 	 
-    subroutine flux_coff_gs
+    subroutine flux_coeff_gs
 !------------------------------------------------------  
 !    This subroutine is used to update coefficients for flux
 !    Called by                                                
@@ -145,43 +145,93 @@
     implicit none
     integer :: i,j
 	real(SP) :: TMP1,TMP2,DispT
+    real(SP),dimension(:,:),allocatable :: TMP3
+	 
+    allocate(TMP3(Mloc,Nloc))
 	 
     if(trim(RHEO_OPT)=='VISCOUS') then
 	  Cxgs = Grav
       Cygs = Grav
 	elseif(trim(RHEO_OPT)=='GRANULAR') then
+	  !Get local coordinate
 	  call transform_gs
+	  ! Obtain DwDt and Qsgs in non-hydrostatic model
+	  if (NON_HYDRO_SLD.and.REDU_GRAV_SLD) then
+	    ! Obtain dynamic pressure at slide surface
+	    if (NON_HYDRO_UP) then
+          do j = 1,Nloc
+          do i = 1,Mloc
+            Qtgs(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
+          enddo
+          enddo
+		else
+		  Qtgs=Zero
+	    endif
+		TMP3=Zero
+        do j = Jbeg,Jend
+        do i = Ibeg,Iend
+		  TMP3(i,j)=(Qbgs(i,j)-Qtgs(i,j))/Rhogs(i,j)/Dgs(i,j)
+		  TMP1=SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j)*Grav
+  		  TMP3(i,j)=max(TMP3(i,j),-TMP1)
+  		  TMP3(i,j)=min(TMP3(i,j),TMP1)
+		  !Qsgs
+		  Qsgs(i,j)=TMP3(i,j)*Rhogs(i,j)*Dgs(i,j)*SLIDE_LAMBDA
+		  !DwDt(including fluid non-hydrostatic pressure and shear stress in z momentum eq)
+  		  DwDt(i,j)=TMP3(i,j)-(TMP3(i,j)*Rhogs(i,j)*Dgs(i,j)-Qsgs(i,j))/Rhogs(i,j)/Dgs(i,j) 
+!		            +(-SrctgsZ(i,j)*Rhogs(i,j)-Tezz(i,j)+Pss(i,j))/Dgs(i,j)/Rhogs(i,j)
+        enddo
+        enddo
+		call phi_2D_coll(Qsgs)
+	    call phi_2D_coll(DwDt)
+	  endif
+	  
+	  ! Obtain coefficients of flux
       do j = Jbeg,Jend
       do i = Ibeg,Iend
-	    ! DwDt(i,j)=(Wgs0(i,j)-Wgs00(i,j))/dt
-	    TMP1=DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j)*Grav
-		TMP2=(1.0-SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j))*Grav
-		! DwDt(i,j)=max(DwDt(i,j),-TMP1)
-		! DwDt(i,j)=min(DwDt(i,j),TMP1)
+  	    TMP1=SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j)*Grav
+  		TMP2=(1.0-SLIDE_CONC*GRAIN_DENSITY/Rhogs(i,j))*Grav
 		Cxgs(i,j)=(Cxx(i,j)/max(Czz(i,j),Small)*TMP1+TMP2)*Maskgs(i,j)
 		Cygs(i,j)=(Cyy(i,j)/max(Czz(i,j),Small)*TMP1+TMP2)*Maskgs(i,j)
       enddo
       enddo
+      do j = Jbeg,Jend
+      do i = Ibeg,Iend
+	    ! ensure the hyperbolic property in x
+        TMP1=Cxx(i,j)/max(Czz(i,j),Small)*DwDt(i,j)-Qsgs(i,j)/Rhogs(i,j)/Dgs(i,j)
+        if (TMP1<=-Cxgs(i,j)) then
+          TMP1=-Cxgs(i,j)
+        elseif (TMP1>=Cxgs(i,j)) then
+          TMP1=Cxgs(i,j)
+        endif
+        Cxgs(i,j)=Cxgs(i,j)+TMP1
+		! ensure the hyperbolic property in y
+		TMP2=Cyy(i,j)/max(Czz(i,j),Small)*DwDt(i,j)-Qsgs(i,j)/Rhogs(i,j)/Dgs(i,j)
+        if (TMP2<=-Cygs(i,j)) then
+          TMP2=-Cygs(i,j)
+        elseif (TMP2>=Cygs(i,j)) then
+          TMP2=Cygs(i,j)
+        endif
+        Cygs(i,j)=Cygs(i,j)+TMP2
+      enddo
+      enddo
 	endif
 	
+	! Dispersion correction term in non-hydrostatic model
     if (NON_HYDRO_SLD.and.DISP_CORR_SLD) then
 	  Call DelxH_gs
 	  call delxFun_gs_2D(Hgs,DelxHgs)
 	  call delyFun_gs_2D(Hgs,DelyHgs)
       do j = Jbeg,Jend
       do i = Ibeg,Iend
-        DispT=DelxH0(i,j)*DelxHgs(i,j)/3.0*Grav+DelyH0(i,j)*DelyHgs(i,j)/3.0*Grav;
+        DispT=DelxH0(i,j)*DelxHgs(i,j)/3.0*Grav+DelyH0(i,j)*DelyHgs(i,j)/3.0*Grav
+		! ensure the hyperbolic property in x
         if (DispT<=-Cxgs(i,j)) then
           DispT=-Cxgs(i,j)
         elseif (DispT>=Cxgs(i,j)) then
           DispT=Cxgs(i,j)
         endif
         Cxgs(i,j)=Cxgs(i,j)+DispT
-      enddo
-      enddo
-      do j = Jbeg,Jend
-      do i = Ibeg,Iend
-        DispT=DelxH0(i,j)*DelxHgs(i,j)/3.0*Grav+DelyH0(i,j)*DelyHgs(i,j)/3.0*Grav;
+		! ensure the hyperbolic property in y
         if (DispT<=-Cygs(i,j)) then
           DispT=-Cygs(i,j)
         elseif (DispT>=Cygs(i,j)) then
@@ -192,19 +242,18 @@
       enddo
     endif
 
-# if defined (PARALLEL)
 	call phi_2D_coll(Cxgs)
 	call phi_2D_coll(Cygs)
-	call phi_2D_coll(DwDt)
-# endif
 
-    end subroutine flux_coff_gs
+    deallocate(TMP3)
+
+    end subroutine flux_coeff_gs
 	
     subroutine transform_gs
 !------------------------------------------------------  
 !    This subroutine is used to construct local coordinate
 !    Called by                                                
-!       flux_coff_gs
+!       flux_coeff_gs
 !    Last update: 10/07/2018, Cheng Zhang
 !-----------------------------------------------------
     use global
@@ -1400,7 +1449,7 @@
 !       source_terms_gs, coulomb
 !    Last update: 10/07/2018, Cheng Zhang 
 !------------------------------------------ 
-     use global, only: SP,Mloc,Nloc,Ibeg,Iend,Jbeg,Jend,Ugs,Vgs,Dgs,DelxH0,DelyH0
+     use global, only: SP,Mloc,Nloc,Ibeg,Iend,Jbeg,Jend,Ugs,Vgs,Dgs,DelxH0,DelyH0,Zero
      implicit none
      real(SP),intent(in) :: NU
 	 real(SP),intent(in),dimension(Mloc,Nloc) :: Rho
@@ -1409,16 +1458,25 @@
 
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-       Txx(i,j)=6.0*Nu*Rho(i,j)*Ugs(i,j)/Dgs(i,j)*DelxH0(i,j)
-       Tyy(i,j)=6.0*Nu*Rho(i,j)*Vgs(i,j)/Dgs(i,j)*DelyH0(i,j)
-       Tzz(i,j)=-6.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j)+Vgs(i,j)*DelyH0(i,j))
-       Txy(i,j)=3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelyH0(i,j)+Vgs(i,j)*DelxH0(i,j))
-       Txz(i,j)=3.0*Nu*Rho(i,j)*Ugs(i,j)/Dgs(i,j) &
-	           -3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j) &
-	                                     +Vgs(i,j)*DelyH0(i,j))*DelxH0(i,j)
-       Tyz(i,j)=3.0*Nu*Rho(i,j)*Vgs(i,j)/Dgs(i,j) &
-	           -3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j) &
-	                                     +Vgs(i,j)*DelyH0(i,j))*DelyH0(i,j)
+	   if (Ugs(i,j)>=1e-8.and.Vgs(i,j)>=1e-8) then
+         Txx(i,j)=6.0*Nu*Rho(i,j)*Ugs(i,j)/Dgs(i,j)*DelxH0(i,j)
+         Tyy(i,j)=6.0*Nu*Rho(i,j)*Vgs(i,j)/Dgs(i,j)*DelyH0(i,j)
+         Tzz(i,j)=-6.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j)+Vgs(i,j)*DelyH0(i,j))
+         Txy(i,j)=3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelyH0(i,j)+Vgs(i,j)*DelxH0(i,j))
+         Txz(i,j)=3.0*Nu*Rho(i,j)*Ugs(i,j)/Dgs(i,j) &
+	             -3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j) &
+	                                       +Vgs(i,j)*DelyH0(i,j))*DelxH0(i,j)
+         Tyz(i,j)=3.0*Nu*Rho(i,j)*Vgs(i,j)/Dgs(i,j) &
+	             -3.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j) &
+	                                       +Vgs(i,j)*DelyH0(i,j))*DelyH0(i,j)
+	    else
+         Txx(i,j)=Zero
+         Tyy(i,j)=Zero
+         Tzz(i,j)=Zero
+         Txy(i,j)=Zero
+         Txz(i,j)=Zero
+         Tyz(i,j)=Zero
+        endif
      enddo
      enddo
      call phi_2D_coll(Txx)
@@ -1469,20 +1527,20 @@
 	 ! solid stress+fluid stress
      do j = 1,Nloc
      do i = 1,Mloc
-	   Tezz(i,j) = (Rhogs(i,j)*DwDt(i,j)*Dgs(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j))
-	   Pss(i,j) = SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j)
+	   Tezz(i,j) = Rhogs(i,j)*DwDt(i,j)*Dgs(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j)
+	   Pss(i,j) = SLIDE_CONC*GRAIN_DENSITY*Grav*Dgs(i,j)+Qsgs(i,j)
 	   !x momentum
-	   Taxx(i,j) = 0.5*Tbfxx(i,j)*Maskgs(i,j)!soil stress is in Cx_gs
+	   Taxx(i,j) = 0.5*Tbfxx(i,j)*Maskgs(i,j)!solid stress is in Cx_gs
 	   Tayx(i,j) = 0.5*(Tbfyx(i,j)-Cyx(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
 	   Tbxx(i,j) = (Tbfxx(i,j)-Cxx(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Pss(i,j))*Maskgs(i,j)
 	   Tbyx(i,j) = (Tbfyx(i,j)-Cyx(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
 	   Tbzx(i,j) = Tbfzx(i,j)*Maskgs(i,j)
 	   !y momentum
 	   Taxy(i,j) = 0.5*(Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
-	   Tayy(i,j) = 0.5*Tbfyy(i,j)*Maskgs(i,j)!soil stress is in Cx_gs
+	   Tayy(i,j) = 0.5*Tbfyy(i,j)*Maskgs(i,j)!solid stress is in Cy_gs
 	   Tbxy(i,j) = (Tbfxy(i,j)-Cxy(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
 	   Tbyy(i,j) = (Tbfyy(i,j)-Cyy(i,j)/max(Czz(i,j),Small)*Tezz(i,j)+Pss(i,j))*Maskgs(i,j)
-	   Tbzy(i,j) = Tbfzy(i,j)*Maskgs(i,j)
+	   Tbzy(i,j) = Tbfzy(i,j)*Maskgs(i,j)!solid stress determined in eval_duvw_gs
 	   !z momentum
 	   Taxz(i,j) = 0.5*(Tbfxz(i,j)-Cxz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
 	   Tayz(i,j) = 0.5*(Tbfyz(i,j)-Cyz(i,j)/max(Czz(i,j),Small)*Tezz(i,j))*Maskgs(i,j)
@@ -1524,7 +1582,7 @@
      end subroutine coulomb
 	 
 
-	 subroutine eval_duv_gs(ISTEP)
+	 subroutine eval_duvw_gs(ISTEP)
 !-----------------------------------------------
 !    Update all variables Dgs,Ugs,Vgs for deformable slide
 !    Called by
@@ -1615,15 +1673,15 @@
         do i = Ibeg,Iend
           if(Maskgs(i,j)==1) then
 		    TauC=tan(PhiBed)/max(Czz0(i,j),Small) &
-			     *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+			     *((Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav) &
 				   *((DgsxL(i,j)+DgsxR(i+1,j))/2.+(DgsyL(i,j)+DgsyR(i,j+1))/2.)/2.)
             if(sqrt(DUgs(i,j)**2+DVgs(i,j)**2)>dt/Rhogs(i,j)*TauC) then
               Tbzx(i,j) = -Czx(i,j)/max(Czz(i,j),Small) &
-			             *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+			             *((Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav) &
 						   *(DgsxL(i,j)+DgsxR(i+1,j))/2.) &
 						 *(1.-(DUgs(i,j)/Dgs(i,j))**2*DelxTheta(i,j)/Grav)
               Tbzy(i,j) = -Czy(i,j)/max(Czz(i,j),Small) &
-			             *(Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav &
+			             *((Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav) &
 						   *(DgsyL(i,j)+DgsyR(i,j+1))/2.) &
 						 *(1.-(DVgs(i,j)/Dgs(i,j))**2*DelyTheta(i,j)/Grav)
             else
@@ -1664,7 +1722,7 @@
      Hgs = Hc0-Dgs
 	 
      ! limit the maximum Froude number
-     FROUDECAP_gs=100.0
+     FROUDECAP_gs=1.0
      DO J=Jbeg,Jend
      DO I=Ibeg,Iend
        IF(Maskgs(I,J)>0)THEN
@@ -1722,13 +1780,13 @@
      deallocate(DelxTheta)
      deallocate(DelyTheta)
 	 
-	 end subroutine eval_duv_gs
+	 end subroutine eval_duvw_gs
 	 
      subroutine wl_bc_gs
 !-----------------------------------------------------------
 !    Boundary condition for surface elevation or water depth
 !    Called by
-!       eval_duv_gs
+!       eval_duvw_gs
 !    Last update: 10/07/2018, Cheng Zhang
 !-----------------------------------------------------------
      use global
@@ -1797,7 +1855,7 @@
 !    Applied kinematic boundary conditions at free surface                                                                        
 !    of deformable slide                                                                                   
 !    Called by
-!       eval_duv_gs                                                                                                                  
+!       eval_duvw_gs                                                                                                                  
 !    Last update: 10/07/2018, Cheng Zhang                                                                                    
 !------------------------------------------------                                                                                
      use global
@@ -1845,7 +1903,7 @@
 !    Applied kinematic boundary conditions at bottom                                                                        
 !    of deformable slide                                                                                   
 !    Called by
-!       eval_duv_gs                                                                                                                  
+!       eval_duvw_gs                                                                                                                  
 !    Last update: 10/07/2018, Cheng Zhang                                                                                    
 !------------------------------------------------                                                                                 
      use global
@@ -1867,7 +1925,7 @@
 !------------------------------------------------
 !    Obtain Ugs,Vgs for deformable slide
 !    Called by
-!       eval_duv_gs
+!       eval_duvw_gs
 !    Last update: 10/07/2018, Cheng Zhang
 !-----------------------------------------------
      use global
@@ -1908,7 +1966,7 @@
 !----------------------------------------------------
 !    Boundary conditions for slide velocity
 !    Called by 
-!       get_UV_gs get_UVW_gs
+!       get_UVW_gs
 !    Last update: 10/07/2018, Cheng Zhang
 !---------------------------------------------------
      use global
@@ -1953,7 +2011,7 @@
 # if defined (PARALLEL)
      if(n_suth.eq.MPI_PROC_NULL) then
 # endif
-     do i = Ibeg,Iend
+     do i = 1,Mloc
      do j = 1,Nghost
        Ugs(i,Jbeg-j) = Ugs(i,Jbeg+j-1)
        Vgs(i,Jbeg-j) = -Vgs(i,Jbeg+j-1)
@@ -1970,7 +2028,7 @@
 # if defined (PARALLEL)
      if(n_nrth.eq.MPI_PROC_NULL) then
 # endif
-     do i = Ibeg,Iend
+     do i = 1,Mloc
      do j = 1,Nghost
        Ugs(i,Jend+j) = Ugs(i,Jend-j+1)
        Vgs(i,Jend+j) = -Vgs(i,Jend-j+1)
@@ -2008,11 +2066,15 @@
 # endif
 
      ! Obtain dynamic pressure at slide surface
-     do j = 1,Nloc
-     do i = 1,Mloc
-       Qtgs(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
-     enddo
-     enddo
+	 if (NON_HYDRO_UP) then
+       do j = 1,Nloc
+       do i = 1,Mloc
+         Qtgs(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
+       enddo
+       enddo
+	 else
+	   Qtgs=Zero
+	 endif
    
      ! generate coefficient matrix and rhs
      call generate_coef_rhs_gs

@@ -5988,7 +5988,7 @@
      do Istagegs = 1,It_Order
 
 	   ! coefficients for flux
-	   call flux_coff_gs
+	   call flux_coeff_gs
 
 	   ! fluxes at cell faces
        call fluxes_gs
@@ -5997,7 +5997,7 @@
        call source_terms_gs
 
        ! update all variables
-       call eval_duv_gs(Istagegs)
+       call eval_duvw_gs(Istagegs)
 
      enddo
 	 

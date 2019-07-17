@@ -280,6 +280,8 @@
 	 CALL GET_STRING_VAL(RHEO_OPT,FILE_NAME,'RHEO_OPT',line,ierr)
 	 CALL GET_LOGICAL_VAL(NON_HYDRO_SLD,FILE_NAME,'NON_HYDRO_SLD',line)
 	 CALL GET_LOGICAL_VAL(DISP_CORR_SLD,FILE_NAME,'DISP_CORR_SLD',line)
+	 CALL GET_LOGICAL_VAL(REDU_GRAV_SLD,FILE_NAME,'REDU_GRAV_SLD',line)
+	 CALL GET_LOGICAL_VAL(NON_HYDRO_UP,FILE_NAME,'NON_HYDRO_UP',line)
      CALL GET_Float_VAL(SLIDE_DENSITY ,FILE_NAME,'SLIDE_DENSITY',line)
      CALL GET_Float_VAL(SLIDE_VISCOSITY ,FILE_NAME,'SLIDE_VISCOSITY',line)
      CALL GET_Float_VAL(SLIDE_MINTHICK ,FILE_NAME,'SLIDE_MINTHICK',line)
@@ -288,6 +290,7 @@
      CALL GET_Float_VAL(GRAIN_DENSITY ,FILE_NAME,'GRAIN_DENSITY',line)
      CALL GET_Float_VAL(PhiInt ,FILE_NAME,'PhiInt',line)
      CALL GET_Float_VAL(PhiBed ,FILE_NAME,'PhiBed',line)
+	 CALL GET_Float_VAL(SLIDE_LAMBDA ,FILE_NAME,'SLIDE_LAMBDA',line)
      CALL GET_Float_VAL(SLIDE_INIU ,FILE_NAME,'SLIDE_INIU',line)
 	 CALL GET_Float_VAL(SLIDE_INIV ,FILE_NAME,'SLIDE_INIV',line)
 	 CALL GET_Float_VAL(SLIDE_INIW ,FILE_NAME,'SLIDE_INIW',line)
@@ -296,6 +299,8 @@
 	   if(myid.eq.0) WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
 	   if(myid.eq.0) WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
 	   if(myid.eq.0) WRITE(3,'(A15,L4)')'DISP_CORR_SLD= ',DISP_CORR_SLD
+	   if(myid.eq.0) WRITE(3,'(A15,L4)')'REDU_GRAV_SLD= ',REDU_GRAV_SLD
+	   if(myid.eq.0) WRITE(3,'(A14,L4)')'NON_HYDRO_UP= ',NON_HYDRO_UP
        if(myid.eq.0) WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        if(myid.eq.0) WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
        if(myid.eq.0) WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
@@ -304,6 +309,7 @@
        if(myid.eq.0) WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
        if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
        if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+	   if(myid.eq.0) WRITE(3,'(A14,F8.2)')'SLIDE_LAMBDA= ', SLIDE_LAMBDA
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIW= ', SLIDE_INIW
@@ -312,6 +318,8 @@
 	   WRITE(3,'(A10,A10)')'RHEO_OPT= ',TRIM(RHEO_OPT)
 	   WRITE(3,'(A15,L4)')'NON_HYDRO_SLD= ',NON_HYDRO_SLD
 	   WRITE(3,'(A15,L4)')'DISP_CORR_SLD= ',DISP_CORR_SLD
+	   WRITE(3,'(A15,L4)')'REDU_GRAV_SLD= ',REDU_GRAV_SLD
+	   WRITE(3,'(A14,L4)')'NON_HYDRO_UP= ',NON_HYDRO_UP
        WRITE(3,'(A15,F8.2)')'SLIDE_DENSITY= ', SLIDE_DENSITY
        WRITE(3,'(A17,F8.2)')'SLIDE_VISCOSITY= ', SLIDE_VISCOSITY
        WRITE(3,'(A16,F8.2)')'SLIDE_MINTHICK= ', SLIDE_MINTHICK
@@ -320,6 +328,7 @@
        WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
        WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
        WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+	   WRITE(3,'(A14,F8.2)')'SLIDE_LAMBDA= ', SLIDE_LAMBDA
        WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
        WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
        WRITE(3,'(A12,F8.2)')'SLIDE_INIW= ', SLIDE_INIW
@@ -1380,16 +1389,16 @@
 
 # if defined (DEFORMABLESLIDE)
 # if defined (PARALLEL)
-	 if (npx<PX.and.npy<PY) then
+	 if (npx<(PX-1).and.npy<(PY-1)) then
 	   IendC=Iend;JendC=Jend
 	   MlocC=Mloc;NlocC=Nloc
-	 elseif (npx==PX.and.npy<PY) then
+	 elseif (npx==(PX-1).and.npy<(PY-1)) then
 	   IendC=Iend1;JendC=Jend
        MlocC=Mloc1;NlocC=Nloc
-	 elseif (npx<PX.and.npy==PY) then
+	 elseif (npx<(PX-1).and.npy==(PY-1)) then
 	   IendC=Iend;JendC=Jend1
        MlocC=Mloc;NlocC=Nloc1
-	 elseif (npx==PX.and.npy==PY) then
+	 elseif (npx==(PX-1).and.npy==(PY-1)) then
 	   IendC=Iend1;JendC=Jend1
        MlocC=Mloc1;NlocC=Nloc1
 	 endif
@@ -1587,7 +1596,7 @@
 			  Cxx(Mloc,Nloc),Cxy(Mloc,Nloc),Cxz(Mloc,Nloc),Cyx(Mloc,Nloc),Cyy(Mloc,Nloc), &
 			  Cyz(Mloc,Nloc),Czx(Mloc,Nloc),Czy(Mloc,Nloc),Czz(Mloc,Nloc),Czz0(Mloc,Nloc), &
 			  Taxx(Mloc,Nloc),Tayx(Mloc,Nloc),Taxy(Mloc,Nloc),Tayy(Mloc,Nloc),Taxz(Mloc,Nloc),Tayz(Mloc,Nloc), &
-			  Tezz(Mloc,Nloc),Pss(Mloc,Nloc), &
+			  Tezz(Mloc,Nloc),Pss(Mloc,Nloc),Qsgs(Mloc,Nloc), &
 			  Tbxx(Mloc,Nloc),Tbxy(Mloc,Nloc),Tbxz(Mloc,Nloc),Tbyx(Mloc,Nloc),Tbyy(Mloc,Nloc), &
 			  Tbyz(Mloc,Nloc),Tbzx(Mloc,Nloc),Tbzy(Mloc,Nloc),Tbzz(Mloc,Nloc),Maskgs(Mloc,Nloc))
      ALLOCATE(DgsxL(Mloc1,Nloc),DgsxR(Mloc1,Nloc),HSgsxL(Mloc1,Nloc),HSgsxR(Mloc1,Nloc),H0fx(Mloc1,Nloc), &
@@ -2848,6 +2857,7 @@
      Cxx=Zero;Cxy=Zero;Cxz=Zero;Cyx=Zero;Cyy=Zero;Cyz=Zero;Czx=Zero;Czy=Zero;Czz=Zero;Czz0=Zero
 	 Taxx=Zero;Tayx=Zero;Taxy=Zero;Tayy=Zero;Taxz=Zero;Tayz=Zero;
 	 Tbxx=Zero;Tbxy=Zero;Tbxz=Zero;Tbyx=Zero;Tbyy=Zero;Tbyz=Zero;Tbzx=Zero;Tbzy=Zero;Tbzz=Zero
+	 Tezz=Zero;Pss=Zero;Qsgs=Zero
      DgsxL=Zero;DgsxR=Zero;HSgsxL=Zero;HSgsxR=Zero
 	 UgsxL=Zero;UgsxR=Zero;VgsxL=Zero;VgsxR=Zero;WgsxL=Zero;WgsxR=Zero
 	 DUgsxL=Zero;DUgsxR=Zero;DVgsxL=Zero;DVgsxR=Zero;DWgsxL=Zero;DWgsxR=Zero
@@ -2879,7 +2889,7 @@
 		call phi_2D_coll(Rhogs)
 	 endif
 	 Rhogs0=Rhogs
-	 call flux_coff_gs
+	 call flux_coeff_gs
 # endif
 
      Tke = Zero
