@@ -2,34 +2,34 @@
 ! NOTE: all input parameter are capital sensitive
 
 ! --------------------TITLE-------------------------------------
-TITLE = Field_Case_Valdez_AK_1964
+TITLE = dam_break
 
 ! ---------------- RESULT_FOLDER-------------------------------
 RESULT_FOLDER = ./results/
 
 ! --------------------DIMENSION---------------------------------
 ! cell numbers
-Mglob = 2316
-Nglob = 620
-Kglob = 3
+Mglob = 1000
+Nglob = 4
+Kglob = 1
 
 ! --------------------PROCESSOR NUMBER-------------------------
-PX = 4
-PY = 155
+PX = 2
+PY = 2
 
 ! -----------------------TIME----------------------------------
 ! time: total computational time/ plot time / screen interval 
 ! all in seconds
 SIM_STEPS = 100000000
-TOTAL_TIME = 1000.0
+TOTAL_TIME = 15.1
 PLOT_START = 0.0
-PLOT_INTV = 1.0
-SCREEN_INTV = 1.0
+PLOT_INTV = 0.1
+SCREEN_INTV = 0.1
 
 ! ------------------------GRID----------------------------------
 ! grid sizes
-DX = 13.268895
-DY = 16.473460
+DX = 2.0
+DY = 2.0
 
 ! ---------------------VERTICAL GRID OPTION--------------------
 ! IVGRD = 1: uniform; 2: exponential
@@ -50,6 +50,7 @@ ANA_BATHY  = F
 DepConst = 0.3
 
 ! -------------------INITIAL CONDITION---------------------------
+! if INITIAL_EUVW = T, need file eta0.txt and uvw0.txt
 ! if INITIAL_SALI = T, need file sali0.txt
 INITIAL_EUVW = F
 INITIAL_SALI = F
@@ -84,7 +85,7 @@ HLLC = F
 ! ----------------------BOTTOM ROUGHNESS-------------------
 ! Ibot = 1: given the drag coefficient Cd0
 ! Ibot = 2: given the bottom roughness height Zob
-Ibot = 2
+Ibot = 1
 Cd0 = 0.0025
 Zob = 1.5e-5
 Dfric_Min = 0.0
@@ -107,13 +108,13 @@ BAROTROPIC = F
 
 ! ----------------------NON-HYDRO---------------------------
 ! if non-hydrostatic simulation
-NON_HYDRO = T
+NON_HYDRO = F
 
 ! --------------------COURANT_NUMBER---------------------------------
 CFL = 0.5
 
 ! --------------------FOURDE CAP ----------------------------------
-FROUDE_CAP = 0.5
+FROUDE_CAP = 100.0
 
 ! ---------------------RAMP-UP--------------------------------
 ! time to ramp up simulation
@@ -135,7 +136,7 @@ VISCOUS_NUMBER = 0.1666667
 
 ! ----------------------WET-DRY-------------------------------
 ! minimum depth for wetting-drying
-MinDep = 0.1
+MinDep = 1.e-2
 
 ! ---------------------POISSON SOLVER-------------------------
 ! isolver is an option for different preconditioner.
@@ -147,7 +148,7 @@ MinDep = 0.1
 ! isolver=3: Successive Overrelaxation (SOR) GMRES
 ISOLVER = 2
 ITMAX = 1000
-TOL = 1.e-8
+TOL = 1.e-12
 
 ! ------------------PERIODIC BC------------------------------------
 ! periodic=.true. : periodic boundary condition in y direction
@@ -238,10 +239,10 @@ NumFreq = 200
 ! DHI type sponge layer
 ! need to specify widths of four boundaries and parameters
 ! set width=0.0 if no sponge
-SPONGE_ON = T
+SPONGE_ON = F
 Sponge_West_Width =  0.0
 Sponge_East_Width =  0.0
-Sponge_South_Width = 823.6730
+Sponge_South_Width = 0.0
 Sponge_North_Width = 0.0
 
 ! ------------------WAVE AVERAGE CONTROL--------------------------
@@ -286,48 +287,84 @@ Cfe = 1.33
 VegVM = 0.0
 EI = 8.0e-7
 
-! -------------------LANDSLIDE PARAMETERS------------------------
-! parameters for landslide module
-! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
-! SlideT: thickness; SlideL: length; SlideW: width
-! SlideAngle: slide angle
-! SlopeAngle: bottom slope
-! SlideX0,SlideY0: initial location
-! SlideUt,SlideA0: rigid landslide kinematics
-! SlideDens: deformable landslide density
-SlideType = RIGID_2D
-SlideT = 0.052
-SlideL = 1.6762
-SlideW = 0.200
-SlideAngle = 0.0
-SlopeAngle = 15.0
-SlideX0 = 1.268
-SlideY0 = 0.0
-SlideUt = 1.258
-SlideA0 = 0.750
-SlideDens = 2104.0
-SlideVisc = 0.00001
-SlideLambda = 0.5
-SlideIniU = 0.0
-Cf_ul = 0.02
-PhiInt = 41.0
-PhiBed = 23.0
+!! -------------------LANDSLIDE PARAMETERS------------------------
+!! parameters for landslide module
+!! SlideType = 'RIGID_2D', 'RIGID_3D' or 'DEFORMABLE'
+!! SlideT: thickness; SlideL: length; SlideW: width
+!! SlideAngle: slide angle
+!! SlopeAngle: bottom slope
+!! SlideX0,SlideY0: initial location
+!! SlideUt,SlideA0: rigid landslide kinematics
+!! SlideDens: deformable landslide density
+!SlideType = RIGID_2D
+!SlideT = 0.052
+!SlideL = 1.6762
+!SlideW = 0.200
+!SlideAngle = 0.0
+!SlopeAngle = 20.0
+!SlideX0 = 1.268
+!SlideY0 = 0.0
+!SlideUt = 1.258
+!SlideA0 = 0.750
+!SlideDens = 1500.0
+!SlideVisc = 0.00001
+!SlideLambda = 0.0
+!SlideIniU = 0.0
+!Cf_ul = 0.0
+!PhiInt = 0.0
+!PhiBed = 10.0
 
-! ----------------------VISCOUS SLIDE---------------------------
-! Slide thickness. The dimension are the same as in DEPTH_FILE
-SLIDE_FILE = slide_combine1.txt
-! Density, kg/m^3
-SLIDE_DENSITY = 2000.0
-! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
-! River coastal mud = 0.002-0.2 m^2/s
-! Mudslide and debris flows = 0.2-0.6 m^2/s
-SLIDE_VISCOSITY = 0.1
-! Manning's coefficient for the viscous slide
-SLIDE_ROUGHNESS = 0.1
-! A tiny diffusivity for the mass equation
-SLIDE_DIFF = 0.00005
-! The minimum slide thickness, m
-SLIDE_MINTHICK = 0.01  
+!! ----------------------VISCOUS SLIDE---------------------------
+!! Slide thickness. The dimension are the same as in DEPTH_FILE
+!SLIDE_FILE = slide.txt
+!! Density, kg/m^3
+!SLIDE_DENSITY = 1951.0
+!! Kinematic viscousity (Jiang's Ph.D. Thesis, p. 29)
+!! River coastal mud = 0.002-0.2 m^2/s
+!! Mudslide and debris flows = 0.2-0.6 m^2/s
+!SLIDE_VISCOSITY = 0.00001
+!! Manning's coefficient for the viscous slide
+!SLIDE_ROUGHNESS = 0.005
+!! A tiny diffusivity for the mass equation
+!SLIDE_DIFF = 0.00005
+!! The minimum slide thickness, m
+!SLIDE_MINTHICK = 0.00001 
+
+! ---------------------DEFORMABLE SLIDE--------------------------
+! parameters for DEFORMABLE SLIDE module
+! RHEO_OPT£º='VISCOUS' or 'GRANULAR'
+! NON_HYDRO_SLD: non-hyderostatic model or not
+! DISP_CORR_SLD: dispersion correction in non-hyderostatic model
+! SLIDE_GAMMA: momentum distribution coefficient
+! SLIDE_MINTHICK(m): minimum slide thickness
+! SLIDE_INIU(m/s):initial velocity of slide in x
+! SLIDE_INIV(m/s):initial velocity of slide in y
+! SLIDE_INIW(m/s):initial velocity of slide in z
+SLIDE_FILE = dambreak.txt
+RHEO_OPT = VISCOUS
+SLIDE_GAMMA = 1.0
+NON_HYDRO_SLD = T
+DISP_CORR_SLD = T
+SLIDE_MINTHICK = 1.e-6
+SLIDE_INIU = 0.0
+SLIDE_INIV = 0.0
+SLIDE_INIW = 0.0
+
+!Viscous flow
+! SLIDE_DENSITY(kg/m^3): viscous slide density
+! SLIDE_VISCOSITY(m^2/s): kinematic viscousity of viscous slide
+SLIDE_DENSITY = 1000.0
+SLIDE_VISCOSITY = 0.0
+
+!Granular flow
+! GRAIN_DENSITY(kg/m^3): pure grain density
+! SLIDE_CONC: sediment concentration
+! PhiInt(deg): internal friction angle
+! PhiBed(deg): bed friction angle
+GRAIN_DENSITY = 1900.0
+SLIDE_CONC = 0.6
+PhiInt = 10.0
+PhiBed = 2.0
 
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
@@ -336,9 +373,9 @@ Plastic_Visc = 0.0
 
 ! --------------------PROBE OUTPUT---------------------------------
 ! output variables at stations which are given in file stat.txt
-! in form of x,y,z, where z=-1.0 outputs velocity of all layers
-NSTAT = 4
-PLOT_INTV_STAT = 0.01
+£¡in form of x,y,z, where z=-1.0 outputs velocity of all layers
+NSTAT = 0
+PLOT_INTV_STAT = 0.5
 
 ! -----------------------OUTPUT-------------------------------
 ! output variables, T=.TRUE, F = .FALSE.
@@ -361,11 +398,11 @@ PLOT_INTV_STAT = 0.01
 ! OUT_Z = varying bathymetry
 ! OUT_M = max wave height
 OUT_H = T
-OUT_E = T
-OUT_U = T
-OUT_V = T
-OUT_W = T
-OUT_P = T
+OUT_E = F
+OUT_U = F
+OUT_V = F
+OUT_W = F
+OUT_P = F
 OUT_K = F
 OUT_D = F
 OUT_S = F
@@ -377,4 +414,4 @@ OUT_F = F
 OUT_G = F
 OUT_I = F
 OUT_Z = T
-OUT_M = T
+OUT_M = F

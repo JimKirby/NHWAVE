@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------------
+﻿--------------------------------------------------------------------------------------
 
                                NHWAVE update records
 
@@ -133,3 +133,12 @@ by Cheng Zhang
 ■Changes
 ·Changed the flux boundary condition at wet-dry boundary to avoid numerical oscillation.
 
+UPDATE_00012
+by Cheng Zhang
+06/30/2019
+
+■Update landslide model
+·Change surface gradient method (SGM) in TVD scheme to upwind method for source terms to avoiding negative depth at cell face and ensure well-balance property;
+·Changed the flux boundary condition at wet-dry boundary to avoid numerical oscillation;
+·Change cell-center based method of non-hydrostatic model to cell-corner based method to avoid numerical osscillation of non-hydrostatic pressure;
+·Add a dispersion correction term into governing equations to improve vertical effect of motion.
