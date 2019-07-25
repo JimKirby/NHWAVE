@@ -2,7 +2,7 @@
 ! NOTE: all input parameter are capital sensitive
 
 ! --------------------TITLE-------------------------------------
-TITLE = dam_break
+TITLE = test
 
 ! ---------------- RESULT_FOLDER-------------------------------
 RESULT_FOLDER = ./results/
@@ -334,18 +334,22 @@ EI = 8.0e-7
 ! parameters for DEFORMABLE SLIDE module
 ! RHEO_OPT£º='VISCOUS' or 'GRANULAR'
 ! NON_HYDRO_SLD: non-hyderostatic model or not
-! DISP_CORR_SLD: dispersion correction in non-hyderostatic model
+! DISP_CORR_SLD: dispersion correction in non-hyderostatic model (recommonded unless unstability happens)
+! REDU_GRAV_SLD: reduced gravitation in non-hyderostatic model (recommonded unless unstability happens)
+! NON_HYDRO_UP: non-hyderostatic from upper layer (recommonded unless unstability happens)
 ! SLIDE_GAMMA: momentum distribution coefficient
 ! SLIDE_MINTHICK(m): minimum slide thickness
 ! SLIDE_INIU(m/s):initial velocity of slide in x
 ! SLIDE_INIV(m/s):initial velocity of slide in y
 ! SLIDE_INIW(m/s):initial velocity of slide in z
-SLIDE_FILE = dambreak.txt
-RHEO_OPT = VISCOUS
+SLIDE_FILE = slide.txt
+RHEO_OPT = GRANULAR
 SLIDE_GAMMA = 1.0
 NON_HYDRO_SLD = T
 DISP_CORR_SLD = T
-SLIDE_MINTHICK = 1.e-6
+REDU_GRAV_SLD = T
+NON_HYDRO_UP = T
+SLIDE_MINTHICK = 3.e-4
 SLIDE_INIU = 0.0
 SLIDE_INIV = 0.0
 SLIDE_INIW = 0.0
@@ -353,18 +357,20 @@ SLIDE_INIW = 0.0
 !Viscous flow
 ! SLIDE_DENSITY(kg/m^3): viscous slide density
 ! SLIDE_VISCOSITY(m^2/s): kinematic viscousity of viscous slide
-SLIDE_DENSITY = 1000.0
-SLIDE_VISCOSITY = 0.0
+SLIDE_DENSITY = 1500.0
+SLIDE_VISCOSITY = 0.001
 
 !Granular flow
 ! GRAIN_DENSITY(kg/m^3): pure grain density
 ! SLIDE_CONC: sediment concentration
 ! PhiInt(deg): internal friction angle
 ! PhiBed(deg): bed friction angle
-GRAIN_DENSITY = 1900.0
+! SLIDE_LAMBDA: percentage of non-hydrostatic pressure from solid phase
+GRAIN_DENSITY = 2500.0
 SLIDE_CONC = 0.6
-PhiInt = 10.0
-PhiBed = 2.0
+PhiInt = 40.0
+PhiBed = 27.0
+SLIDE_LAMBDA = 1.0
 
 ! --------------------RHEOLOGY-----------------------------------
 RHEOLOGY_ON = F
