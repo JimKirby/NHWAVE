@@ -288,8 +288,10 @@
      CALL GET_Float_VAL(SLIDE_GAMMA ,FILE_NAME,'SLIDE_GAMMA',line)
      CALL GET_Float_VAL(SLIDE_CONC ,FILE_NAME,'SLIDE_CONC',line)
      CALL GET_Float_VAL(GRAIN_DENSITY ,FILE_NAME,'GRAIN_DENSITY',line)
-     CALL GET_Float_VAL(PhiInt ,FILE_NAME,'PhiInt',line)
-     CALL GET_Float_VAL(PhiBed ,FILE_NAME,'PhiBed',line)
+     CALL GET_Float_VAL(PhiInt_A ,FILE_NAME,'PhiInt_A',line)
+     CALL GET_Float_VAL(PhiBed_A ,FILE_NAME,'PhiBed_A',line)
+     CALL GET_Float_VAL(PhiInt_F ,FILE_NAME,'PhiInt_F',line)
+     CALL GET_Float_VAL(PhiBed_F ,FILE_NAME,'PhiBed_F',line)
 	 CALL GET_Float_VAL(SLIDE_LAMBDA ,FILE_NAME,'SLIDE_LAMBDA',line)
      CALL GET_Float_VAL(SLIDE_INIU ,FILE_NAME,'SLIDE_INIU',line)
 	 CALL GET_Float_VAL(SLIDE_INIV ,FILE_NAME,'SLIDE_INIV',line)
@@ -307,8 +309,10 @@
        if(myid.eq.0) WRITE(3,'(A13,F8.2)')'SLIDE_GAMMA= ', SLIDE_GAMMA
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_CONC= ', SLIDE_CONC
        if(myid.eq.0) WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
-       if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
-       if(myid.eq.0) WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+       if(myid.eq.0) WRITE(3,'(A8,F10.2)')'PhiInt_A= ', PhiInt_A
+       if(myid.eq.0) WRITE(3,'(A8,F10.2)')'PhiBed_A= ', PhiBed_A
+       if(myid.eq.0) WRITE(3,'(A8,F10.2)')'PhiInt_F= ', PhiInt_F
+       if(myid.eq.0) WRITE(3,'(A8,F10.2)')'PhiBed_F= ', PhiBed_F
 	   if(myid.eq.0) WRITE(3,'(A14,F8.2)')'SLIDE_LAMBDA= ', SLIDE_LAMBDA
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
        if(myid.eq.0) WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
@@ -326,15 +330,19 @@
        WRITE(3,'(A13,F8.2)')'SLIDE_GAMMA= ', SLIDE_GAMMA
        WRITE(3,'(A12,F8.2)')'SLIDE_CONC= ', SLIDE_CONC
        WRITE(3,'(A15,F8.2)')'GRAIN_DENSITY= ', GRAIN_DENSITY
-       WRITE(3,'(A8,F8.2)')'PhiInt= ', PhiInt
-       WRITE(3,'(A8,F8.2)')'PhiBed= ', PhiBed
+       WRITE(3,'(A8,F10.2)')'PhiInt_A= ', PhiInt_A
+       WRITE(3,'(A8,F10.2)')'PhiBed_A= ', PhiBed_A
+       WRITE(3,'(A8,F10.2)')'PhiInt_F= ', PhiInt_F
+       WRITE(3,'(A8,F10.2)')'PhiBed_F= ', PhiBed_F
 	   WRITE(3,'(A14,F8.2)')'SLIDE_LAMBDA= ', SLIDE_LAMBDA
        WRITE(3,'(A12,F8.2)')'SLIDE_INIU= ', SLIDE_INIU
        WRITE(3,'(A12,F8.2)')'SLIDE_INIV= ', SLIDE_INIV
        WRITE(3,'(A12,F8.2)')'SLIDE_INIW= ', SLIDE_INIW
 # endif
-     PhiInt = PhiInt*pi/180.
-     PhiBed = PhiBed*pi/180.
+     PhiInt_A = PhiInt_A*pi/180.
+     PhiBed_A = PhiBed_A*pi/180.
+     PhiInt_F = PhiInt_F*pi/180.
+     PhiBed_F = PhiBed_F*pi/180.
 # endif
 
      ! courant number
@@ -1537,6 +1545,11 @@
      ALLOCATE(set_flag(Mloc,Nloc,Kloc),ObsForceX(Mloc,Nloc,Kloc),ObsForceY(Mloc,Nloc,Kloc), &
               ObsForceZ(Mloc,Nloc,Kloc),set_dist_x(Mloc,Nloc,Kloc),set_dist_y(Mloc,Nloc,Kloc), &
               set_dist_z(Mloc,Nloc,Kloc),set_flag_old(Mloc,Nloc,Kloc))
+# if defined (DEFORMABLESLIDE)
+     ALLOCATE(ObsForceX_gs(Mloc,Nloc),ObsForceY_gs(Mloc,Nloc),ObsForceZ_gs(Mloc,Nloc), &
+              set_dist_x_gs(Mloc,Nloc),set_dist_y_gs(Mloc,Nloc),set_dist_z_gs(Mloc,Nloc), &
+              set_flag_gs(Mloc,Nloc),set_flag_gs_old(Mloc,Nloc))
+# endif
 # endif
 
 # if defined (TWOLAYERSLIDE)
@@ -1598,7 +1611,8 @@
 			  Taxx(Mloc,Nloc),Tayx(Mloc,Nloc),Taxy(Mloc,Nloc),Tayy(Mloc,Nloc),Taxz(Mloc,Nloc),Tayz(Mloc,Nloc), &
 			  Tezz(Mloc,Nloc),Pss(Mloc,Nloc),Qsgs(Mloc,Nloc), &
 			  Tbxx(Mloc,Nloc),Tbxy(Mloc,Nloc),Tbxz(Mloc,Nloc),Tbyx(Mloc,Nloc),Tbyy(Mloc,Nloc), &
-			  Tbyz(Mloc,Nloc),Tbzx(Mloc,Nloc),Tbzy(Mloc,Nloc),Tbzz(Mloc,Nloc),Maskgs(Mloc,Nloc))
+			  Tbyz(Mloc,Nloc),Tbzx(Mloc,Nloc),Tbzy(Mloc,Nloc),Tbzz(Mloc,Nloc),Maskgs(Mloc,Nloc), &
+			  PhiInt(Mloc,Nloc),PhiBed(Mloc,Nloc))
      ALLOCATE(DgsxL(Mloc1,Nloc),DgsxR(Mloc1,Nloc),HSgsxL(Mloc1,Nloc),HSgsxR(Mloc1,Nloc),H0fx(Mloc1,Nloc), &
 	          UgsxL(Mloc1,Nloc),UgsxR(Mloc1,Nloc),VgsxL(Mloc1,Nloc),VgsxR(Mloc1,Nloc),WgsxL(Mloc1,Nloc),WgsxR(Mloc1,Nloc), &
               DUgsxL(Mloc1,Nloc),DUgsxR(Mloc1,Nloc),DVgsxL(Mloc1,Nloc),DVgsxR(Mloc1,Nloc),DWgsxL(Mloc1,Nloc),DWgsxR(Mloc1,Nloc), &
@@ -2842,7 +2856,22 @@
 
 ! add by Cheng for deformable slide
 # if defined (DEFORMABLESLIDE)
-     Ugs=SLIDE_INIU;Vgs=SLIDE_INIV;Wgs=SLIDE_INIW;DUgs=Dgs*Ugs;DVgs=Dgs*Vgs;DWgs=Dgs*Wgs
+     do j = 1,Nloc
+     do i = 1,Mloc
+       if(Maskgs(i,j)==1) then
+         Ugs(i,j) = SLIDE_INIU
+		 Vgs(i,j) = SLIDE_INIV
+		 Wgs(i,j) = SLIDE_INIW
+	   else
+	     Ugs(i,j) = Zero
+		 Vgs(i,j) = Zero
+		 Wgs(i,j) = Zero
+       endif
+       DUgs(i,j) = Ugs(i,j)*Dgs(i,j)
+       DVgs(i,j) = Vgs(i,j)*Dgs(i,j)
+	   DWgs(i,j) = Wgs(i,j)*Dgs(i,j)
+     enddo
+     enddo
      Ugs0=Ugs;Vgs0=Vgs;Wgs0=Wgs;DUgs0=DUgs;DVgs0=DVgs;DWgs0=DWgs;Wgs00=Wgs0
 	 Wtgs=Zero;Wbgs=Zero;Qtgs=Zero;Qbgs=Zero
      DelxUgs=Zero;DelxVgs=Zero;DelxWgs=Zero
@@ -2877,6 +2906,7 @@
 	    Rhogs = SLIDE_DENSITY
 	 elseif(trim(RHEO_OPT)=='GRANULAR') then
 	    Rhogs=Zero
+		PhiInt=Zero;PhiBed=Zero
 	    do j = Jbeg,Jend
         do i = Ibeg,Iend
 !		  if(Mask(i,j)==1) then
@@ -2884,13 +2914,34 @@
 !		  else
 !		    Rhogs(i,j) = GRAIN_DENSITY*SLIDE_CONC
 !		  endif
+		  if(Mask(i,j)==1) then
+	        PhiInt(i,j) = PhiInt_F
+			PhiBed(i,j) = PhiBed_F
+		  else
+	        PhiInt(i,j) = PhiInt_A
+			PhiBed(i,j) = PhiBed_A
+		  endif
 		enddo
 		enddo
 		call phi_2D_coll(Rhogs)
+		call phi_2D_coll(PhiInt)
+		call phi_2D_coll(PhiBed)
 	 endif
 	 Rhogs0=Rhogs
 	 call flux_coeff_gs
 # endif
+
+# if defined (OBSTACLE)
+     ObsForceX=Zero;ObsForceY=Zero;ObsForceZ=Zero
+	 set_dist_x=Zero;set_dist_y=Zero;set_dist_z=Zero
+	 set_flag=0;set_flag_old=0;
+# if defined (DEFORMABLESLIDE)
+     ObsForceX_gs=Zero;ObsForceY_gs=Zero;ObsForceZ_gs=Zero
+	 set_dist_x_gs=Zero;set_dist_y_gs=Zero;set_dist_z_gs=Zero
+	 set_flag_gs=0;set_flag_gs_old=0;
+# endif
+# endif
+
 
      Tke = Zero
      Eps = Zero

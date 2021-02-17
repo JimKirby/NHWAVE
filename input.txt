@@ -342,34 +342,38 @@ EI = 8.0e-7
 ! SLIDE_INIU(m/s):initial velocity of slide in x
 ! SLIDE_INIV(m/s):initial velocity of slide in y
 ! SLIDE_INIW(m/s):initial velocity of slide in z
-SLIDE_FILE = slide.txt
+SLIDE_FILE = p58_h.txt
 RHEO_OPT = GRANULAR
 SLIDE_GAMMA = 1.0
-NON_HYDRO_SLD = T
-DISP_CORR_SLD = T
-REDU_GRAV_SLD = T
+NON_HYDRO_SLD = F
+DISP_CORR_SLD = F
+REDU_GRAV_SLD = F
 NON_HYDRO_UP = T
-SLIDE_MINTHICK = 3.e-4
-SLIDE_INIU = 0.0
+SLIDE_MINTHICK = 1.e-4
+SLIDE_INIU = 1.9138
 SLIDE_INIV = 0.0
-SLIDE_INIW = 0.0
+SLIDE_INIW = -0.9793
 
 !Viscous flow
 ! SLIDE_DENSITY(kg/m^3): viscous slide density
 ! SLIDE_VISCOSITY(m^2/s): kinematic viscousity of viscous slide
-SLIDE_DENSITY = 1500.0
-SLIDE_VISCOSITY = 0.001
+SLIDE_DENSITY = 1760.0
+SLIDE_VISCOSITY = 0.5
 
 !Granular flow
 ! GRAIN_DENSITY(kg/m^3): pure grain density
 ! SLIDE_CONC: sediment concentration
-! PhiInt(deg): internal friction angle
-! PhiBed(deg): bed friction angle
+! PhiInt_A(deg): internal friction angle of subaerial slide
+! PhiBed_A(deg): bed friction angle of subaerial slide
+! PhiInt_F(deg): internal friction angle of submarine slide
+! PhiBed_F(deg): bed friction angle of submarine slide
 ! SLIDE_LAMBDA: percentage of non-hydrostatic pressure from solid phase
-GRAIN_DENSITY = 2500.0
-SLIDE_CONC = 0.6
-PhiInt = 40.0
-PhiBed = 27.0
+GRAIN_DENSITY = 2600.0
+SLIDE_CONC = 0.475
+PhiInt_A = 41.0
+PhiBed_A = 23.0
+PhiInt_F = 32.0
+PhiBed_F = 18.0
 SLIDE_LAMBDA = 1.0
 
 ! --------------------RHEOLOGY-----------------------------------

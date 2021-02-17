@@ -5986,6 +5986,14 @@
 
      ! SSP Runge-Kutta time stepping for deformable slide
      do Istagegs = 1,It_Order
+	 
+# if defined (OBSTACLE)
+       ! obstacle velocity 
+       call set_obsvel
+
+       ! set obstacle flag                                                                                                   
+       call set_obsflag
+# endif
 
 	   ! coefficients for flux
 	   call flux_coeff_gs
@@ -13285,8 +13293,10 @@ endif
     subroutine set_obsflag
 !----------------------------------------------------------------
 !   Determine obstacle flag
-!   set_flag = 1: fluid
-!   set_flag = 0: obstacle
+!   set_flag = 0: fluid
+!   set_flag = 1: obstacle
+!   set_flag_gs = 0: slide
+!   set_flag_gs = 1: obstacle
 !----------------------------------------------------------------
     use global
     implicit none
@@ -13295,9 +13305,15 @@ endif
 
     ! save flag in the previous step
     set_flag_old = set_flag
+# if defined (OBSTACLE)
+    set_flag_gs_old = set_flag_gs
+# endif
 
     ! default is fluid
     set_flag = 0
+# if defined (OBSTACLE)
+    set_flag_gs = 0
+# endif
 
     ! specify obstacle 
     do k = 1,Kloc
@@ -13305,10 +13321,25 @@ endif
     do i = 1,Mloc
       zc = D(i,j)*sigc(k)
 
-      ! obstacle 1
-      dist = sqrt((xc(i)-5.0)**2+(yc(j)-0.75)**2)
-      if(dist<=0.1815) then
+
+      ! obstacle #1 x<=4.5 & y<=13.4
+      if(xc(i)<=4.476.and.yc(j)<=13.4) then
         set_flag(i,j,k) = 1
+# if defined (OBSTACLE)
+        if (k==1) then
+		  set_flag_gs(i,j) = 1
+		endif
+# endif
+      endif
+	  
+      ! obstacle #2 x<=4.5 & y>=14.6
+      if(xc(i)<=4.476.and.yc(j)>=14.6) then
+        set_flag(i,j,k) = 1
+# if defined (OBSTACLE)
+        if (k==1) then
+		  set_flag_gs(i,j) = 1
+		endif
+# endif
       endif
 
     enddo
@@ -13319,40 +13350,75 @@ endif
     set_dist_x = 1.e+20
     set_dist_y = 1.e+20
     set_dist_z = 1.e+20
+# if defined (OBSTACLE)
+    set_dist_x_gs = 1.e+20
+    set_dist_y_gs = 1.e+20
+    set_dist_z_gs = 1.e+20
+# endif
 
     ! find the distance
     do k = Kbeg,Kend
     do j = Jbeg,Jend
     do i = Ibeg,Iend
 
-      ! obstacle #1 (x-5.0)^2+(y-0.75)^2=0.1815^2
       ! loop over all fluid cells
       if(set_flag(i,j,k)==0) then
-          ! obstacle on the right
-          if(set_flag(i+1,j,k)==1) then
-            xlin = 5.0-sqrt(0.1815**2-(yc(j)-0.75)**2)
-            set_dist_x(i,j,k) = abs(xc(i)-xlin)
-          endif
+!          ! obstacle on the right
+!          if(set_flag(i+1,j,k)==1) then
+!            xlin = 4.476
+!            set_dist_x(i,j,k) = abs(xc(i)-xlin)
+!          endif
 
           ! obstacle on the left
           if(set_flag(i-1,j,k)==1) then
-            xlin = 5.0+sqrt(0.1815**2-(yc(j)-0.75)**2)
+            xlin = 4.476
             set_dist_x(i,j,k) = abs(xc(i)-xlin)
           endif
 
           ! obstacle on the front
           if(set_flag(i,j-1,k)==1) then
-            ylin = 0.75+sqrt(0.1815**2-(xc(i)-5.0)**2)
+            ylin = 13.4
             set_dist_y(i,j,k) = abs(yc(j)-ylin)
           endif
 		  
           ! obstacle on the back                                                                                               
           if(set_flag(i,j+1,k)==1) then
-            ylin = 0.75-sqrt(0.1815**2-(xc(i)-5.0)**2)
+            ylin = 14.6
             set_dist_y(i,j,k) = abs(yc(j)-ylin)
           endif
 		  
       endif
+	  
+# if defined (OBSTACLE)
+      ! loop over all slide cells
+      if(set_flag_gs(i,j)==0.and.k==1) then
+	  
+!          ! obstacle on the right
+!          if(set_flag_gs(i+1,j)==1) then
+!            xlin = 4.476
+!            set_dist_x_gs(i,j) = abs(xc(i)-xlin)
+!          endif
+
+          ! obstacle on the left
+          if(set_flag_gs(i-1,j)==1) then
+            xlin = 4.476
+            set_dist_x_gs(i,j) = abs(xc(i)-xlin)
+          endif
+
+          ! obstacle on the front
+          if(set_flag_gs(i,j-1)==1) then
+            ylin = 13.4
+            set_dist_y_gs(i,j) = abs(yc(j)-ylin)
+          endif
+		  
+          ! obstacle on the back                                                                                               
+          if(set_flag_gs(i,j+1)==1) then
+            ylin = 14.6
+            set_dist_y_gs(i,j) = abs(yc(j)-ylin)
+          endif
+		  
+      endif
+# endif
 
     enddo
     enddo

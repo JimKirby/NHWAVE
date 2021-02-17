@@ -155,6 +155,11 @@
      real(SP), dimension(:,:,:), allocatable :: ObsForceX,ObsForceY,ObsForceZ
      real(SP), dimension(:,:,:), allocatable :: set_dist_x,set_dist_y,set_dist_z
      integer, dimension(:,:,:), allocatable :: set_flag,set_flag_old
+# if defined (DEFORMABLESLIDE)
+     real(SP), dimension(:,:), allocatable :: ObsForceX_gs,ObsForceY_gs,ObsForceZ_gs
+     real(SP), dimension(:,:), allocatable :: set_dist_x_gs,set_dist_y_gs,set_dist_z_gs
+     integer, dimension(:,:), allocatable :: set_flag_gs,set_flag_gs_old
+# endif
 # endif
 
 # if defined (TWOLAYERSLIDE)
@@ -338,7 +343,8 @@
 											  DelyH0,Dely2H0,Ky,Cygs,SrcmgsY,SrcpgsY,SrctgsY,SrctgsZ,DwDt, &
 											  Cxx,Cxy,Cxz,Cyx,Cyy,Cyz,Czx,Czy,Czz,Czz0, &
 											  Taxx,Tayx,Taxy,Tayy,Taxz,Tayz,Tezz,Pss,Qsgs, &
-											  Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz
+											  Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz, &
+											  PhiInt,PhiBed
      real(SP), dimension(:,:), allocatable :: DgsxL,DgsxR,HSgsxL,HSgsxR,UgsxL,UgsxR,VgsxL,VgsxR,WgsxL,WgsxR, &
 											  H0fx,DUgsxL,DUgsxR,DVgsxL,DVgsxR,DWgsxL,DWgsxR, &
 											  Cxgsx,SgsxL,SgsxR,Egsx,Fgsx,Ggsx,Hgsx, &
@@ -353,8 +359,8 @@
      integer,  dimension(:,:), allocatable :: Maskgs
 	 logical :: NON_HYDRO_SLD,DISP_CORR_SLD,REDU_GRAV_SLD,NON_HYDRO_UP
      real(SP) :: SLIDE_DENSITY,SLIDE_VISCOSITY,SLIDE_MINTHICK,SLIDE_GAMMA, &
-	             SLIDE_CONC,GRAIN_DENSITY,PhiInt,PhiBed,SLIDE_LAMBDA, &
-				 SLIDE_INIU,SLIDE_INIV,SLIDE_INIW
+	             SLIDE_CONC,GRAIN_DENSITY,PhiInt_A,PhiBed_A,SLIDE_LAMBDA, &
+				 SLIDE_INIU,SLIDE_INIV,SLIDE_INIW,PhiInt_F,PhiBed_F
      ! poisson solvers
      integer  :: neqnsgs,IendC,JendC,MlocC,NlocC
      real(SP), dimension(:),   allocatable :: Rhsgs

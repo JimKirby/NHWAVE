@@ -118,19 +118,26 @@
      DVgs0 = DVgs
 	 DWgs0 = DWgs
 	 Rhogs0=Rhogs
-!	 if(trim(RHEO_OPT)=='GRANULAR') then
+	 if(trim(RHEO_OPT)=='GRANULAR') then
 !	    Rhogs=Zero
-!	    do j = Jbeg,Jend
-!        do i = Ibeg,Iend
-!		  if(Mask(i,j)==1) then
+		PhiInt=Zero;PhiBed=Zero
+	    do j = Jbeg,Jend
+        do i = Ibeg,Iend
+		  if(Mask(i,j)==1) then
 !	        Rhogs(i,j) = GRAIN_DENSITY*SLIDE_CONC + Rho0*(1.0-SLIDE_CONC)
-!		  else
+	        PhiInt(i,j) = PhiInt_F
+			PhiBed(i,j) = PhiBed_F
+		  else
 !		    Rhogs(i,j) = GRAIN_DENSITY*SLIDE_CONC
-!		  endif
-!		enddo
-!		enddo
+	        PhiInt(i,j) = PhiInt_A
+			PhiBed(i,j) = PhiBed_A
+		  endif
+		enddo
+		enddo
 !		call phi_2D_coll(Rhogs)
-!	 endif
+		call phi_2D_coll(PhiInt)
+		call phi_2D_coll(PhiBed)
+	 endif
 
      end subroutine update_vars_gs
 	 
@@ -161,7 +168,7 @@
 	    if (NON_HYDRO_UP) then
           do j = 1,Nloc
           do i = 1,Mloc
-            Qtgs(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
+            Qtgs(i,j) = P(i,j,kbeg)*Mask(i,j)! dynamic pressure over the slide
           enddo
           enddo
 		else
@@ -365,11 +372,11 @@
          DugsDx = C11(i,j)*DelxUgsP(i,j)+C21(i,j)*DelyUgsP(i,j)
          DvgsDy = C12(i,j)*DelxVgsP(i,j)+C22(i,j)*DelyVgsP(i,j)
          DwgsDz = C13(i,j)*DelxWgsP(i,j)+C23(i,j)*DelyWgsP(i,j)
-         if(PhiInt>=PhiBed) then
-           Kxa=2./cos(PhiInt)**2*(1.-sqrt(1.-cos(PhiInt)**2/cos(PhiBed)**2))-1.
-           Kxp=2./cos(PhiInt)**2*(1.+sqrt(1.-cos(PhiInt)**2/cos(PhiBed)**2))-1.
+         if(PhiInt(i,j)>=PhiBed(i,j)) then
+           Kxa=2./cos(PhiInt(i,j))**2*(1.-sqrt(1.-cos(PhiInt(i,j))**2/cos(PhiBed(i,j))**2))-1.
+           Kxp=2./cos(PhiInt(i,j))**2*(1.+sqrt(1.-cos(PhiInt(i,j))**2/cos(PhiBed(i,j))**2))-1.
          else
-           Kxa=(1.+sin(PhiInt)**2)/(1.-sin(PhiInt)**2)
+           Kxa=(1.+sin(PhiInt(i,j))**2)/(1.-sin(PhiInt(i,j))**2)
            Kxp=Kxa
          endif
 		 ! old rheology kx=ky
@@ -414,17 +421,17 @@
              endif
            endif
            if(DvgsDy>crit) then
-             Ky(i,j)=0.5*(Kx(i,j)+1.0-sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2))
+             Ky(i,j)=0.5*(Kx(i,j)+1.0-sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed(i,j))**2))
            elseif(DvgsDy<-crit) then
-             Ky(i,j)=0.5*(Kx(i,j)+1.0+sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2))
+             Ky(i,j)=0.5*(Kx(i,j)+1.0+sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed(i,j))**2))
            else
              Int_factor = (crit-abs(DvgsDy))/(crit-1.e-8)
              if(DvgsDy>1.e-8.and.DvgsDy<crit) then
                Ky(i,j)=Int_factor+(1.0-Int_factor) &
-			           *(0.5*(Kx(i,j)+1.0-sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2)))
+			           *(0.5*(Kx(i,j)+1.0-sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed(i,j))**2)))
              elseif(DvgsDy<-1.e-8.and.DvgsDy>-crit) then
                Ky(i,j)=Int_factor+(1.0-Int_factor) &
-			           *(0.5*(Kx(i,j)+1.0+sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed)**2)))
+			           *(0.5*(Kx(i,j)+1.0+sqrt((Kx(i,j)-1.0)**2+4.0*tan(PhiBed(i,j))**2)))
              else
                Ky(i,j)=1.0
              endif
@@ -439,14 +446,14 @@
          Cxz(i,j)=C11(i,j)*C31(i,j)*Kx(i,j)+C12(i,j)*C32(i,j)*Ky(i,j)+C13(i,j)*C33(i,j)
          Cyz(i,j)=C21(i,j)*C31(i,j)*Kx(i,j)+C22(i,j)*C32(i,j)*Ky(i,j)+C23(i,j)*C33(i,j)
          Czz(i,j)=C31(i,j)*C31(i,j)*Kx(i,j)+C32(i,j)*C32(i,j)*Ky(i,j)+C33(i,j)*C33(i,j)
-         Czz0(i,j)=Czz(i,j)-(C33(i,j)*C31(i,j)+C31(i,j)*C33(i,j))*tan(PhiBed)
+         Czz0(i,j)=Czz(i,j)-(C33(i,j)*C31(i,j)+C31(i,j)*C33(i,j))*tan(PhiBed(i,j))
          if(abs(UgsP(i,j))>1.e-8) then
-           Cxx(i,j)=Cxx(i,j)-(C13(i,j)*C11(i,j)+C11(i,j)*C13(i,j))*tan(PhiBed)
-           Cyx(i,j)=Cyx(i,j)-(C23(i,j)*C11(i,j)+C21(i,j)*C13(i,j))*tan(PhiBed)
-           Cyy(i,j)=Cyy(i,j)-(C23(i,j)*C21(i,j)+C21(i,j)*C23(i,j))*tan(PhiBed)
-           Cxz(i,j)=Cxz(i,j)-(C13(i,j)*C31(i,j)+C11(i,j)*C33(i,j))*tan(PhiBed)
-           Cyz(i,j)=Cyz(i,j)-(C23(i,j)*C31(i,j)+C21(i,j)*C33(i,j))*tan(PhiBed)
-           Czz(i,j)=Czz(i,j)-(C33(i,j)*C31(i,j)+C31(i,j)*C33(i,j))*tan(PhiBed)
+           Cxx(i,j)=Cxx(i,j)-(C13(i,j)*C11(i,j)+C11(i,j)*C13(i,j))*tan(PhiBed(i,j))
+           Cyx(i,j)=Cyx(i,j)-(C23(i,j)*C11(i,j)+C21(i,j)*C13(i,j))*tan(PhiBed(i,j))
+           Cyy(i,j)=Cyy(i,j)-(C23(i,j)*C21(i,j)+C21(i,j)*C23(i,j))*tan(PhiBed(i,j))
+           Cxz(i,j)=Cxz(i,j)-(C13(i,j)*C31(i,j)+C11(i,j)*C33(i,j))*tan(PhiBed(i,j))
+           Cyz(i,j)=Cyz(i,j)-(C23(i,j)*C31(i,j)+C21(i,j)*C33(i,j))*tan(PhiBed(i,j))
+           Czz(i,j)=Czz(i,j)-(C33(i,j)*C31(i,j)+C31(i,j)*C33(i,j))*tan(PhiBed(i,j))
          endif
          Cxy(i,j)=Cyx(i,j)
          Czx(i,j)=Cxz(i,j)
@@ -1402,6 +1409,7 @@
      if(trim(RHEO_OPT)=='VISCOUS') then
 	   call laminar(SLIDE_VISCOSITY,Rhogs,Tbxx,Tbxy,Tbxz,Tbyx,Tbyy,Tbyz,Tbzx,Tbzy,Tbzz)
 	   Taxx=0.5*Tbxx;Tayx=0.5*Tbyx;Taxy=0.5*Tbxy;Tayy=0.5*Tbyy;Taxz=0.5*Tbxz;Tayz=0.5*Tbyz
+	   Tbxx=zero;Tbyx=zero;Tbzx=zero;Tbxy=zero;Tbyy=zero;Tbzy=zero;Tbxz=zero;Tbyz=zero;Tbzz=zero;
 	 elseif(trim(RHEO_OPT)=='GRANULAR') then
 	   call coulomb
 	 endif
@@ -1458,7 +1466,7 @@
 
      do j = Jbeg,Jend
      do i = Ibeg,Iend
-	   if (Ugs(i,j)>=1e-8.and.Vgs(i,j)>=1e-8) then
+	   if (abs(Ugs(i,j))>=1e-8.and.abs(Vgs(i,j))>=1e-8) then
          Txx(i,j)=6.0*Nu*Rho(i,j)*Ugs(i,j)/Dgs(i,j)*DelxH0(i,j)
          Tyy(i,j)=6.0*Nu*Rho(i,j)*Vgs(i,j)/Dgs(i,j)*DelyH0(i,j)
          Tzz(i,j)=-6.0*Nu*Rho(i,j)/Dgs(i,j)*(Ugs(i,j)*DelxH0(i,j)+Vgs(i,j)*DelyH0(i,j))
@@ -1594,7 +1602,7 @@
      integer,intent(in) :: ISTEP
      real(SP),dimension(:,:),allocatable :: R1,R2,R3,R4,Thetax,Thetay,DelxTheta,DelyTheta
      integer :: i,j
-     REAL(SP) :: FROUDECAP_gs,FroudeU,DUU,Dangle,TauC
+     REAL(SP) :: FROUDECAP_gs,FroudeU,DUU,Dangle,TauC,Xib
 
      allocate(R1(Mloc,Nloc))
      allocate(R2(Mloc,Nloc))
@@ -1612,7 +1620,13 @@
        if(Maskgs(i,j)==0) cycle
        R1(i,j) = -1.0/dx*(Egsx(i+1,j)-Egsx(i,j))-1.0/dy*(Egsy(i,j+1)-Egsy(i,j)) &
 	             +SrcmgsX(i,j)+SrcmgsY(i,j)
-       Dgs(i,j) = Dgs(i,j)+dt*R1(i,j) 
+# if defined (OBSTACLE)
+       if(set_flag_gs(i,j)==0) then
+         Dgs(i,j) = Dgs(i,j)+dt*R1(i,j)
+       endif
+# else
+	   Dgs(i,j) = Dgs(i,j)+dt*R1(i,j)
+# endif
      enddo
      enddo
      ! update Dgs and Hgs          
@@ -1627,7 +1641,15 @@
        if(Maskgs(i,j)==0) cycle  
        R2(i,j) = -1.0/dx*(Fgsx(i+1,j)-Fgsx(i,j))-1.0/dy*(Fgsy(i,j+1)-Fgsy(i,j)) &
                  +SrcpgsX(i,j)+SrctgsX(i,j)
+# if defined (OBSTACLE)
+       if(set_flag_gs(i,j)==1) then
+         DUgs(i,j) = Dgs(i,j)*obs_u
+       else
+         DUgs(i,j) = DUgs(i,j)+dt*R2(i,j)
+       endif
+# else
 	   DUgs(i,j) = DUgs(i,j)+dt*R2(i,j)
+# endif
      enddo
      enddo
 	 
@@ -1638,7 +1660,15 @@
        if(Maskgs(i,j)==0) cycle  
        R3(i,j) = -1.0/dx*(Ggsx(i+1,j)-Ggsx(i,j))-1.0/dy*(Ggsy(i,j+1)-Ggsy(i,j)) &
                  +SrcpgsY(i,j)+SrctgsY(i,j)
+# if defined (OBSTACLE)
+       if(set_flag_gs(i,j)==1) then
+         DVgs(i,j) = Dgs(i,j)*obs_v
+       else
+         DVgs(i,j) = DVgs(i,j)+dt*R3(i,j)
+       endif
+# else
 	   DVgs(i,j) = DVgs(i,j)+dt*R3(i,j)
+# endif
      enddo
      enddo
 	 
@@ -1649,7 +1679,15 @@
        if(Maskgs(i,j)==0) cycle  
        R4(i,j) = -1.0/dx*(Hgsx(i+1,j)-Hgsx(i,j))-1.0/dy*(Hgsy(i,j+1)-Hgsy(i,j)) &
                  +SrctgsZ(i,j)
+# if defined (OBSTACLE)
+       if(set_flag_gs(i,j)==1) then
+         DWgs(i,j) = Dgs(i,j)*obs_w
+       else
+         DWgs(i,j) = DWgs(i,j)+dt*R4(i,j)
+       endif
+# else
 	   DWgs(i,j) = DWgs(i,j)+dt*R4(i,j)
+# endif
      enddo
      enddo
 	 
@@ -1672,7 +1710,7 @@
 		do j = Jbeg,Jend
         do i = Ibeg,Iend
           if(Maskgs(i,j)==1) then
-		    TauC=tan(PhiBed)/max(Czz0(i,j),Small) &
+		    TauC=tan(PhiBed(i,j))/max(Czz0(i,j),Small) &
 			     *((Rhogs(i,j)*DwDt(i,j)+SLIDE_CONC*GRAIN_DENSITY*Grav) &
 				   *((DgsxL(i,j)+DgsxR(i+1,j))/2.+(DgsyL(i,j)+DgsyR(i,j+1))/2.)/2.)
             if(sqrt(DUgs(i,j)**2+DVgs(i,j)**2)>dt/Rhogs(i,j)*TauC) then
@@ -1704,6 +1742,18 @@
          DVgs(i,j) = DVgs(i,j)-dt/Rhogs(i,j)*Tbzy(i,j)
        enddo
        enddo
+	 elseif(trim(RHEO_OPT)=='VISCOUS') then
+	   call DelxH_gs
+       do j = Jbeg,Jend
+       do i = Ibeg,Iend
+	     Xib = sqrt(1.0+DelxH0(i,j)**2+DelyH0(i,j)**2)
+	     ! implicit basal stress 
+	     DUgs(i,j) = DUgs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY*Xib**2/Dgs(i,j)**2)
+	     DVgs(i,j) = DVgs(i,j)/dt/(1./dt+3.*SLIDE_VISCOSITY*Xib**2/Dgs(i,j)**2)
+		 DWgs(i,j) = DWgs(i,j)+3.*dt*SLIDE_VISCOSITY/Dgs(i,j)**2 &
+		             *(DelxH0(i,j)*Xib**2*DUgs(i,j)+DelyH0(i,j)*Xib**2*DVgs(i,j))
+       enddo
+       enddo
      endif
 	 
      ! SSP Runge-Kutta time stepping
@@ -1720,25 +1770,9 @@
      Dgs = max(Dgs,SLIDE_MINTHICK)
      call wl_bc_gs
      Hgs = Hc0-Dgs
-	 
-     ! limit the maximum Froude number
-     FROUDECAP_gs=1.0
-     DO J=Jbeg,Jend
-     DO I=Ibeg,Iend
-       IF(Maskgs(I,J)>0)THEN
-         FroudeU=SQRT(grav*Dgs(I,J))*FROUDECAP_gs*Dgs(I,J)
-         DUU=SQRT(DUgs(I,J)**2+DVgs(I,J)**2)
-         IF(DUU>FroudeU)THEN
-          Dangle=atan2(DVgs(I,J),DUgs(I,J))
-          DUgs(I,J)=FroudeU*COS(Dangle)
-          DVgs(I,J)=FroudeU*SIN(Dangle)
-         ENDIF
-       ENDIF
-     ENDDO
-     ENDDO
 
-	   ! obtain hydrostatic velocity
-	   call get_UVW_gs
+	 ! obtain hydrostatic velocity
+	 call get_UVW_gs
 	 
 	 ! vertical velocity in hydrostatic model
 	 if(.not.NON_HYDRO_SLD) then
@@ -1753,6 +1787,17 @@
 		 endif
 	   enddo
 	   enddo
+	   
+	 ! avoid non-zero DUgs/DVgs/DWgs in grid with Mask(i,j)==0
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Maskgs(i,j)==0) then
+         DUgs(i,j) = Zero
+         DVgs(i,j) = Zero
+         DWgs(i,j) = Zero
+       endif
+     enddo
+     enddo
 	 
 	 ! run non-hydrostatic simulation
 	 elseif(NON_HYDRO_SLD.and.ISTEP==It_Order) then
@@ -1764,6 +1809,47 @@
        call projection_corrector_gs
 	   
 	 endif
+	 
+# if defined (OBSTACLE)
+     ! update velocities for calculating IB forces
+     call get_UVW_gs     
+
+     ! calculate forcing at obstacle boundary                                                                                    
+     call imm_obs_gs
+
+     do j = Jbeg,Jend
+     do i = Ibeg,Iend
+       if(Maskgs(i,j)==0) cycle
+
+       if(set_flag_gs(i,j)==1) then
+         DUgs(i,j) = Dgs(i,j)*obs_u
+         DVgs(i,j) = Dgs(i,j)*obs_v
+         DWgs(i,j) = Dgs(i,j)*obs_w
+       else
+         DUgs(i,j) = DUgs(i,j)+dt*ObsForceX_gs(i,j)
+         DVgs(i,j) = DVgs(i,j)+dt*ObsForceY_gs(i,j)
+         DWgs(i,j) = DWgs(i,j)+dt*ObsForceZ_gs(i,j)
+       endif
+     enddo
+     enddo
+# endif
+	 
+     ! limit the maximum Froude number
+!     FROUDECAP_gs=5.0
+!     DO J=Jbeg,Jend
+!     DO I=Ibeg,Iend
+!       IF(Maskgs(I,J)>0)THEN
+!         FroudeU=SQRT(grav*Dgs(I,J))*FROUDECAP_gs*Dgs(I,J)
+!         DUU=SQRT(DUgs(I,J)**2+DVgs(I,J)**2+DWgs(I,J)**2)
+!         IF(DUU>FroudeU)THEN
+!          Dangle=atan2(DVgs(I,J),DUgs(I,J))
+!          DUgs(I,J)=FroudeU*COS(Dangle)
+!          DVgs(I,J)=FroudeU*SIN(Dangle)
+!		  DWgs(i,j)=Zero
+!         ENDIF
+!       ENDIF
+!     ENDDO
+!     ENDDO
 
      ! update maskgs for deformable slide
 	 ! call update_maskgs
@@ -2069,7 +2155,7 @@
 	 if (NON_HYDRO_UP) then
        do j = 1,Nloc
        do i = 1,Mloc
-         Qtgs(i,j) = P(i,j,kbeg)! dynamic pressure over the slide
+         Qtgs(i,j) = P(i,j,kbeg)*Mask(i,j)! dynamic pressure over the slide
        enddo
        enddo
 	 else
@@ -2624,9 +2710,13 @@
      use global
      implicit none
      integer :: i,j
-     real(SP), dimension(:,:),allocatable :: DelxQtgs,DelyQtgs,WtgsC,WbgsC,DIV
-	 REAL(SP) :: DelxQbgs,DelyQbgs,UgsC,VgsC,DelxH0C,DelyH0C,DgsC,QtgsC, &
-	             UgsR,UgsL,VgsB,VgsF,MAXDIV
+     real(SP), dimension(:,:),allocatable :: DelxQtgs,DelyQtgs,WtgsC,WbgsC,DIV, &
+	                                         UgsR,UgsL,VgsB,VgsF
+	 REAL(SP) :: UgsC,VgsC,DelxH0C,DelyH0C,DgsC,QtgsC,MAXDIV, &
+	             DelxQtgsR,DelxQbgsR,QtgsR,QbgsR,DelxHgsR,DelxH0R,DelxDgsR,DgsR,NHTR,NHBR, &
+				 DelxQtgsL,DelxQbgsL,QtgsL,QbgsL,DelxHgsL,DelxH0L,DelxDgsL,DgsL,NHTL,NHBL, &
+				 DelyQtgsB,DelyQbgsB,QtgsB,QbgsB,DelyHgsB,DelyH0B,DelyDgsB,DgsB,NHTB,NHBB, &
+				 DelyQtgsF,DelyQbgsF,QtgsF,QbgsF,DelyHgsF,DelyH0F,DelyDgsF,DgsF,NHTF,NHBF
 # if defined (PARALLEL)
      real(SP) :: myvar
 # endif
@@ -2636,6 +2726,10 @@
      allocate(WtgsC(MlocC,NlocC))
      allocate(WbgsC(MlocC,NlocC))
 	 allocate(DIV(MlocC,NlocC))
+	 allocate(UgsR(MlocC,NlocC))
+	 allocate(UgsL(MlocC,NlocC))
+	 allocate(VgsB(MlocC,NlocC))
+	 allocate(VgsF(MlocC,NlocC))
 	 
 	 DelxQtgs=Zero;DelyQtgs=Zero
 	 call DelxH_gs
@@ -2645,39 +2739,63 @@
 	 call delyFun_nl_gs_2D(Qtgs,DelyQtgs)
      call delxFun_nl_gs_2D(Hgs,DelxHgs)
 	 call delyFun_nl_gs_2D(Hgs,DelyHgs)
-
-     ! update Ugs and Vgs by non-hydrostatic pressure
-     do j = Jbeg,Jend
-	 do i = Ibeg,Iend
-!       if(Maskgs(i,j)==0) cycle
-         DelxQbgs=1./(2.*dx)*(QbgsC(i+1,j+1)-QbgsC(i,j+1)+QbgsC(i+1,j)-QbgsC(i,j))
-         DelyQbgs=1./(2.*dy)*(QbgsC(i+1,j+1)+QbgsC(i,j+1)-QbgsC(i+1,j)-QbgsC(i,j))
-         Ugs(i,j)=Ugs(i,j)-dt/Rhogs(i,j)/Dgs(i,j) &
-		 *(1./3.*(Dgs(i,j)*DelxQtgs(i,j)+Qtgs(i,j)*DelxDgs(i,j))+Qtgs(i,j)*DelxHgs(i,j) &
-		  +2./3.*(Dgs(i,j)*DelxQbgs     +Qbgs(i,j)*DelxDgs(i,j))-Qbgs(i,j)*DelxH0(i,j))
-         Vgs(i,j)=Vgs(i,j)-dt/Rhogs(i,j)/Dgs(i,j) &
-		 *(1./3.*(Dgs(i,j)*DelyQtgs(i,j)+Qtgs(i,j)*DelyDgs(i,j))+Qtgs(i,j)*DelyHgs(i,j) &
-		  +2./3.*(Dgs(i,j)*DelyQbgs     +Qbgs(i,j)*DelyDgs(i,j))-Qbgs(i,j)*DelyH0(i,j))
-         DUgs(i,j)=Ugs(i,j)*Dgs(i,j)
-         DVgs(i,j)=Vgs(i,j)*Dgs(i,j)
-     enddo
-     enddo
 	 
-     ! collect data into ghost cells
-     call vel_bc_gs
-# if defined (PARALLEL)
-     call phi_2D_exch(Ugs)
-     call phi_2D_exch(Vgs)
-     call phi_2D_exch(DUgs)
-     call phi_2D_exch(DVgs)
-# endif
-	 
-	 ! update Wgs by non-hydrostatic pressure
+	 ! update Ugs and Vgs at cell face, Wgs at cell corner
 	 WtgsC=Zero;WbgsC=Zero;WgsC=Zero
+	 UgsR=Zero;UgsL=Zero;VgsB=Zero;VgsF=Zero
      do j = Jbeg,JendC
 	 do i = Ibeg,IendC
-         UgsC=0.25*(Ugs(i,j)+Ugs(i-1,j)+Ugs(i,j-1)+Ugs(i-1,j-1))
-         VgsC=0.25*(Vgs(i,j)+Vgs(i-1,j)+Vgs(i,j-1)+Vgs(i-1,j-1))
+	     !UgsR
+         DelxQtgsR=0.5*(DelxQtgs(i,j)+DelxQtgs(i,j-1))
+		 DelxQbgsR=(QbgsC(i+1,j)-QbgsC(i,j))/dx
+         QtgsR=0.5*(Qtgs(i,j)+Qtgs(i,j-1))
+		 QbgsR=0.5*(QbgsC(i+1,j)+QbgsC(i,j))
+         DelxHgsR=0.5*(DelxHgs(i,j)+DelxHgs(i,j-1))
+		 DelxH0R=0.5*(DelxH0(i,j)+DelxH0(i,j-1))
+         DelxDgsR=0.5*(DelxDgs(i,j)+DelxDgs(i,j-1))
+         DgsR=0.5*(Dgs(i,j)+Dgs(i,j-1))
+         NHTR=-(dt/DgsR/Rhogs(i,j))*((1.0/3.0)*DgsR*DelxQtgsR+(1.0/3.0)*QtgsR*DelxDgsR+QtgsR*DelxHgsR)
+		 NHBR=-(dt/DgsR/Rhogs(i,j))*((2.0/3.0)*DgsR*DelxQbgsR+(2.0/3.0)*QbgsR*DelxDgsR-QbgsR*DelxH0R)
+		 UgsR(i,j)=0.5*(Ugs(i,j)+Ugs(i,j-1))+NHTR+NHBR
+	     !UgsL
+         DelxQtgsL=0.5*(DelxQtgs(i-1,j)+DelxQtgs(i-1,j-1))
+		 DelxQbgsL=(QbgsC(i,j)-QbgsC(i-1,j))/dx
+         QtgsL=0.5*(Qtgs(i-1,j)+Qtgs(i-1,j-1))
+		 QbgsL=0.5*(QbgsC(i,j)+QbgsC(i-1,j))
+         DelxHgsL=0.5*(DelxHgs(i-1,j)+DelxHgs(i-1,j-1))
+		 DelxH0L=0.5*(DelxH0(i-1,j)+DelxH0(i-1,j-1))
+         DelxDgsL=0.5*(DelxDgs(i-1,j)+DelxDgs(i-1,j-1))
+         DgsL=0.5*(Dgs(i-1,j)+Dgs(i-1,j-1))
+         NHTL=-(dt/DgsL/Rhogs(i,j))*((1.0/3.0)*DgsL*DelxQtgsL+(1.0/3.0)*QtgsL*DelxDgsL+QtgsL*DelxHgsL)
+		 NHBL=-(dt/DgsL/Rhogs(i,j))*((2.0/3.0)*DgsL*DelxQbgsL+(2.0/3.0)*QbgsL*DelxDgsL-QbgsL*DelxH0L)
+		 UgsL(i,j)=0.5*(Ugs(i-1,j)+Ugs(i-1,j-1))+NHTL+NHBL
+	     !VgsB
+         DelyQtgsB=0.5*(DelyQtgs(i,j)+DelyQtgs(i-1,j))
+		 DelyQbgsB=(QbgsC(i,j+1)-QbgsC(i,j))/dy
+         QtgsB=0.5*(Qtgs(i,j)+Qtgs(i-1,j))
+		 QbgsB=0.5*(QbgsC(i,j+1)+QbgsC(i,j))
+         DelyHgsB=0.5*(DelyHgs(i,j)+DelyHgs(i-1,j))
+		 DelyH0B=0.5*(DelyH0(i,j)+DelyH0(i-1,j))
+         DelyDgsB=0.5*(DelyDgs(i,j)+DelyDgs(i-1,j))
+         DgsB=0.5*(Dgs(i,j)+Dgs(i-1,j))
+         NHTB=-(dt/DgsB/Rhogs(i,j))*((1.0/3.0)*DgsB*DelyQtgsB+(1.0/3.0)*QtgsB*DelyDgsB+QtgsB*DelyHgsB)
+		 NHBB=-(dt/DgsB/Rhogs(i,j))*((2.0/3.0)*DgsB*DelyQbgsB+(2.0/3.0)*QbgsB*DelyDgsB-QbgsB*DelyH0B)
+		 VgsB(i,j)=0.5*(Vgs(i,j)+Vgs(i-1,j))+NHTB+NHBB
+	     !VgsF
+         DelyQtgsF=0.5*(DelyQtgs(i,j-1)+DelyQtgs(i-1,j-1))
+		 DelyQbgsF=(QbgsC(i,j)-QbgsC(i,j-1))/dy
+         QtgsF=0.5*(Qtgs(i,j-1)+Qtgs(i-1,j-1))
+		 QbgsF=0.5*(QbgsC(i,j)+QbgsC(i,j-1))
+         DelyHgsF=0.5*(DelyHgs(i,j-1)+DelyHgs(i-1,j-1))
+		 DelyH0F=0.5*(DelyH0(i,j-1)+DelyH0(i-1,j-1))
+         DelyDgsF=0.5*(DelyDgs(i,j-1)+DelyDgs(i-1,j-1))
+         DgsF=0.5*(Dgs(i,j-1)+Dgs(i-1,j-1))
+         NHTF=-(dt/DgsF/Rhogs(i,j))*((1.0/3.0)*DgsF*DelyQtgsF+(1.0/3.0)*QtgsF*DelyDgsF+QtgsF*DelyHgsF)
+		 NHBF=-(dt/DgsF/Rhogs(i,j))*((2.0/3.0)*DgsF*DelyQbgsF+(2.0/3.0)*QbgsF*DelyDgsF-QbgsF*DelyH0F)
+		 VgsF(i,j)=0.5*(Vgs(i,j-1)+Vgs(i-1,j-1))+NHTF+NHBF
+	     !WbgsC&WtgsC
+         UgsC=0.5*(UgsR(i,j)+UgsL(i,j))
+         VgsC=0.5*(VgsB(i,j)+VgsF(i,j))
          WgsC(i,j)=0.25*(Wgs(i,j)+Wgs(i-1,j)+Wgs(i,j-1)+Wgs(i-1,j-1))
          DelxH0C=1./(2.*dx)*(Hc0(i,j)-Hc0(i-1,j)+Hc0(i,j-1)-Hc0(i-1,j-1))
          DelyH0C=1./(2.*dy)*(Hc0(i,j)+Hc0(i-1,j)-Hc0(i,j-1)-Hc0(i-1,j-1))
@@ -2688,13 +2806,21 @@
          WgsC(i,j)=0.5*(WtgsC(i,j)+WbgsC(i,j))
      enddo
      enddo
+	 call phiC_2D_coll(UgsR)
+	 call phiC_2D_coll(UgsL)
+	 call phiC_2D_coll(VgsB)
+	 call phiC_2D_coll(VgsF)
 	 call phiC_2D_coll(WbgsC)
 	 call phiC_2D_coll(WtgsC)
 	 call phiC_2D_coll(WgsC)
 	 
-	 ! interpolate Wgs from cell corner to cell center
+	 ! Obtain Ugs, Vgs and Wgs at cell center by interpolations
      do j = Jbeg,Jend
 	 do i = Ibeg,Iend
+         Ugs(i,j)=0.5*(UgsR(i,j+1)+UgsR(i,j))
+         DUgs(i,j)=Ugs(i,j)*Dgs(i,j)
+         Vgs(i,j)=0.5*(VgsB(i+1,j)+VgsB(i,j))
+         DVgs(i,j)=Vgs(i,j)*Dgs(i,j)
 	     Wtgs(i,j)=0.25*(WtgsC(i+1,j+1)+WtgsC(i,j+1)+WtgsC(i+1,j)+WtgsC(i,j))
 		 Wbgs(i,j)=0.25*(WbgsC(i+1,j+1)+WbgsC(i,j+1)+WbgsC(i+1,j)+WbgsC(i,j))
          Wgs(i,j)=0.25*(WgsC(i+1,j+1)+WgsC(i,j+1)+WgsC(i+1,j)+WgsC(i,j))
@@ -2707,7 +2833,11 @@
 	 ! collect data into ghost cells
      call vel_bc_gs
 # if defined (PARALLEL)
+     call phi_2D_exch(Ugs)
+     call phi_2D_exch(Vgs)
 	 call phi_2D_exch(Wgs)
+     call phi_2D_exch(DUgs)
+     call phi_2D_exch(DVgs)
 	 call phi_2D_exch(DWgs)
 # endif
 
@@ -2715,12 +2845,8 @@
 	 DIV=Zero
      do j = Jbeg,JendC
 	 do i = Ibeg,IendC
-            UgsR=0.5*(Ugs(i,j)+Ugs(i,j-1))
-            UgsL=0.5*(Ugs(i-1,j)+Ugs(i-1,j-1))
-            VgsB=0.5*(Vgs(i,j)+Vgs(i-1,j))
-            VgsF=0.5*(Vgs(i,j-1)+Vgs(i-1,j-1))
             DgsC=0.25*(Dgs(i,j)+Dgs(i-1,j)+Dgs(i,j-1)+Dgs(i-1,j-1))
-            DIV(i,j)=(UgsR-UgsL)/dx+(VgsB-VgsF)/dy+(WtgsC(i,j)-WbgsC(i,j))/DgsC
+            DIV(i,j)=(UgsR(i,j)-UgsL(i,j))/dx+(VgsB(i,j)-VgsF(i,j))/dy+(WtgsC(i,j)-WbgsC(i,j))/DgsC
      enddo
      enddo
 	 MAXDIV = MAXVAL(abs(DIV(Ibeg:IendC,Jbeg:JendC)))
@@ -2730,11 +2856,11 @@
 # endif
      !print
 # if defined (PARALLEL)
-!     if(myid.eq.0) then
+     if(myid.eq.0) then
 # endif
-!     WRITE(*,*),'MAXDIV:  ',MAXDIV
+     WRITE(*,*),'MAXDIV:  ',MAXDIV
 # if defined (PARALLEL)
-!     endif
+     endif
 # endif
  
      deallocate(DelxQtgs)
@@ -2742,9 +2868,301 @@
      deallocate(WtgsC)
 	 deallocate(WbgsC)
 	 deallocate(DIV)
+	 deallocate(UgsR)
+	 deallocate(UgsL)
+	 deallocate(VgsB)
+	 deallocate(VgsF)
 
      return
      end subroutine projection_corrector_gs
+
+# if defined (OBSTACLE)
+    subroutine imm_obs_gs
+!---------------------------------------------------------------------
+!   Immersed-Boundary Method
+!   Calculate forcing at the obstacle boundary
+!   by Cheng Zhang, 21/07/2020
+!--------------------------------------------------------------------
+    use global
+    implicit none
+    real(SP),dimension(:),allocatable :: target_vel,target_dist
+    integer :: i,j,l,count
+    real(SP) :: numer,denom,force_vel,dista,vel_grad
+
+    ! calculate forcing at boundaries
+    ObsForceX_gs = Zero
+    ObsForceY_gs = Zero
+    ObsForceZ_gs = Zero
+
+    allocate(target_vel(1:4))
+    allocate(target_dist(1:4))
+
+    !no-slip
+    ! x-direction
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      ! for slide cells
+      if(set_flag_gs(i,j)==0) then
+        count = 0
+        target_vel = 0.0
+        target_dist = 0.0
+
+        ! i.e. (i,j) is slide, (i-1,j) is obstacle
+        if(set_flag_gs(i-1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i+1,j) to obstacle/slide interface
+          dista = dista+(xc(i+1)-xc(i))
+          vel_grad = (Ugs(i+1,j)-obs_u)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(xc(i+1)-xc(i))
+          target_vel(count) = obs_u+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i+1,j) is obstacle
+        if(set_flag_gs(i+1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j) 
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i-1,j) to obstacle/slide interface  
+          dista = dista+(xc(i)-xc(i-1))
+          vel_grad = (obs_u-Ugs(i-1,j))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(xc(i)-xc(i-1))
+          target_vel(count) = obs_u-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j-1) is obstacle
+        if(Nloc>=2.and.set_flag_gs(i,j-1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j+1) to obstacle/slide interface 
+          dista = dista+(yc(j+1)-yc(j))
+          vel_grad = (Ugs(i,j+1)-obs_u)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j) 
+          dista = dista-(yc(j+1)-yc(j))
+          target_vel(count) = obs_u+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j+1) is obstacle 
+        if((Nloc>=2).and.set_flag_gs(i,j+1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j-1) to obstacle/slide interface 
+          dista = dista+(yc(j)-yc(j-1))
+          vel_grad = (obs_u-Ugs(i,j-1))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(yc(j)-yc(j-1))
+          target_vel(count) = obs_u-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! Search for target distances that are zero, to avoid divide-by-zero problems.
+        if(count>=1) then
+          numer = 0.0
+          denom = 0.0
+          do l = 1,count
+            if (target_dist(l)<1.e-16) then
+              force_vel = target_vel(l)
+              goto 1
+            else
+              numer = numer+target_vel(l)*1.0/target_dist(l)
+              denom = denom+1.0/target_dist(l)
+            endif
+          enddo
+          force_vel = numer/denom
+ 1        continue
+          ObsForceX_gs(i,j) = (Dgs(i,j)*force_vel-DUgs(i,j))/dt
+        endif
+      endif
+    enddo
+    enddo
+
+    ! y-direction
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      ! for slide cells
+      if(set_flag_gs(i,j)==0) then
+        count = 0
+        target_vel = 0.0
+        target_dist = 0.0
+
+        ! i.e. (i,j) is slide, (i-1,j) is obstacle
+        if(set_flag_gs(i-1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i+1,j) to obstacle/slide interface
+          dista = dista+(xc(i+1)-xc(i))
+          vel_grad = (Vgs(i+1,j)-obs_v)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(xc(i+1)-xc(i))
+          target_vel(count) = obs_v+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i+1,j) is obstacle
+        if(set_flag_gs(i+1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j) 
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i-1,j) to obstacle/slide interface  
+          dista = dista+(xc(i)-xc(i-1))
+          vel_grad = (obs_v-Vgs(i-1,j))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)                                                                              
+          dista = dista-(xc(i)-xc(i-1))
+          target_vel(count) = obs_v-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j-1) is obstacle
+        if(Nloc>=2.and.set_flag_gs(i,j-1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j+1) to obstacle/slide interface 
+          dista = dista+(yc(j+1)-yc(j))
+          vel_grad = (Vgs(i,j+1)-obs_v)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j) 
+          dista = dista-(yc(j+1)-yc(j))
+          target_vel(count) = obs_v+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j+1) is obstacle 
+        if((Nloc>=2).and.set_flag_gs(i,j+1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j-1) to obstacle/slide interface 
+          dista = dista+(yc(j)-yc(j-1))
+          vel_grad = (obs_v-Vgs(i,j-1))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(yc(j)-yc(j-1))
+          target_vel(count) = obs_v-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! Search for target distances that are zero, to avoid divide-by-zero problems.
+        if(count>=1) then
+          numer = 0.0
+          denom = 0.0
+          do l = 1,count
+            if (target_dist(l)<1.e-16) then
+              force_vel = target_vel(l)
+              goto 2
+            else
+              numer = numer+target_vel(l)*1.0/target_dist(l)
+              denom = denom+1.0/target_dist(l)
+            endif
+          enddo
+          force_vel = numer/denom
+ 2        continue
+          ObsForceY_gs(i,j) = (Dgs(i,j)*force_vel-DVgs(i,j))/dt
+        endif
+      endif
+    enddo
+    enddo
+ 
+    ! z-direction
+    do j = Jbeg,Jend
+    do i = Ibeg,Iend
+      ! for slide cells
+      if(set_flag_gs(i,j)==0) then
+        count = 0
+        target_vel = 0.0
+        target_dist = 0.0
+
+        ! i.e. (i,j) is slide, (i-1,j) is obstacle
+        if(set_flag_gs(i-1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i+1,j) to obstacle/slide interface
+          dista = dista+(xc(i+1)-xc(i))
+          vel_grad = (Wgs(i+1,j)-obs_w)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(xc(i+1)-xc(i))
+          target_vel(count) = obs_w+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i+1,j) is obstacle
+        if(set_flag_gs(i+1,j)==1.and.set_dist_x_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j) 
+          dista = set_dist_x_gs(i,j)
+          ! compute velocity gradient from (i-1,j) to obstacle/slide interface  
+          dista = dista+(xc(i)-xc(i-1))
+          vel_grad = (obs_w-Wgs(i-1,j))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)                                                                              
+          dista = dista-(xc(i)-xc(i-1))
+          target_vel(count) = obs_w-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j-1) is obstacle
+        if(Nloc>=2.and.set_flag_gs(i,j-1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j+1) to obstacle/slide interface 
+          dista = dista+(yc(j+1)-yc(j))
+          vel_grad = (Wgs(i,j+1)-obs_w)/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j) 
+          dista = dista-(yc(j+1)-yc(j))
+          target_vel(count) = obs_w+vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! i.e. (i,j) is slide, (i,j+1) is obstacle 
+        if((Nloc>=2).and.set_flag_gs(i,j+1)==1.and.set_dist_y_gs(i,j)<1.e+10) then
+          count = count+1
+          ! Determine distance of interface to point (i,j)
+          dista = set_dist_y_gs(i,j)
+          ! compute velocity gradient from (i,j-1) to obstacle/slide interface 
+          dista = dista+(yc(j)-yc(j-1))
+          vel_grad = (obs_w-Wgs(i,j-1))/dista
+          ! interpolate velocity from obstacle/slide interface to (i,j)
+          dista = dista-(yc(j)-yc(j-1))
+          target_vel(count) = obs_w-vel_grad*dista
+          target_dist(count) = dista
+        endif
+
+        ! Search for target distances that are zero, to avoid divide-by-zero problems.
+        if(count>=1) then
+          numer = 0.0
+          denom = 0.0
+          do l = 1,count
+            if (target_dist(l)<1.e-16) then
+              force_vel = target_vel(l)
+              goto 3
+            else
+              numer = numer+target_vel(l)*1.0/target_dist(l)
+              denom = denom+1.0/target_dist(l)
+            endif
+          enddo
+          force_vel = numer/denom
+ 3        continue
+          ObsForceZ_gs(i,j) = (Dgs(i,j)*force_vel-DWgs(i,j))/dt
+        endif
+      endif
+    enddo
+    enddo
+	
+    deallocate(target_vel)
+    deallocate(target_dist)
+ 1000 continue
+
+    return
+    end subroutine imm_obs_gs
+# endif
 	 
      subroutine delxFun_nl_gs_2D(Din,Dout)
 !-------------------------------------------
